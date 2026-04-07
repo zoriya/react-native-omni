@@ -1,4 +1,4 @@
-package com.omni
+package dev.zoriya.omni
 
 import android.graphics.Color
 import android.view.View

@@ -28,7 +28,7 @@ int initialize(JavaVM* vm) {
 }
 
 struct JHybridOmniSpecImpl: public jni::JavaClass<JHybridOmniSpecImpl, JHybridOmniSpec::JavaPart> {
-  static constexpr auto kJavaDescriptor = "Lcom/omni/HybridOmni;";
+  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/HybridOmni;";
   static std::shared_ptr<JHybridOmniSpec> create() {
     static const auto constructorFn = javaClassStatic()->getConstructor<JHybridOmniSpecImpl::javaobject()>();
     jni::local_ref<JHybridOmniSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);

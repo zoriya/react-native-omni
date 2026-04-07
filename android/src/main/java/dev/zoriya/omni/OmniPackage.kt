@@ -1,4 +1,4 @@
-package com.omni;
+package dev.zoriya.omni;
 
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;

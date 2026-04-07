@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.omniexample"
+    namespace "dev.zoriya.omniexample"
     defaultConfig {
-        applicationId "com.omniexample"
+        applicationId "dev.zoriya.omniexample"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -14,7 +14,7 @@ import com.facebook.react.uimanager.StateWrapper
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.R.id.associated_hybrid_view_tag
 import com.margelo.nitro.views.RecyclableView
-import com.omni.*
+import dev.zoriya.omni.*
 
 /**
  * Represents the React Native `ViewManager` for the "Omni" Nitro HybridView.
