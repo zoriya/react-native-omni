@@ -21,7 +21,7 @@ import dev.zoriya.omni.*
  */
 public class HybridOmniViewManager: SimpleViewManager<View>() {
   init {
-    if (RecyclableView::class.java.isAssignableFrom(OmniView::class.java)) {
+    if (RecyclableView::class.java.isAssignableFrom(HybridOmniView::class.java)) {
       // Enable view recycling
       super.setupViewRecycling()
     }
@@ -32,7 +32,7 @@ public class HybridOmniViewManager: SimpleViewManager<View>() {
   }
 
   override fun createViewInstance(reactContext: ThemedReactContext): View {
-    val hybridView = OmniView(reactContext)
+    val hybridView = HybridOmniView(reactContext)
     val view = hybridView.view
     view.setTag(associated_hybrid_view_tag, hybridView)
     return view
@@ -74,7 +74,7 @@ public class HybridOmniViewManager: SimpleViewManager<View>() {
     }
   }
 
-  private fun getHybridView(view: View): OmniView? {
-    return view.getTag(associated_hybrid_view_tag) as? OmniView
+  private fun getHybridView(view: View): HybridOmniView? {
+    return view.getTag(associated_hybrid_view_tag) as? HybridOmniView
   }
 }

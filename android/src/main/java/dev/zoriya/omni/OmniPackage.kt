@@ -16,7 +16,7 @@ public class OmniPackage : BaseReactPackage() {
   
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
     val viewManagers = ArrayList<ViewManager<*, *>>()
-    viewManagers.add(HybridOmniManager())
+    viewManagers.add(HybridOmniViewManager())
     return viewManagers
   }
 

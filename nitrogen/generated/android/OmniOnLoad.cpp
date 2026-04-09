@@ -31,23 +31,15 @@ int initialize(JavaVM* vm) {
 }
 
 struct JHybridOmniViewSpecImpl: public jni::JavaClass<JHybridOmniViewSpecImpl, JHybridOmniViewSpec::JavaPart> {
-  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/OmniView;";
+  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/HybridOmniView;";
   static std::shared_ptr<JHybridOmniViewSpec> create() {
     static const auto constructorFn = javaClassStatic()->getConstructor<JHybridOmniViewSpecImpl::javaobject()>();
     jni::local_ref<JHybridOmniViewSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
     return javaPart->getJHybridOmniViewSpec();
   }
 };
-struct JHybridOmniPlayerSpecImpl: public jni::JavaClass<JHybridOmniPlayerSpecImpl, JHybridOmniPlayerSpec::JavaPart> {
-  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/OmniPlayer;";
-  static std::shared_ptr<JHybridOmniPlayerSpec> create() {
-    static const auto constructorFn = javaClassStatic()->getConstructor<JHybridOmniPlayerSpecImpl::javaobject()>();
-    jni::local_ref<JHybridOmniPlayerSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
-    return javaPart->getJHybridOmniPlayerSpec();
-  }
-};
 struct JHybridOmniPlayerFactorySpecImpl: public jni::JavaClass<JHybridOmniPlayerFactorySpecImpl, JHybridOmniPlayerFactorySpec::JavaPart> {
-  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/OmniPlayerFactory;";
+  static constexpr auto kJavaDescriptor = "Ldev/zoriya/omni/HybridOmniPlayerFactory;";
   static std::shared_ptr<JHybridOmniPlayerFactorySpec> create() {
     static const auto constructorFn = javaClassStatic()->getConstructor<JHybridOmniPlayerFactorySpecImpl::javaobject()>();
     jni::local_ref<JHybridOmniPlayerFactorySpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
@@ -71,12 +63,6 @@ void registerAllNatives() {
     "OmniView",
     []() -> std::shared_ptr<HybridObject> {
       return JHybridOmniViewSpecImpl::create();
-    }
-  );
-  HybridObjectRegistry::registerHybridObjectConstructor(
-    "OmniPlayer",
-    []() -> std::shared_ptr<HybridObject> {
-      return JHybridOmniPlayerSpecImpl::create();
     }
   );
   HybridObjectRegistry::registerHybridObjectConstructor(

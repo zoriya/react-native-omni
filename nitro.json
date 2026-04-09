@@ -12,19 +12,13 @@
 		"OmniView": {
 			"android": {
 				"language": "kotlin",
-				"implementationClassName": "OmniView"
-			}
-		},
-		"OmniPlayer": {
-			"android": {
-				"language": "kotlin",
-				"implementationClassName": "OmniPlayer"
+				"implementationClassName": "HybridOmniView"
 			}
 		},
 		"OmniPlayerFactory": {
 			"android": {
 				"language": "kotlin",
-				"implementationClassName": "OmniPlayerFactory"
+				"implementationClassName": "HybridOmniPlayerFactory"
 			}
 		}
 	},

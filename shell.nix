@@ -23,7 +23,7 @@ in
       nodejs
       biome
       jdk
-      (android-studio.withSdk android.androidsdk)
+      ((android-studio.withSdk android.androidsdk).overrideAttrs {forceWayland = true;})
     ];
 
     shellHook = ''
