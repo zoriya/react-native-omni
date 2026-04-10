@@ -10,7 +10,6 @@ package com.margelo.nitro.omni
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
-import com.margelo.nitro.core.NullType
 import com.margelo.nitro.core.HybridObject
 
 /**
@@ -115,11 +114,11 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
-  abstract fun selectSubtitle(subtitle: Track): Unit
+  abstract fun selectSubtitle(subtitle: Track?): Unit
   
   @DoNotStrip
   @Keep
-  abstract fun selectRendition(rendition: Variant_NullType_Rendition?): Unit
+  abstract fun selectRendition(rendition: Rendition?): Unit
 
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {

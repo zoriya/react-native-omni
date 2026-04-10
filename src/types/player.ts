@@ -23,9 +23,9 @@ export interface OmniPlayer {
 	readonly audios: Track[];
 	selectAudio(audio: Track): void;
 	readonly subtitles: Track[];
-	selectSubtitle(subtitle: Track): void;
+	selectSubtitle(subtitle?: Track): void;
 	readonly rendition: Rendition[];
-	selectRendition(rendition: Rendition | null): void;
+	selectRendition(rendition?: Rendition): void;
 }
 
 export type PlayerStatus = "idle" | "loading" | "readyToPlay" | "error";

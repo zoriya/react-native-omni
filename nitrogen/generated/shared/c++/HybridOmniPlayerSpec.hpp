@@ -24,8 +24,6 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "Track.hpp"
 #include <vector>
 #include "Rendition.hpp"
-#include <NitroModules/Null.hpp>
-#include <variant>
 #include <optional>
 
 namespace margelo::nitro::omni {
@@ -81,8 +79,8 @@ namespace margelo::nitro::omni {
       virtual void playNext() = 0;
       virtual void selectVideo(const Track& video) = 0;
       virtual void selectAudio(const Track& audio) = 0;
-      virtual void selectSubtitle(const Track& subtitle) = 0;
-      virtual void selectRendition(const std::optional<std::variant<nitro::NullType, Rendition>>& rendition) = 0;
+      virtual void selectSubtitle(const std::optional<Track>& subtitle) = 0;
+      virtual void selectRendition(const std::optional<Rendition>& rendition) = 0;
 
     protected:
       // Hybrid Setup

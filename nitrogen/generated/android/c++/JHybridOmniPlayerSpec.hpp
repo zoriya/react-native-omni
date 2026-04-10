@@ -76,8 +76,8 @@ namespace margelo::nitro::omni {
     void playNext() override;
     void selectVideo(const Track& video) override;
     void selectAudio(const Track& audio) override;
-    void selectSubtitle(const Track& subtitle) override;
-    void selectRendition(const std::optional<std::variant<nitro::NullType, Rendition>>& rendition) override;
+    void selectSubtitle(const std::optional<Track>& subtitle) override;
+    void selectRendition(const std::optional<Rendition>& rendition) override;
 
   private:
     jni::global_ref<JHybridOmniPlayerSpec::JavaPart> _javaPart;

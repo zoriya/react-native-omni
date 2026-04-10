@@ -41,7 +41,6 @@ target_sources(
   # Android-specific Nitrogen C++ sources
   ../nitrogen/generated/android/c++/JHybridOmniPlayerPropsSpec.cpp
   ../nitrogen/generated/android/c++/JHybridOmniPlayerSpec.cpp
-  ../nitrogen/generated/android/c++/JVariant_NullType_Rendition.cpp
   ../nitrogen/generated/android/c++/JHybridOmniPlayerFactorySpec.cpp
   ../nitrogen/generated/android/c++/JHybridOmniViewSpec.cpp
   ../nitrogen/generated/android/c++/views/JHybridOmniViewStateUpdater.cpp

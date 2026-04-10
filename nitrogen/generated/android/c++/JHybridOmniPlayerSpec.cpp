@@ -23,10 +23,6 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include <optional>
 #include "Rendition.hpp"
 #include "JRendition.hpp"
-#include <NitroModules/Null.hpp>
-#include <variant>
-#include "JVariant_NullType_Rendition.hpp"
-#include <NitroModules/JNull.hpp>
 
 namespace margelo::nitro::omni {
 
@@ -201,13 +197,13 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrack> /* audio */)>("selectAudio");
     method(_javaPart, JTrack::fromCpp(audio));
   }
-  void JHybridOmniPlayerSpec::selectSubtitle(const Track& subtitle) {
+  void JHybridOmniPlayerSpec::selectSubtitle(const std::optional<Track>& subtitle) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrack> /* subtitle */)>("selectSubtitle");
-    method(_javaPart, JTrack::fromCpp(subtitle));
+    method(_javaPart, subtitle.has_value() ? JTrack::fromCpp(subtitle.value()) : nullptr);
   }
-  void JHybridOmniPlayerSpec::selectRendition(const std::optional<std::variant<nitro::NullType, Rendition>>& rendition) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JVariant_NullType_Rendition> /* rendition */)>("selectRendition");
-    method(_javaPart, rendition.has_value() ? JVariant_NullType_Rendition::fromCpp(rendition.value()) : nullptr);
+  void JHybridOmniPlayerSpec::selectRendition(const std::optional<Rendition>& rendition) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JRendition> /* rendition */)>("selectRendition");
+    method(_javaPart, rendition.has_value() ? JRendition::fromCpp(rendition.value()) : nullptr);
   }
 
 } // namespace margelo::nitro::omni
