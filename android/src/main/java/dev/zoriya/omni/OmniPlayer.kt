@@ -13,13 +13,16 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
 
-class OmniPlayer() : HybridOmniPlayerSpec() {
+object VlcConst {
     val vlc = LibVLC(NitroModules.applicationContext ?: throw Error("No Context available!"))
-    val player = MediaPlayer(vlc)
+}
+
+class OmniPlayer() : HybridOmniPlayerSpec() {
+    val player = MediaPlayer(VlcConst.vlc)
 
     override var source: Source by deferredObservable { _, _, new ->
         val src = new.src.firstOrNull()?.uri ?: return@deferredObservable
-        player.media = Media(vlc, Uri.parse(src))
+        player.media = Media(VlcConst.vlc, Uri.parse(src))
         new.startTime?.let { start ->
             player.time = (start * 1000.0).toLong().coerceAtLeast(0L)
         }

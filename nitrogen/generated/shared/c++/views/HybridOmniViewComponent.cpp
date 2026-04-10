@@ -26,6 +26,16 @@ namespace margelo::nitro::omni::views {
                                            const HybridOmniViewProps& sourceProps,
                                            const react::RawProps& rawProps):
     react::ViewProps(context, sourceProps, rawProps, filterObjectKeys),
+    player([&]() -> CachedProp<std::shared_ptr<HybridOmniPlayerSpec>> {
+      try {
+        const react::RawValue* rawValue = rawProps.at("player", nullptr, nullptr);
+        if (rawValue == nullptr) return sourceProps.player;
+        const auto& [runtime, value] = (std::pair<jsi::Runtime*, jsi::Value>)*rawValue;
+        return CachedProp<std::shared_ptr<HybridOmniPlayerSpec>>::fromRawValue(*runtime, value, sourceProps.player);
+      } catch (const std::exception& exc) {
+        throw std::runtime_error(std::string("OmniView.player: ") + exc.what());
+      }
+    }()),
     autoplay([&]() -> CachedProp<std::optional<bool>> {
       try {
         const react::RawValue* rawValue = rawProps.at("autoplay", nullptr, nullptr);
@@ -69,6 +79,7 @@ namespace margelo::nitro::omni::views {
 
   bool HybridOmniViewProps::filterObjectKeys(const std::string& propName) {
     switch (hashString(propName)) {
+      case hashString("player"): return true;
       case hashString("autoplay"): return true;
       case hashString("showNotification"): return true;
       case hashString("autoPip"): return true;

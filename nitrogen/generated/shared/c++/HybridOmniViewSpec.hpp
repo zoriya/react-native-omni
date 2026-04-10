@@ -13,8 +13,11 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
+// Forward declaration of `HybridOmniPlayerSpec` to properly resolve imports.
+namespace margelo::nitro::omni { class HybridOmniPlayerSpec; }
 
-
+#include <memory>
+#include "HybridOmniPlayerSpec.hpp"
 #include <optional>
 
 namespace margelo::nitro::omni {
@@ -44,6 +47,8 @@ namespace margelo::nitro::omni {
 
     public:
       // Properties
+      virtual std::shared_ptr<HybridOmniPlayerSpec> getPlayer() = 0;
+      virtual void setPlayer(const std::shared_ptr<HybridOmniPlayerSpec>& player) = 0;
       virtual std::optional<bool> getAutoplay() = 0;
       virtual void setAutoplay(std::optional<bool> autoplay) = 0;
       virtual std::optional<bool> getShowNotification() = 0;

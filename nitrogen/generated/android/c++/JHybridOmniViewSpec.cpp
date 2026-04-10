@@ -7,8 +7,12 @@
 
 #include "JHybridOmniViewSpec.hpp"
 
+// Forward declaration of `HybridOmniPlayerSpec` to properly resolve imports.
+namespace margelo::nitro::omni { class HybridOmniPlayerSpec; }
 
-
+#include <memory>
+#include "HybridOmniPlayerSpec.hpp"
+#include "JHybridOmniPlayerSpec.hpp"
 #include <optional>
 
 namespace margelo::nitro::omni {
@@ -41,6 +45,15 @@ namespace margelo::nitro::omni {
   }
 
   // Properties
+  std::shared_ptr<HybridOmniPlayerSpec> JHybridOmniViewSpec::getPlayer() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>()>("getPlayer");
+    auto __result = method(_javaPart);
+    return __result->getJHybridOmniPlayerSpec();
+  }
+  void JHybridOmniViewSpec::setPlayer(const std::shared_ptr<HybridOmniPlayerSpec>& player) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JHybridOmniPlayerSpec::JavaPart> /* player */)>("setPlayer");
+    method(_javaPart, std::dynamic_pointer_cast<JHybridOmniPlayerSpec>(player)->getJavaPart());
+  }
   std::optional<bool> JHybridOmniViewSpec::getAutoplay() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JBoolean>()>("getAutoplay");
     auto __result = method(_javaPart);

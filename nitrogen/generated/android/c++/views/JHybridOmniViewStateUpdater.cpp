@@ -37,6 +37,10 @@ void JHybridOmniViewStateUpdater::updateViewProps(jni::alias_ref<jni::JClass> /*
   }
 
   // Update all props if they are dirty
+  if (props->player.isDirty) {
+    hybridView->setPlayer(props->player.value);
+    props->player.isDirty = false;
+  }
   if (props->autoplay.isDirty) {
     hybridView->setAutoplay(props->autoplay.value);
     props->autoplay.isDirty = false;

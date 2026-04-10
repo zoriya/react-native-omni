@@ -30,6 +30,12 @@ abstract class HybridOmniViewSpec: HybridView() {
   @get:Keep
   @set:DoNotStrip
   @set:Keep
+  abstract var player: HybridOmniPlayerSpec
+  
+  @get:DoNotStrip
+  @get:Keep
+  @set:DoNotStrip
+  @set:Keep
   abstract var autoplay: Boolean?
   
   @get:DoNotStrip

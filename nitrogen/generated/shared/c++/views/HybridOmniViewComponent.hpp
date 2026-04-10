@@ -16,8 +16,9 @@
 #include <react/renderer/components/view/ConcreteViewShadowNode.h>
 #include <react/renderer/components/view/ViewProps.h>
 
-#include <optional>
 #include <memory>
+#include "HybridOmniPlayerSpec.hpp"
+#include <optional>
 #include "HybridOmniViewSpec.hpp"
 #include <functional>
 
@@ -41,6 +42,7 @@ namespace margelo::nitro::omni::views {
                         const react::RawProps& rawProps);
 
   public:
+    CachedProp<std::shared_ptr<HybridOmniPlayerSpec>> player;
     CachedProp<std::optional<bool>> autoplay;
     CachedProp<std::optional<bool>> showNotification;
     CachedProp<std::optional<bool>> autoPip;
