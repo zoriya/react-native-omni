@@ -16,6 +16,6 @@ inline fun <T : Any> deferredObservable(
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
             val old = this.value
             this.value = value
-            onChange(old, value)
+            onChange(thisRef, old, value)
         }
     }

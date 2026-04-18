@@ -79,6 +79,8 @@ namespace margelo::nitro::omni {
       virtual void setPlaybackRate(double playbackRate) = 0;
       virtual double getVolume() = 0;
       virtual void setVolume(double volume) = 0;
+      virtual bool getMuted() = 0;
+      virtual void setMuted(bool muted) = 0;
 
     public:
       // Methods

@@ -32,6 +32,7 @@ export interface OmniPlayerState {
 	playbackRate: number;
 	// between 0 and 1
 	volume: number;
+	muted: boolean;
 }
 
 export type PlayerStatus = "idle" | "loading" | "readyToPlay" | "error";

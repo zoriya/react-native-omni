@@ -92,6 +92,12 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   @set:DoNotStrip
   @set:Keep
   abstract var volume: Double
+  
+  @get:DoNotStrip
+  @get:Keep
+  @set:DoNotStrip
+  @set:Keep
+  abstract var muted: Boolean
 
   // Methods
   @DoNotStrip

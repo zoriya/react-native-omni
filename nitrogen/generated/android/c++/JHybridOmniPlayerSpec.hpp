@@ -69,6 +69,8 @@ namespace margelo::nitro::omni {
     void setPlaybackRate(double playbackRate) override;
     double getVolume() override;
     void setVolume(double volume) override;
+    bool getMuted() override;
+    void setMuted(bool muted) override;
 
   public:
     // Methods

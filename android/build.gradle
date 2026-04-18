@@ -138,7 +138,7 @@ dependencies {
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
 
-  implementation("org.videolan.android:libvlc-all:4.0.0-eap24")
+  implementation("dev.jdtech.mpv:libmpv:1.0.0")
 }
 
 if (isNewArchitectureEnabled()) {

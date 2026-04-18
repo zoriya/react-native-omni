@@ -33,6 +33,8 @@ namespace margelo::nitro::omni {
       prototype.registerHybridSetter("playbackRate", &HybridOmniPlayerSpec::setPlaybackRate);
       prototype.registerHybridGetter("volume", &HybridOmniPlayerSpec::getVolume);
       prototype.registerHybridSetter("volume", &HybridOmniPlayerSpec::setVolume);
+      prototype.registerHybridGetter("muted", &HybridOmniPlayerSpec::getMuted);
+      prototype.registerHybridSetter("muted", &HybridOmniPlayerSpec::setMuted);
       prototype.registerHybridMethod("play", &HybridOmniPlayerSpec::play);
       prototype.registerHybridMethod("pause", &HybridOmniPlayerSpec::pause);
       prototype.registerHybridMethod("seekBy", &HybridOmniPlayerSpec::seekBy);

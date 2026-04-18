@@ -207,6 +207,15 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(double /* volume */)>("setVolume");
     method(_javaPart, volume);
   }
+  bool JHybridOmniPlayerSpec::getMuted() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jboolean()>("getMuted");
+    auto __result = method(_javaPart);
+    return static_cast<bool>(__result);
+  }
+  void JHybridOmniPlayerSpec::setMuted(bool muted) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jboolean /* muted */)>("setMuted");
+    method(_javaPart, muted);
+  }
 
   // Methods
   void JHybridOmniPlayerSpec::play() {
