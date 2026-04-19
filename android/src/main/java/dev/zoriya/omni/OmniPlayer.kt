@@ -1,5 +1,6 @@
 package dev.zoriya.omni
 
+import android.util.Log
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -15,7 +16,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val eventMap = EventMap(player)
 
     init {
-        player.setOptionString("vo", "gpu")
+        player.setOptionString("vo", "null")
         player.setOptionString("gpu-context", "android")
         player.setOptionString("opengl-es", "yes")
         player.setOptionString("hwdec", "mediacodec-copy")
@@ -65,43 +66,48 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
     fun setSurface(surface: android.view.Surface?) {
         if (surface == null) {
+            player.setOptionString("vo", "null")
+            player.setOptionString("force-window", "no")
             player.detachSurface()
         } else {
             player.attachSurface(surface)
+            player.setOptionString("force-window", "yes")
+            player.setOptionString("vo", "gpu-next")
         }
     }
 
     override val hasPrev get() = source.metadata?.hasPrev ?: false
     override val hasNext get() = source.metadata?.hasNext ?: false
-     override val status: PlayerStatus
-         get() {
-             val idle = player.getPropertyBoolean("core-idle") ?: false
-             val loading = player.getPropertyBoolean("paused-for-cache") ?: false
-             return when {
-                 idle -> PlayerStatus.IDLE
-                 loading -> PlayerStatus.LOADING
-                 else -> PlayerStatus.READYTOPLAY
-             }
-         }
+    override val status: PlayerStatus
+        get() {
+            val idle = player.getPropertyBoolean("core-idle") ?: false
+            val loading = player.getPropertyBoolean("paused-for-cache") ?: false
+            return when {
+                idle -> PlayerStatus.IDLE
+                loading -> PlayerStatus.LOADING
+                else -> PlayerStatus.READYTOPLAY
+            }
+        }
     override val isPlaying get() = !(player.getPropertyBoolean("pause") ?: true)
     override var currentTime
-       get() = (player.getPropertyDouble("time-pos") ?: 0.0).coerceAtLeast(0.0)
-       set(value) {
-           player.command(arrayOf("seek", value.coerceAtLeast(0.0).toString(), "absolute"))
-       }
-    override val buffered get() = (player.getPropertyDouble("demuxer-cache-time") ?: 0.0).coerceAtLeast(0.0)
+        get() = (player.getPropertyDouble("time-pos") ?: 0.0).coerceAtLeast(0.0)
+        set(value) {
+            player.command(arrayOf("seek", value.coerceAtLeast(0.0).toString(), "absolute"))
+        }
+    override val buffered
+        get() = (player.getPropertyDouble("demuxer-cache-time") ?: 0.0).coerceAtLeast(0.0)
     override val duration get() = (player.getPropertyDouble("duration") ?: 0.0).coerceAtLeast(0.0)
 
     override var playbackRate
         get() = player.getPropertyDouble("speed") ?: 1.0
         set(value) {
             player.setPropertyDouble("speed", value.coerceAtLeast(0.0))
-       }
+        }
 
     override var muted
-        get() = player.getPropertyBoolean("muted") ?: false
+        get() = player.getPropertyBoolean("mute") ?: false
         set(value) {
-            player.setPropertyBoolean("muted", value)
+            player.setPropertyBoolean("mute", value)
         }
     override var volume
         get() = (player.getPropertyDouble("volume") ?: 100.0).coerceIn(0.0, 100.0) / 100.0
@@ -128,32 +134,32 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     }
 
     override fun playPrev() {
-        // App-level action; no default implementation in VLC player.
+        eventMap.onPrevListeners.forEach { it() }
     }
 
     override fun playNext() {
-        // App-level action; no default implementation in VLC player.
+        eventMap.onNextListeners.forEach { it() }
     }
 
-     override fun selectVideo(video: Track) {
-         val id = video.id.toIntOrNull() ?: return
-         player.setPropertyInt("vid", id)
-     }
+    override fun selectVideo(video: Track) {
+        val id = video.id.toIntOrNull() ?: return
+        player.setPropertyInt("vid", id)
+    }
 
-     override fun selectAudio(audio: Track) {
-         val id = audio.id.toIntOrNull() ?: return
-         player.setPropertyInt("aid", id)
-     }
+    override fun selectAudio(audio: Track) {
+        val id = audio.id.toIntOrNull() ?: return
+        player.setPropertyInt("aid", id)
+    }
 
-     override fun selectSubtitle(subtitle: Track?) {
-         when (subtitle) {
-             null -> player.setPropertyString("sid", "no")
-             else -> {
-                 val id = subtitle.id.toIntOrNull() ?: return
-                 player.setPropertyInt("sid", id)
-             }
-         }
-     }
+    override fun selectSubtitle(subtitle: Track?) {
+        when (subtitle) {
+            null -> player.setPropertyString("sid", "no")
+            else -> {
+                val id = subtitle.id.toIntOrNull() ?: return
+                player.setPropertyInt("sid", id)
+            }
+        }
+    }
 
     override fun selectRendition(rendition: Rendition?) {
         // Not supported by libVLC MediaPlayer track APIs.

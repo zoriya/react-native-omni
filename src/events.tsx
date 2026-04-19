@@ -5,8 +5,7 @@ import type { OmniEvents } from "./types/events";
 import type { OmniPlayerState } from "./types/player";
 
 function capitalize<T extends string>(str: T): Capitalize<T> {
-	return (str.charAt(0).toUpperCase() +
-		str.slice(1).toLowerCase()) as Capitalize<T>;
+	return (str.charAt(0).toUpperCase() + str.slice(1)) as Capitalize<T>;
 }
 
 export const useEvent = <Event extends keyof OmniEvents>(

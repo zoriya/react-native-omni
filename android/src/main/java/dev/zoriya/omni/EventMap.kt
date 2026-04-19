@@ -10,9 +10,9 @@ import android.os.SystemClock
 import dev.jdtech.mpv.MPVLib
 
 class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.EventObserver {
+    val onPrevListeners = mutableSetOf<() -> Unit>()
+    val onNextListeners = mutableSetOf<() -> Unit>()
     private val onEndListeners = mutableSetOf<() -> Unit>()
-    private val onPrevListeners = mutableSetOf<() -> Unit>()
-    private val onNextListeners = mutableSetOf<() -> Unit>()
     private val onErrorListeners = mutableSetOf<(type: String, message: String) -> Unit>()
     private val onAudioFocusChangeListeners = mutableSetOf<(status: String) -> Unit>()
     private val onVideoTrackChangeListeners = mutableSetOf<(track: Track) -> Unit>()
@@ -32,7 +32,7 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
         player.observeProperty("aid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
         player.observeProperty("sid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
         player.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("muted", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
+        player.observeProperty("mute", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         player.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         player.observeProperty("core-idle", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         player.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
@@ -65,7 +65,12 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
             val label = player.getPropertyString("$base/title")
                 ?: player.getPropertyString("$base/codec")
             val language = player.getPropertyString("$base/lang")
-            return Track(id = trackId.toString(), label = label, language = language, selected = selected)
+            return Track(
+                id = trackId.toString(),
+                label = label,
+                language = language,
+                selected = selected
+            )
         }
         return null
     }
@@ -78,8 +83,10 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
                     isSeeking = false
                     playerStatusListeners.forEach { it(PlayerStatus.LOADING) }
                 }
+
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED ->
                 playerStatusListeners.forEach { it(PlayerStatus.READYTOPLAY) }
+
             MPVLib.MpvEvent.MPV_EVENT_SEEK -> isSeeking = true
             MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> isSeeking = false
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
@@ -93,6 +100,7 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
                 }
                 playerStatusListeners.forEach { it(PlayerStatus.IDLE) }
             }
+
             MPVLib.MpvEvent.MPV_EVENT_QUEUE_OVERFLOW -> onErrorListeners.forEach {
                 it("queue_overflow", "mpv event queue overflow")
             }
@@ -107,10 +115,12 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
                 val track = getTrackById("video", value)
                 if (track != null) onVideoTrackChangeListeners.forEach { it(track) }
             }
+
             "aid" -> {
                 val track = getTrackById("audio", value)
                 if (track != null) onAudioTrackChangeListeners.forEach { it(track) }
             }
+
             "sid" -> {
                 val track = getTrackById("sub", value)
                 onSubtitleChangeListeners.forEach { it(track) }
@@ -124,12 +134,16 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
                 lastTimePosDispatchMs = SystemClock.elapsedRealtime()
                 stateListeners[NumberProperty.CURRENTTIME]?.forEach { it(value.coerceAtLeast(0.0)) }
             }
+
             "demuxer-cache-time" -> stateListeners[NumberProperty.BUFFERED]
                 ?.forEach { it(value.coerceAtLeast(0.0)) }
+
             "duration" -> stateListeners[NumberProperty.DURATION]
                 ?.forEach { it(value.coerceAtLeast(0.0)) }
+
             "speed" -> stateListeners[NumberProperty.PLAYBACKRATE]
                 ?.forEach { it(value) }
+
             "volume" -> stateListeners[NumberProperty.VOLUME]
                 ?.forEach { it((value / 100.0).coerceIn(0.0, 1.0)) }
         }
@@ -142,8 +156,10 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
                 onAudioFocusChangeListeners.forEach { it(if (isPlaying) "playing" else "paused") }
                 stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
             }
-            "muted" ->
+
+            "mute" ->
                 stateBoolListeners[BoolProperty.MUTED]?.forEach { it(value) }
+
             "eof-reached" -> eofReached = value
             "core-idle", "paused-for-cache" ->
                 playerStatusListeners.forEach { it(computePlayerStatus()) }

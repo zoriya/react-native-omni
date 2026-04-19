@@ -12,8 +12,9 @@ import com.margelo.nitro.omni.views.*;
 public class OmniPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? = null
 
-  override fun getReactModuleInfoProvider(): ReactModuleInfoProvider = ReactModuleInfoProvider { emptyMap() }
-  
+  override fun getReactModuleInfoProvider(): ReactModuleInfoProvider =
+    ReactModuleInfoProvider { emptyMap() }
+
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
     val viewManagers = ArrayList<ViewManager<*, *>>()
     viewManagers.add(HybridOmniViewManager())

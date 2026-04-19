@@ -26,7 +26,12 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec() {
                 boundPlayer?.setSurface(holder.surface)
             }
 
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            override fun surfaceChanged(
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int
+            ) {
                 surfaceReady = true
                 boundPlayer?.setSurface(holder.surface)
             }
