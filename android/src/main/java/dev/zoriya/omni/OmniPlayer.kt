@@ -16,7 +16,10 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val eventMap = EventMap(player)
 
     init {
-        player.setOptionString("vo", "null")
+        // `vo` is effectively fixed after init in libmpv.
+        // Initializing with `null` keeps audio working but prevents video output forever.
+        player.setOptionString("vo", "gpu-next")
+        player.setOptionString("force-window", "yes")
         player.setOptionString("gpu-context", "android")
         player.setOptionString("opengl-es", "yes")
         player.setOptionString("hwdec", "mediacodec-copy")
@@ -46,6 +49,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     }
 
     override var source: Source by deferredObservable { _, _, new ->
+        Log.e("omni", "Chaning source")
         player.command(arrayOf("stop"))
 
         val src = new.src.firstOrNull() ?: return@deferredObservable
@@ -74,6 +78,11 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             player.setOptionString("force-window", "yes")
             player.setOptionString("vo", "gpu-next")
         }
+    }
+
+    fun setSurfaceSize(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        player.setPropertyString("android-surface-size", "${width}x${height}")
     }
 
     override val hasPrev get() = source.metadata?.hasPrev ?: false

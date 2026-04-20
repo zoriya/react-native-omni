@@ -1,13 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type React from "react";
-import {
-	Pressable,
-	SafeAreaView,
-	ScrollView,
-	StyleSheet,
-	Text,
-	View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
 	OmniProvider,
 	OmniView,
@@ -129,72 +122,73 @@ function PlayerExample({
 	};
 
 	return (
-		<SafeAreaView style={styles.safeArea}>
-			<View style={styles.container}>
-				<Text style={styles.heading}>react-native-omni</Text>
-				<Text style={styles.subheading}>{trackLabel}</Text>
+		<View style={styles.container}>
+			<Text style={styles.heading}>react-native-omni</Text>
+			<Text style={styles.subheading}>{trackLabel}</Text>
 
-				<View style={styles.video}>
-					<OmniView autoplay={true} showNotification={true} />
-				</View>
+			<OmniView style={styles.video} autoplay={true} showNotification={true} />
 
-				<View style={styles.row}>
-					<Pressable style={styles.button} onPress={togglePlayback}>
-						<Text style={styles.buttonText}>{isPlaying ? "Pause" : "Play"}</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={() => player.seekBy(-10)}>
-						<Text style={styles.buttonText}>-10s</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={() => player.seekBy(10)}>
-						<Text style={styles.buttonText}>+10s</Text>
-					</Pressable>
-				</View>
-
-				<View style={styles.row}>
-					<Pressable style={styles.button} onPress={() => player.playPrev()}>
-						<Text style={styles.buttonText}>Prev</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={() => player.playNext()}>
-						<Text style={styles.buttonText}>Next</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={toggleMute}>
-						<Text style={styles.buttonText}>{muted ? "Unmute" : "Mute"}</Text>
-					</Pressable>
-				</View>
-
-				<View style={styles.row}>
-					<Pressable style={styles.button} onPress={() => changeVolume(-0.1)}>
-						<Text style={styles.buttonText}>Vol -</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={() => changeVolume(0.1)}>
-						<Text style={styles.buttonText}>Vol +</Text>
-					</Pressable>
-					<Pressable style={styles.button} onPress={cyclePlaybackRate}>
-						<Text style={styles.buttonText}>{playbackRate.toFixed(2)}x</Text>
-					</Pressable>
-				</View>
-
-				<View style={styles.statsCard}>
-					<Text style={styles.statText}>Status: {status}</Text>
-					<Text style={styles.statText}>
-						Time: {formatTime(currentTime)} / {formatTime(duration)}
-					</Text>
-					<Text style={styles.statText}>Volume: {(volume * 100).toFixed(0)}%</Text>
-				</View>
-
-				<ScrollView style={styles.logCard} contentContainerStyle={styles.logContent}>
-					{logs.length === 0 ? (
-						<Text style={styles.logText}>Event log will appear here.</Text>
-					) : (
-						logs.map((entry, index) => (
-							<Text key={`${entry}-${index}`} style={styles.logText}>
-								{entry}
-							</Text>
-						))
-					)}
-				</ScrollView>
+			<View style={styles.row}>
+				<Pressable style={styles.button} onPress={togglePlayback}>
+					<Text style={styles.buttonText}>{isPlaying ? "Pause" : "Play"}</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={() => player.seekBy(-10)}>
+					<Text style={styles.buttonText}>-10s</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={() => player.seekBy(10)}>
+					<Text style={styles.buttonText}>+10s</Text>
+				</Pressable>
 			</View>
-		</SafeAreaView>
+
+			<View style={styles.row}>
+				<Pressable style={styles.button} onPress={() => player.playPrev()}>
+					<Text style={styles.buttonText}>Prev</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={() => player.playNext()}>
+					<Text style={styles.buttonText}>Next</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={toggleMute}>
+					<Text style={styles.buttonText}>{muted ? "Unmute" : "Mute"}</Text>
+				</Pressable>
+			</View>
+
+			<View style={styles.row}>
+				<Pressable style={styles.button} onPress={() => changeVolume(-0.1)}>
+					<Text style={styles.buttonText}>Vol -</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={() => changeVolume(0.1)}>
+					<Text style={styles.buttonText}>Vol +</Text>
+				</Pressable>
+				<Pressable style={styles.button} onPress={cyclePlaybackRate}>
+					<Text style={styles.buttonText}>{playbackRate.toFixed(2)}x</Text>
+				</Pressable>
+			</View>
+
+			<View style={styles.statsCard}>
+				<Text style={styles.statText}>Status: {status}</Text>
+				<Text style={styles.statText}>
+					Time: {formatTime(currentTime)} / {formatTime(duration)}
+				</Text>
+				<Text style={styles.statText}>
+					Volume: {(volume * 100).toFixed(0)}%
+				</Text>
+			</View>
+
+			<ScrollView
+				style={styles.logCard}
+				contentContainerStyle={styles.logContent}
+			>
+				{logs.length === 0 ? (
+					<Text style={styles.logText}>Event log will appear here.</Text>
+				) : (
+					logs.map((entry, index) => (
+						<Text key={`${entry}-${index}`} style={styles.logText}>
+							{entry}
+						</Text>
+					))
+				)}
+			</ScrollView>
+		</View>
 	);
 }
 
@@ -239,13 +233,11 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-	safeArea: {
-		flex: 1,
-		backgroundColor: "#0b1020",
-	},
 	container: {
 		flex: 1,
+		backgroundColor: "#0b1020",
 		paddingHorizontal: 16,
+		marginTop: 64,
 		paddingVertical: 12,
 		gap: 12,
 	},
@@ -263,7 +255,6 @@ const styles = StyleSheet.create({
 		aspectRatio: 16 / 9,
 		borderRadius: 14,
 		overflow: "hidden",
-		backgroundColor: "#000000",
 	},
 	row: {
 		flexDirection: "row",
