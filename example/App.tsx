@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -51,6 +51,25 @@ function PlayerExample({
 	const muted = usePlayerState("muted");
 	const volume = usePlayerState("volume");
 	const [logs, setLogs] = useState<string[]>([]);
+	const [tracks, setTracks] = useState(() => ({
+		videos: [...player.videos],
+		audios: [...player.audios],
+		subtitles: [...player.subtitles],
+		renditions: [...player.rendition],
+	}));
+
+	const refreshTracks = useCallback(() => {
+		setTracks({
+			videos: [...player.videos],
+			audios: [...player.audios],
+			subtitles: [...player.subtitles],
+			renditions: [...player.rendition],
+		});
+	}, [player]);
+
+	useEffect(() => {
+		refreshTracks();
+	}, [refreshTracks, trackLabel]);
 
 	const pushLog = useCallback((message: string) => {
 		setLogs((prev) => {
@@ -96,6 +115,46 @@ function PlayerExample({
 			handleNext();
 		}, [handleNext, pushLog]),
 	);
+	useEvent(
+		"videoTrackChange",
+		useCallback(
+			(track) => {
+				pushLog(`Video track: ${track.label ?? track.id}`);
+				refreshTracks();
+			},
+			[pushLog, refreshTracks],
+		),
+	);
+	useEvent(
+		"audioTrackChange",
+		useCallback(
+			(track) => {
+				pushLog(`Audio track: ${track.label ?? track.id}`);
+				refreshTracks();
+			},
+			[pushLog, refreshTracks],
+		),
+	);
+	useEvent(
+		"subtitleChange",
+		useCallback(
+			(track) => {
+				pushLog(`Subtitle: ${track?.label ?? track?.id ?? "off"}`);
+				refreshTracks();
+			},
+			[pushLog, refreshTracks],
+		),
+	);
+	useEvent(
+		"renditionChange",
+		useCallback(
+			(rendition) => {
+				pushLog(`Rendition: ${rendition.width}x${rendition.height}`);
+				refreshTracks();
+			},
+			[pushLog, refreshTracks],
+		),
+	);
 
 	const togglePlayback = () => {
 		if (isPlaying) {
@@ -121,8 +180,29 @@ function PlayerExample({
 		player.playbackRate = rates[nextIndex];
 	};
 
+	const selectVideo = (video: (typeof tracks.videos)[number]) => {
+		player.selectVideo(video);
+		refreshTracks();
+	};
+
+	const selectAudio = (audio: (typeof tracks.audios)[number]) => {
+		player.selectAudio(audio);
+		refreshTracks();
+	};
+
+	const selectSubtitle = (subtitle?: (typeof tracks.subtitles)[number]) => {
+		player.selectSubtitle(subtitle);
+		refreshTracks();
+	};
+
+	const selectRendition = (rendition?: (typeof tracks.renditions)[number]) => {
+		player.selectRendition(rendition);
+		refreshTracks();
+	};
+
+
 	return (
-		<View style={styles.container}>
+		<ScrollView style={styles.container}>
 			<Text style={styles.heading}>react-native-omni</Text>
 			<Text style={styles.subheading}>{trackLabel}</Text>
 
@@ -174,6 +254,153 @@ function PlayerExample({
 				</Text>
 			</View>
 
+			<View style={styles.selectorCard}>
+				<Text style={styles.selectorHeading}>Tracks & Renditions</Text>
+				<Text style={styles.selectorTitle}>Video</Text>
+				<View style={styles.selectorRow}>
+					{tracks.videos.length === 0 ? (
+						<Text style={styles.emptyTrackText}>No video tracks</Text>
+					) : (
+						tracks.videos.map((video) => (
+							<Pressable
+								key={`video-${video.id}`}
+								style={[
+									styles.trackButton,
+									video.selected && styles.selectedTrackButton,
+								]}
+								onPress={() => selectVideo(video)}
+							>
+								<Text
+									style={[
+										styles.trackButtonText,
+										video.selected && styles.selectedTrackButtonText,
+									]}
+								>
+									{video.label ?? video.language ?? video.id}
+								</Text>
+							</Pressable>
+						))
+					)}
+				</View>
+
+				<Text style={styles.selectorTitle}>Audio</Text>
+				<View style={styles.selectorRow}>
+					{tracks.audios.length === 0 ? (
+						<Text style={styles.emptyTrackText}>No audio tracks</Text>
+					) : (
+						tracks.audios.map((audio) => (
+							<Pressable
+								key={`audio-${audio.id}`}
+								style={[
+									styles.trackButton,
+									audio.selected && styles.selectedTrackButton,
+								]}
+								onPress={() => selectAudio(audio)}
+							>
+								<Text
+									style={[
+										styles.trackButtonText,
+										audio.selected && styles.selectedTrackButtonText,
+									]}
+								>
+									{audio.label ?? audio.language ?? audio.id}
+								</Text>
+							</Pressable>
+						))
+					)}
+				</View>
+
+				<Text style={styles.selectorTitle}>Subtitles</Text>
+				<View style={styles.selectorRow}>
+					<Pressable
+						style={[
+							styles.trackButton,
+							!tracks.subtitles.some((subtitle) => subtitle.selected) &&
+								styles.selectedTrackButton,
+						]}
+						onPress={() => selectSubtitle(undefined)}
+					>
+						<Text
+							style={[
+								styles.trackButtonText,
+								!tracks.subtitles.some((subtitle) => subtitle.selected) &&
+									styles.selectedTrackButtonText,
+							]}
+						>
+							Off
+						</Text>
+					</Pressable>
+					{tracks.subtitles.length === 0 ? (
+						<Text style={styles.emptyTrackText}>No subtitles</Text>
+					) : (
+						tracks.subtitles.map((subtitle) => (
+							<Pressable
+								key={`subtitle-${subtitle.id}`}
+								style={[
+									styles.trackButton,
+									subtitle.selected && styles.selectedTrackButton,
+								]}
+								onPress={() => selectSubtitle(subtitle)}
+							>
+								<Text
+									style={[
+										styles.trackButtonText,
+										subtitle.selected && styles.selectedTrackButtonText,
+									]}
+								>
+									{subtitle.label ?? subtitle.language ?? subtitle.id}
+								</Text>
+							</Pressable>
+						))
+					)}
+				</View>
+
+				<Text style={styles.selectorTitle}>Renditions</Text>
+				<View style={styles.selectorRow}>
+					<Pressable
+						style={[
+							styles.trackButton,
+							!tracks.renditions.some((rendition) => rendition.selected) &&
+								styles.selectedTrackButton,
+						]}
+						onPress={() => selectRendition(undefined)}
+					>
+						<Text
+							style={[
+								styles.trackButtonText,
+								!tracks.renditions.some((rendition) => rendition.selected) &&
+									styles.selectedTrackButtonText,
+							]}
+						>
+							Auto
+						</Text>
+					</Pressable>
+					{tracks.renditions.length === 0 ? (
+						<Text style={styles.emptyTrackText}>No renditions</Text>
+					) : (
+						tracks.renditions.map((rendition) => (
+							<Pressable
+								key={`rendition-${rendition.id}`}
+								style={[
+									styles.trackButton,
+									rendition.selected && styles.selectedTrackButton,
+								]}
+								onPress={() => selectRendition(rendition)}
+							>
+								<Text
+									style={[
+										styles.trackButtonText,
+										rendition.selected && styles.selectedTrackButtonText,
+									]}
+								>
+									{rendition.width}x{rendition.height} ({Math.round(rendition.bitrate / 1000)} kbps)
+								</Text>
+							</Pressable>
+						))
+					)}
+				</View>
+			</View>
+
 			<ScrollView
 				style={styles.logCard}
 				contentContainerStyle={styles.logContent}
@@ -188,7 +415,7 @@ function PlayerExample({
 					))
 				)}
 			</ScrollView>
-		</View>
+		</ScrollView>
 	);
 }
 
@@ -283,6 +510,51 @@ const styles = StyleSheet.create({
 	statText: {
 		color: "#cfd9ff",
 		fontSize: 13,
+	},
+	selectorCard: {
+		backgroundColor: "#101833",
+		borderRadius: 10,
+		padding: 12,
+		gap: 8,
+	},
+	selectorHeading: {
+		color: "#e8ecff",
+		fontSize: 14,
+		fontWeight: "700",
+	},
+	selectorTitle: {
+		color: "#cfd9ff",
+		fontSize: 12,
+		fontWeight: "600",
+	},
+	selectorRow: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		gap: 8,
+	},
+	trackButton: {
+		backgroundColor: "#1a2442",
+		paddingVertical: 8,
+		paddingHorizontal: 10,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: "#2d3f74",
+	},
+	selectedTrackButton: {
+		backgroundColor: "#2f4fa0",
+		borderColor: "#6e93f9",
+	},
+	trackButtonText: {
+		color: "#cfd9ff",
+		fontSize: 12,
+	},
+	selectedTrackButtonText: {
+		color: "#f4f7ff",
+		fontWeight: "700",
+	},
+	emptyTrackText: {
+		color: "#8fa1d8",
+		fontSize: 12,
 	},
 	logCard: {
 		flex: 1,
