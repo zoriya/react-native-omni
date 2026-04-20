@@ -53,7 +53,7 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
         boundPlayer = omniPlayer
 
         if (surfaceReady) {
-            omniPlayer.setSurface(surfaceView.holder.surface)
+            omniPlayer.setSurface(surfaceView.holder)
         }
 
         if (autoplay == true && !omniPlayer.isPlaying) {
@@ -73,7 +73,7 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         Log.e("omniView", "surface created")
-        boundPlayer?.setSurface(holder.surface)
+        boundPlayer?.setSurface(holder)
     }
 
     override fun surfaceChanged(
@@ -82,7 +82,7 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
         width: Int,
         height: Int
     ) {
-        boundPlayer?.setSurfaceSize(width, height)
+        // Surface size is resolved from SurfaceHolder in MpvPlayer.
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
