@@ -1,27 +1,24 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
-import android.os.Bundle
 import android.view.SurfaceHolder
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.common.TrackSelectionParameters
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
 import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
-import java.util.ArrayList
+import androidx.core.net.toUri
+import androidx.media3.common.TrackSelectionOverride
 
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
     val player = MpvPlayer(ctx)
-    override val eventMap = EventMap(player.mpv)
-    private var currentSource: Source? = null
+    override val eventMap = EventMap(player)
 
     override fun dispose() {
         super.dispose()
@@ -30,6 +27,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         player.release()
     }
 
+    private var currentSource: Source? = null
     override var source: Source
         get() = currentSource
             ?: throw IllegalStateException("source should be initialized before get")
@@ -130,21 +128,14 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     }
 
     override fun selectSubtitle(subtitle: Track?) {
-//        if (subtitle == null) {
-//            val params = player.trackSelectionParameters
-//                .buildUpon()
-//                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-//                .build()
-//            player.trackSelectionParameters = params
-//            return
-//        }
-//
-//        val params = player.trackSelectionParameters
-//            .buildUpon()
-//            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-//            .build()
-//        player.trackSelectionParameters = params
-//        selectTrack(C.TRACK_TYPE_TEXT, subtitle)
+        if (subtitle == null) {
+            player.trackSelectionParameters = player.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .build()
+            return
+        }
+        selectTrack(C.TRACK_TYPE_TEXT, subtitle)
     }
 
     override fun selectRendition(rendition: Rendition?) {
@@ -158,18 +149,18 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             .setAlbumTitle(source.metadata?.album)
             .setArtist(source.metadata?.artist)
             .apply {
-                source.metadata?.imageLink?.let { setArtworkUri(android.net.Uri.parse(it)) }
+                source.metadata?.imageLink?.let { setArtworkUri(it.toUri()) }
             }
             .build()
 
-//        val subtitleConfigurations = source.subtitles.map { subtitle ->
-//            MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(subtitle.link))
-//                .setId(subtitle.id)
-//                .setLanguage(subtitle.language)
-//                .setLabel(subtitle.label)
-//                .setMimeType(subtitle.mimeType)
-//                .build()
-//        }
+        val subtitleConfigurations = source.subtitles.map { subtitle ->
+            MediaItem.SubtitleConfiguration.Builder(subtitle.link.toUri())
+                .setId(subtitle.id)
+                .setLanguage(subtitle.language)
+                .setLabel(subtitle.label)
+                .setMimeType(subtitle.mimeType)
+                .build()
+        }
 
 //        val headers = Bundle().apply {
 //            putStringArrayList(
@@ -186,7 +177,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 //        }
 
         val requestMetadata = MediaItem.RequestMetadata.Builder()
-            .setMediaUri(android.net.Uri.parse(src.uri))
+            .setMediaUri(src.uri.toUri())
 //            .setExtras(headers)
             .build()
 
@@ -195,54 +186,49 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             .setMimeType(src.mimeType)
             .setMediaId(src.uri)
             .setMediaMetadata(mediaMetadata)
-//            .setSubtitleConfigurations(subtitleConfigurations)
+            .setSubtitleConfigurations(subtitleConfigurations)
             .setRequestMetadata(requestMetadata)
 
         return itemBuilder.build()
     }
 
     private fun tracksByType(trackType: Int): Array<Track> {
-        return emptyArray()
-//        val groups = player.currentTracks.groups.filter { it.type == trackType }
-//        if (groups.isEmpty()) return emptyArray()
+        val groups = player.currentTracks.groups.filter { it.type == trackType }
+        if (groups.isEmpty()) return emptyArray()
 //
-//        val result = ArrayList<Track>()
-//        for (group in groups) {
-//            val mediaGroup = group.mediaTrackGroup
-//            for (i in 0 until group.length) {
-//                val format = group.getTrackFormat(i)
-//                result.add(
-//                    Track(
-//                        id = format.id ?: mediaGroup.id,
-//                        label = format.label,
-//                        language = format.language,
-//                        selected = group.isTrackSelected(i)
-//                    )
-//                )
-//            }
-//        }
-//        return result.toTypedArray()
+        val result = ArrayList<Track>()
+        for (group in groups) {
+            val mediaGroup = group.mediaTrackGroup
+            for (i in 0 until group.length) {
+                val format = group.getTrackFormat(i)
+                result.add(
+                    Track(
+                        id = format.id ?: mediaGroup.id,
+                        label = format.label,
+                        language = format.language,
+                        selected = group.isTrackSelected(i)
+                    )
+                )
+            }
+        }
+        return result.toTypedArray()
     }
 
     private fun selectTrack(trackType: Int, track: Track) {
-        return
-//        val targetId = track.id
-//        val groups = player.currentTracks.groups.filter { it.type == trackType }
-//        for (group in groups) {
-//            val mediaGroup = group.mediaTrackGroup
-//            for (i in 0 until group.length) {
-//                val formatId = group.getTrackFormat(i).id ?: mediaGroup.id
-//                if (formatId != targetId) continue
-//
-//                val override = TrackSelectionOverride(mediaGroup, i)
-//                val builder: TrackSelectionParameters.Builder = player.trackSelectionParameters
-//                    .buildUpon()
-//                    .setTrackTypeDisabled(trackType, false)
-//                    .setOverrideForType(override)
-//                player.trackSelectionParameters = builder.build()
-//                return
-//            }
-//        }
+        val groups = player.currentTracks.groups.filter { it.type == trackType }
+        for (group in groups) {
+            for (i in 0 until group.length) {
+                val formatId = group.getTrackFormat(i).id ?: group.mediaTrackGroup.id
+                if (formatId != track.id) continue
+
+                player.trackSelectionParameters = player.trackSelectionParameters
+                    .buildUpon()
+                    .setTrackTypeDisabled(trackType, false)
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, i))
+                    .build()
+                return
+            }
+        }
     }
 
 }

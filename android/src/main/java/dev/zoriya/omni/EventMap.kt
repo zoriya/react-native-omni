@@ -1,15 +1,16 @@
 package dev.zoriya.omni
 
+import android.os.SystemClock
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import com.margelo.nitro.omni.BoolProperty
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
 import com.margelo.nitro.omni.NumberProperty
 import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Track
-import android.os.SystemClock
-import dev.jdtech.mpv.MPVLib
 
-class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.EventObserver {
+class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Listener {
     val onPrevListeners = mutableSetOf<() -> Unit>()
     val onNextListeners = mutableSetOf<() -> Unit>()
     private val onEndListeners = mutableSetOf<() -> Unit>()
@@ -22,30 +23,16 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
     private val stateListeners = mutableMapOf<NumberProperty, MutableSet<(Double) -> Unit>>()
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
-    private var isSeeking = false
-    private var eofReached = false
     private var lastTimePosDispatchMs = 0L
 
     init {
-        player.addObserver(this)
-        player.observeProperty("vid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
-        player.observeProperty("aid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
-        player.observeProperty("sid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
-        player.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("mute", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("core-idle", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
-        player.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        player.observeProperty("demuxer-cache-time", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        player.observeProperty("duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        player.observeProperty("speed", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-        player.observeProperty("volume", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
+        player.addListener(this)
+        emitCoreState(forceCurrentTime = true)
     }
 
     private fun computePlayerStatus(): PlayerStatus {
-        val loading = player.getPropertyBoolean("paused-for-cache") ?: false
-        val idle = player.getPropertyBoolean("core-idle") ?: false
+        val loading = player.isLoading
+        val idle = player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED
         return when {
             loading -> PlayerStatus.LOADING
             idle -> PlayerStatus.IDLE
@@ -53,122 +40,109 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
         }
     }
 
-    private fun getTrackById(type: String, id: Long): Track? {
-        val count = player.getPropertyInt("track-list/count") ?: 0
-        for (i in 0 until count) {
-            val base = "track-list/$i"
-            val trackType = player.getPropertyString("$base/type") ?: continue
-            if (trackType != type) continue
-            val trackId = player.getPropertyInt("$base/id") ?: continue
-            if (trackId.toLong() != id) continue
-            val selected = player.getPropertyBoolean("$base/selected") ?: false
-            val label = player.getPropertyString("$base/title")
-                ?: player.getPropertyString("$base/codec")
-            val language = player.getPropertyString("$base/lang")
-            return Track(
-                id = trackId.toString(),
-                label = label,
-                language = language,
-                selected = selected
-            )
+    private fun selectedTrack(trackType: Int): Track? {
+        val groups = player.currentTracks.groups.filter { it.type == trackType }
+        for (group in groups) {
+            val mediaGroup = group.mediaTrackGroup
+            for (i in 0 until group.length) {
+                if (!group.isTrackSelected(i)) continue
+                val format = group.getTrackFormat(i)
+                return Track(
+                    id = format.id ?: mediaGroup.id,
+                    label = format.label,
+                    language = format.language,
+                    selected = true
+                )
+            }
         }
         return null
     }
 
-    override fun event(event: Int) {
-        when (event) {
-            MPVLib.MpvEvent.MPV_EVENT_START_FILE ->
-                run {
-                    eofReached = false
-                    isSeeking = false
-                    playerStatusListeners.forEach { it(PlayerStatus.LOADING) }
-                }
-
-            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED ->
-                playerStatusListeners.forEach { it(PlayerStatus.READYTOPLAY) }
-
-            MPVLib.MpvEvent.MPV_EVENT_SEEK -> isSeeking = true
-            MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> isSeeking = false
-            MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
-                isSeeking = false
-                if (eofReached) {
-                    onEndListeners.forEach { it() }
-                } else {
-                    onErrorListeners.forEach {
-                        it("end_file", "playback ended before reaching EOF")
-                    }
-                }
-                playerStatusListeners.forEach { it(PlayerStatus.IDLE) }
+    override fun onEvents(player: Player, events: Player.Events) {
+        if (
+            events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
+            events.contains(Player.EVENT_IS_LOADING_CHANGED)
+        ) {
+            val status = computePlayerStatus()
+            playerStatusListeners.forEach { it(status) }
+            if (player.playbackState == Player.STATE_ENDED) {
+                onEndListeners.forEach { it() }
             }
+        }
 
-            MPVLib.MpvEvent.MPV_EVENT_QUEUE_OVERFLOW -> onErrorListeners.forEach {
-                it("queue_overflow", "mpv event queue overflow")
+        if (
+            events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED) ||
+            events.contains(Player.EVENT_IS_PLAYING_CHANGED)
+        ) {
+            val isPlaying = player.isPlaying
+            onAudioFocusChangeListeners.forEach { it(if (isPlaying) "playing" else "paused") }
+            stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
+        }
+
+        if (events.contains(Player.EVENT_VOLUME_CHANGED)) {
+            val volume = player.volume.toDouble().coerceIn(0.0, 1.0)
+            stateListeners[NumberProperty.VOLUME]?.forEach { it(volume) }
+            stateBoolListeners[BoolProperty.MUTED]?.forEach { it(volume <= 0.0) }
+        }
+
+        if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
+            stateListeners[NumberProperty.PLAYBACKRATE]?.forEach {
+                it(player.playbackParameters.speed.toDouble())
             }
+        }
+
+        if (
+            events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+            events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
+            events.contains(Player.EVENT_IS_LOADING_CHANGED)
+        ) {
+            emitCoreState(forceCurrentTime = true)
+        } else {
+            emitCoreState(forceCurrentTime = false)
+        }
+
+        if (events.contains(Player.EVENT_TRACKS_CHANGED)) {
+            selectedTrack(C.TRACK_TYPE_VIDEO)?.let { track ->
+                onVideoTrackChangeListeners.forEach { it(track) }
+            }
+            selectedTrack(C.TRACK_TYPE_AUDIO)?.let { track ->
+                onAudioTrackChangeListeners.forEach { it(track) }
+            }
+            onSubtitleChangeListeners.forEach { it(selectedTrack(C.TRACK_TYPE_TEXT)) }
         }
     }
 
-    override fun eventProperty(property: String) = Unit
-
-    override fun eventProperty(property: String, value: Long) {
-        when (property) {
-            "vid" -> {
-                val track = getTrackById("video", value)
-                if (track != null) onVideoTrackChangeListeners.forEach { it(track) }
-            }
-
-            "aid" -> {
-                val track = getTrackById("audio", value)
-                if (track != null) onAudioTrackChangeListeners.forEach { it(track) }
-            }
-
-            "sid" -> {
-                val track = getTrackById("sub", value)
-                onSubtitleChangeListeners.forEach { it(track) }
-            }
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        onErrorListeners.forEach {
+            it(error.errorCodeName, error.message ?: "unknown message")
         }
     }
 
-    override fun eventProperty(property: String, value: Double) {
-        when (property) {
-            "time-pos" -> if (isSeeking || SystemClock.elapsedRealtime() - lastTimePosDispatchMs >= 1000L) {
-                lastTimePosDispatchMs = SystemClock.elapsedRealtime()
-                stateListeners[NumberProperty.CURRENTTIME]?.forEach { it(value.coerceAtLeast(0.0)) }
-            }
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int
+    ) {
+        emitCurrentTime(force = true)
+    }
 
-            "demuxer-cache-time" -> stateListeners[NumberProperty.BUFFERED]
-                ?.forEach { it(value.coerceAtLeast(0.0)) }
-
-            "duration" -> stateListeners[NumberProperty.DURATION]
-                ?.forEach { it(value.coerceAtLeast(0.0)) }
-
-            "speed" -> stateListeners[NumberProperty.PLAYBACKRATE]
-                ?.forEach { it(value) }
-
-            "volume" -> stateListeners[NumberProperty.VOLUME]
-                ?.forEach { it((value / 100.0).coerceIn(0.0, 1.0)) }
+    private fun emitCoreState(forceCurrentTime: Boolean) {
+        emitCurrentTime(forceCurrentTime)
+        stateListeners[NumberProperty.BUFFERED]?.forEach {
+            it((player.totalBufferedDuration.toDouble() / 1000.0).coerceAtLeast(0.0))
+        }
+        stateListeners[NumberProperty.DURATION]?.forEach {
+            val duration = player.duration
+            it(if (duration == C.TIME_UNSET) 0.0 else (duration.toDouble() / 1000.0).coerceAtLeast(0.0))
         }
     }
 
-    override fun eventProperty(property: String, value: Boolean) {
-        when (property) {
-            "pause" -> {
-                val isPlaying = !value
-                onAudioFocusChangeListeners.forEach { it(if (isPlaying) "playing" else "paused") }
-                stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
-            }
-
-            "mute" ->
-                stateBoolListeners[BoolProperty.MUTED]?.forEach { it(value) }
-
-            "eof-reached" -> eofReached = value
-            "core-idle", "paused-for-cache" ->
-                playerStatusListeners.forEach { it(computePlayerStatus()) }
-        }
-    }
-
-    override fun eventProperty(property: String, value: String) {
-        if (property == "sid" && value == "no") {
-            onSubtitleChangeListeners.forEach { it(null) }
+    private fun emitCurrentTime(force: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        if (!force && now - lastTimePosDispatchMs < 1000L) return
+        lastTimePosDispatchMs = now
+        stateListeners[NumberProperty.CURRENTTIME]?.forEach {
+            it((player.currentPosition.toDouble() / 1000.0).coerceAtLeast(0.0))
         }
     }
 
@@ -269,7 +243,7 @@ class EventMap(private val player: MPVLib) : HybridOmniEventMapSpec(), MPVLib.Ev
     }
 
     override fun dispose() {
-        player.removeObserver(this)
+        player.removeListener(this)
         super.dispose()
     }
 }
