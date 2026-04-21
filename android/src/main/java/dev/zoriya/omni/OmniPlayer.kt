@@ -64,9 +64,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             player.seekTo((value.coerceAtLeast(0.0) * 1000.0).toLong())
         }
     override val buffered
-        get() = (player.totalBufferedDuration.toDouble() / 1000.0).coerceAtLeast(
-            0.0
-        )
+        get() = (player.totalBufferedDuration.toDouble() / 1000.0).coerceAtLeast(0.0)
     override val duration
         get() = if (player.duration == C.TIME_UNSET) 0.0 else (player.duration.toDouble() / 1000.0).coerceAtLeast(
             0.0

@@ -3,6 +3,7 @@ package dev.zoriya.omni
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -23,6 +24,8 @@ import dev.jdtech.mpv.MPVLib
 
 @SuppressLint("UnsafeOptInUsageError")
 class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib.EventObserver {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     internal val mpv = (MPVLib.create(ctx) ?: throw Error("Failed to initialize MPVLib")).apply {
         setOptionString("vo", "gpu-next")
         setOptionString("force-window", "yes")
@@ -84,9 +87,12 @@ class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib
         .build()
 
     override fun getState(): State {
-        val positionMs = ((mpv.getPropertyDouble("time-pos") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
-        val cacheMs = ((mpv.getPropertyDouble("demuxer-cache-time") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
-        val durationMs = ((mpv.getPropertyDouble("duration") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
+        val positionMs =
+            ((mpv.getPropertyDouble("time-pos") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
+        val cacheMs = ((mpv.getPropertyDouble("demuxer-cache-time")
+            ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
+        val durationMs =
+            ((mpv.getPropertyDouble("duration") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
 
         val builder = State.Builder()
             .setAvailableCommands(availableCommands)
@@ -97,30 +103,36 @@ class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib
             .setPlaybackState(getMpvPlaybackState())
             .setPlaybackSuppressionReason(Player.PLAYBACK_SUPPRESSION_REASON_NONE)
             .setIsLoading(mpv.getPropertyBoolean("paused-for-cache") ?: false)
-            .setPlaybackParameters(PlaybackParameters((mpv.getPropertyDouble("speed") ?: 1.0).toFloat().coerceAtLeast(0f)))
-            .setVolume((mpv.getPropertyDouble("volume") ?: 100.0).coerceIn(0.0, 100.0).toFloat() / 100f)
+            .setPlaybackParameters(
+                PlaybackParameters(
+                    (mpv.getPropertyDouble("speed") ?: 1.0).toFloat().coerceAtLeast(0f)
+                )
+            )
+            .setVolume(
+                (mpv.getPropertyDouble("volume") ?: 100.0).coerceIn(0.0, 100.0).toFloat() / 100f
+            )
 //            .setTrackSelectionParameters(currentTrackSelectionParameters)
             .setContentPositionMs(positionMs)
             .setContentBufferedPositionMs { cacheMs }
             .setTotalBufferedDurationMs { cacheMs }
-//            .setPlaylistMetadata(currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY)
+            .setPlaylistMetadata(currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY)
 
-//        val item = currentMediaItem
-//        if (item != null) {
-//            val itemBuilder = MediaItemData.Builder(item.mediaId)
-//                .setMediaItem(item)
-//                .setMediaMetadata(item.mediaMetadata)
-//                .setIsSeekable(true)
+        val item = currentMediaItem
+        if (item != null) {
+            val itemBuilder = MediaItemData.Builder(item.mediaId)
+                .setMediaItem(item)
+                .setMediaMetadata(item.mediaMetadata)
+                .setIsSeekable(true)
 //                .setTracks(buildTracks())
-//
-//            if (durationMs > 0L) {
-//                itemBuilder.setDurationUs(durationMs * 1000L)
-//            }
-//
-//            builder
-//                .setPlaylist(listOf(itemBuilder.build()))
-//                .setCurrentMediaItemIndex(0)
-//        }
+
+            if (durationMs > 0L) {
+                itemBuilder.setDurationUs(durationMs * 1000L)
+            }
+
+            builder
+                .setPlaylist(listOf(itemBuilder.build()))
+                .setCurrentMediaItemIndex(0)
+        }
 
         return builder.build()
     }
@@ -135,7 +147,11 @@ class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib
         return Futures.immediateVoidFuture()
     }
 
-    override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
+    override fun handleSeek(
+        mediaItemIndex: Int,
+        positionMs: Long,
+        seekCommand: Int
+    ): ListenableFuture<*> {
         if (mediaItemIndex != C.INDEX_UNSET && mediaItemIndex != 0) {
             return Futures.immediateVoidFuture()
         }
@@ -183,48 +199,48 @@ class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib
         return Futures.immediateVoidFuture()
     }
 
-//    override fun handleSetMediaItems(
-//        mediaItems: List<MediaItem>,
-//        startIndex: Int,
-//        startPositionMs: Long
-//    ): ListenableFuture<*> {
-//        val target = when {
-//            mediaItems.isEmpty() -> null
-//            startIndex in mediaItems.indices -> mediaItems[startIndex]
-//            else -> mediaItems[0]
-//        }
-//
+    override fun handleSetMediaItems(
+        mediaItems: List<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long
+    ): ListenableFuture<*> {
+        val target = when {
+            mediaItems.isEmpty() -> null
+            startIndex in mediaItems.indices -> mediaItems[startIndex]
+            else -> mediaItems[0]
+        }
+
 //        currentMediaItem = target
 //        trackGroupsByType = emptyMap()
-//        mpv.command(arrayOf("stop"))
-//
-//        if (target != null) {
-//            val uri = target.localConfiguration?.uri?.toString()
-//            if (!uri.isNullOrEmpty()) {
+        mpv.command(arrayOf("stop"))
+
+        if (target != null) {
+            val uri = target.localConfiguration?.uri?.toString()
+            if (!uri.isNullOrEmpty()) {
 //                val requestExtras = target.requestMetadata.extras
 //                applyRequestHeaders(requestExtras)
-//
+
 //                val requestStartMs = requestExtras?.getLong(REQUEST_START_MS_KEY, C.TIME_UNSET) ?: C.TIME_UNSET
 //                val start = if (startPositionMs != C.TIME_UNSET) startPositionMs else requestStartMs
 //                if (start != C.TIME_UNSET && start >= 0L) {
 //                    mpv.setPropertyDouble("start", start.toDouble() / 1000.0)
 //                }
-//
-//                mpv.command(arrayOf("loadfile", uri, "replace"))
-//                target.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
-//                    mpv.command(arrayOf("sub-add", subtitle.uri.toString(), "cached"))
-//                }
-//            }
-//        }
-//
-//        return Futures.immediateVoidFuture()
-//    }
 
-//    override fun handleSetTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters): ListenableFuture<*> {
+                mpv.command(arrayOf("loadfile", uri, "replace"))
+                target.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
+                    mpv.command(arrayOf("sub-add", subtitle.uri.toString(), "cached"))
+                }
+            }
+        }
+
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleSetTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters): ListenableFuture<*> {
 //        currentTrackSelectionParameters = trackSelectionParameters
 //        applyTrackSelectionParameters(trackSelectionParameters)
-//        return Futures.immediateVoidFuture()
-//    }
+        return Futures.immediateVoidFuture()
+    }
 
     override fun handleStop(): ListenableFuture<*> {
         mpv.command(arrayOf("stop"))
@@ -240,33 +256,41 @@ class MpvPlayer(ctx: Context) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib
 
     override fun event(event: Int) {
 //        trackGroupsByType = buildTrackGroupsByType()
-        invalidateState()
+        postInvalidateState()
     }
 
     override fun eventProperty(property: String) {
 //        if (property == "vid" || property == "aid" || property == "sid") {
 //            trackGroupsByType = buildTrackGroupsByType()
 //        }
-        invalidateState()
+        postInvalidateState()
     }
 
     override fun eventProperty(property: String, value: Long) {
 //        if (property == "vid" || property == "aid" || property == "sid") {
 //            trackGroupsByType = buildTrackGroupsByType()
 //        }
-        invalidateState()
+        postInvalidateState()
     }
 
     override fun eventProperty(property: String, value: Double) {
-        invalidateState()
+        postInvalidateState()
     }
 
     override fun eventProperty(property: String, value: Boolean) {
-        invalidateState()
+        postInvalidateState()
     }
 
     override fun eventProperty(property: String, value: String) {
-        invalidateState()
+        postInvalidateState()
+    }
+
+    private fun postInvalidateState() {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            invalidateState()
+        } else {
+            mainHandler.post { invalidateState() }
+        }
     }
 
     private fun getMpvPlaybackState(): Int {
