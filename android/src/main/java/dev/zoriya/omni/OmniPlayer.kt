@@ -112,11 +112,11 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     }
 
     override fun playPrev() {
-        eventMap.onPrevListeners.forEach { it() }
+        player.seekToPreviousMediaItem()
     }
 
     override fun playNext() {
-        eventMap.onNextListeners.forEach { it() }
+        player.seekToNextMediaItem()
     }
 
     override fun selectVideo(video: Track) {

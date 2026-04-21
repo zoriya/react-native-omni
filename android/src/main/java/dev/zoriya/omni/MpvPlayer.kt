@@ -146,7 +146,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun addMediaItems(
         p0: Int,
-        p1: List<MediaItem?>?
+        p1: List<MediaItem>
     ) = Unit
 
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) = Unit
@@ -165,18 +165,15 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun prepare() = Unit
 
-    override fun getPlaybackState(): Int {
-        val ended = mpv.getPropertyBoolean("eof-reached") ?: false
-        if (ended) return Player.STATE_ENDED
+    override fun getPlaybackState(): Int =
+        when (true) {
+            mpv.getPropertyBoolean("paused-for-cache") -> STATE_BUFFERING
+            mpv.getPropertyBoolean("eof-reached") -> STATE_ENDED
+            mpv.getPropertyBoolean("core-idle") -> STATE_IDLE
+            else -> STATE_READY
+        }
 
-        val idle = mpv.getPropertyBoolean("core-idle") ?: false
-        if (idle) return Player.STATE_IDLE
-
-        val loading = mpv.getPropertyBoolean("paused-for-cache") ?: false
-        return if (loading) Player.STATE_BUFFERING else Player.STATE_READY
-    }
-
-    override fun getPlaybackSuppressionReason(): Int = Player.PLAYBACK_SUPPRESSION_REASON_NONE
+    override fun getPlaybackSuppressionReason(): Int = PLAYBACK_SUPPRESSION_REASON_NONE
 
     override fun getPlayerError(): PlaybackException? = playerError
 
@@ -188,7 +185,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun setRepeatMode(repeatMode: Int) = Unit
 
-    override fun getRepeatMode(): Int = Player.REPEAT_MODE_OFF
+    override fun getRepeatMode(): Int = REPEAT_MODE_OFF
 
     override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) = Unit
 
@@ -481,6 +478,16 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun event(eventId: Int) {
         when (eventId) {
+            MPVLib.MpvEvent.MPV_EVENT_START_FILE -> listeners.forEach {
+                it.onPlaybackStateChanged(STATE_BUFFERING)
+            }
+
+            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED ->
+                listeners.forEach {
+                    it.onPlaybackStateChanged(STATE_READY)
+                    it.onIsPlayingChanged(playWhenReady)
+                }
+
             MPVLib.MpvEvent.MPV_EVENT_SEEK,
             MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
                 val positionMs = getCurrentPosition()
@@ -500,6 +507,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 }
             }
 
+            MPVLib.MpvEvent.MPV_EVENT_END_FILE -> listeners.forEach {
+                it.onPlaybackStateChanged(
+                    STATE_ENDED
+                )
+            }
+
             MPVLib.MpvEvent.MPV_EVENT_QUEUE_OVERFLOW -> {
                 playerError = PlaybackException(
                     "mpv event queue overflow",
@@ -508,7 +521,13 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 )
                 listeners.forEach {
                     it.onPlayerErrorChanged(playerError)
-                    it.onPlayerError(playerError)
+                    it.onPlayerError(
+                        playerError ?: PlaybackException(
+                            "unknown",
+                            null,
+                            PlaybackException.ERROR_CODE_UNSPECIFIED
+                        )
+                    )
                 }
             }
         }
@@ -555,8 +574,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 }
 
             "core-idle", "eof-reached" ->
-                listeners.forEach { it.onPlaybackStateChanged(getPlaybackState())
-                    it.onIsPlayingChanged(false)  }
+                listeners.forEach {
+                    it.onPlaybackStateChanged(getPlaybackState())
+                }
 
             "paused-for-cache" -> {
                 listeners.forEach {

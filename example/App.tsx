@@ -200,7 +200,6 @@ function PlayerExample({
 		refreshTracks();
 	};
 
-
 	return (
 		<ScrollView style={styles.container}>
 			<Text style={styles.heading}>react-native-omni</Text>
@@ -393,7 +392,8 @@ function PlayerExample({
 										rendition.selected && styles.selectedTrackButtonText,
 									]}
 								>
-									{rendition.width}x{rendition.height} ({Math.round(rendition.bitrate / 1000)} kbps)
+									{rendition.width}x{rendition.height} (
+									{Math.round(rendition.bitrate / 1000)} kbps)
 								</Text>
 							</Pressable>
 						))
@@ -405,6 +405,7 @@ function PlayerExample({
 				style={styles.logCard}
 				contentContainerStyle={styles.logContent}
 			>
+				<Text style={styles.selectorTitle}>Logs</Text>
 				{logs.length === 0 ? (
 					<Text style={styles.logText}>Event log will appear here.</Text>
 				) : (

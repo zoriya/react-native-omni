@@ -2,7 +2,17 @@ package dev.zoriya.omni
 
 import android.os.SystemClock
 import androidx.media3.common.C
+import androidx.media3.common.C.TRACK_TYPE_AUDIO
+import androidx.media3.common.C.TRACK_TYPE_TEXT
+import androidx.media3.common.C.TRACK_TYPE_VIDEO
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Player.STATE_BUFFERING
+import androidx.media3.common.Player.STATE_ENDED
+import androidx.media3.common.Player.STATE_IDLE
+import androidx.media3.common.Player.STATE_READY
+import androidx.media3.common.Tracks
 import com.margelo.nitro.omni.BoolProperty
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
 import com.margelo.nitro.omni.NumberProperty
@@ -11,8 +21,8 @@ import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Track
 
 class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Listener {
-    val onPrevListeners = mutableSetOf<() -> Unit>()
-    val onNextListeners = mutableSetOf<() -> Unit>()
+    private val onPrevListeners = mutableSetOf<() -> Unit>()
+    private val onNextListeners = mutableSetOf<() -> Unit>()
     private val onEndListeners = mutableSetOf<() -> Unit>()
     private val onErrorListeners = mutableSetOf<(type: String, message: String) -> Unit>()
     private val onAudioFocusChangeListeners = mutableSetOf<(status: String) -> Unit>()
@@ -27,17 +37,6 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
 
     init {
         player.addListener(this)
-        emitCoreState(forceCurrentTime = true)
-    }
-
-    private fun computePlayerStatus(): PlayerStatus {
-        val loading = player.isLoading
-        val idle = player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED
-        return when {
-            loading -> PlayerStatus.LOADING
-            idle -> PlayerStatus.IDLE
-            else -> PlayerStatus.READYTOPLAY
-        }
     }
 
     private fun selectedTrack(trackType: Int): Track? {
@@ -58,61 +57,56 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
         return null
     }
 
-    override fun onEvents(player: Player, events: Player.Events) {
-        if (
-            events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
-            events.contains(Player.EVENT_IS_LOADING_CHANGED)
-        ) {
-            val status = computePlayerStatus()
-            playerStatusListeners.forEach { it(status) }
-            if (player.playbackState == Player.STATE_ENDED) {
+    override fun onPlaybackStateChanged(playbackState: Int) {
+        val state = when (player.playbackState) {
+            STATE_IDLE -> PlayerStatus.IDLE
+            STATE_BUFFERING -> PlayerStatus.LOADING
+            STATE_READY -> PlayerStatus.READYTOPLAY
+            STATE_ENDED -> {
                 onEndListeners.forEach { it() }
+                PlayerStatus.IDLE
             }
+            else -> PlayerStatus.IDLE
         }
+        playerStatusListeners.forEach { it(state) }
+    }
 
-        if (
-            events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED) ||
-            events.contains(Player.EVENT_IS_PLAYING_CHANGED)
-        ) {
-            val isPlaying = player.isPlaying
-            onAudioFocusChangeListeners.forEach { it(if (isPlaying) "playing" else "paused") }
-            stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
-        }
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        onIsPlayingChanged(playWhenReady)
+    }
 
-        if (events.contains(Player.EVENT_VOLUME_CHANGED)) {
-            val volume = player.volume.toDouble().coerceIn(0.0, 1.0)
-            stateListeners[NumberProperty.VOLUME]?.forEach { it(volume) }
-            stateBoolListeners[BoolProperty.MUTED]?.forEach { it(volume <= 0.0) }
-        }
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
+    }
 
-        if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
-            stateListeners[NumberProperty.PLAYBACKRATE]?.forEach {
-                it(player.playbackParameters.speed.toDouble())
-            }
-        }
+    override fun onVolumeChanged(volume: Float) {
+        stateListeners[NumberProperty.VOLUME]?.forEach { it(volume.toDouble()) }
+        stateBoolListeners[BoolProperty.MUTED]?.forEach { it(volume <= 0.0) }
+    }
 
-        if (
-            events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
-            events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
-            events.contains(Player.EVENT_IS_LOADING_CHANGED)
-        ) {
-            emitCoreState(forceCurrentTime = true)
-        } else {
-            emitCoreState(forceCurrentTime = false)
-        }
-
-        if (events.contains(Player.EVENT_TRACKS_CHANGED)) {
-            selectedTrack(C.TRACK_TYPE_VIDEO)?.let { track ->
-                onVideoTrackChangeListeners.forEach { it(track) }
-            }
-            selectedTrack(C.TRACK_TYPE_AUDIO)?.let { track ->
-                onAudioTrackChangeListeners.forEach { it(track) }
-            }
-            onSubtitleChangeListeners.forEach { it(selectedTrack(C.TRACK_TYPE_TEXT)) }
+    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+        stateListeners[NumberProperty.PLAYBACKRATE]?.forEach {
+            it(playbackParameters.speed.toDouble())
         }
     }
 
-    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+    override fun onTracksChanged(tracks: Tracks) {
+        selectedTrack(TRACK_TYPE_VIDEO)?.let { track ->
+            onVideoTrackChangeListeners.forEach { it(track) }
+        }
+        selectedTrack(TRACK_TYPE_AUDIO)?.let { track ->
+            onAudioTrackChangeListeners.forEach { it(track) }
+        }
+        onSubtitleChangeListeners.forEach {
+            it(
+                selectedTrack(
+                    TRACK_TYPE_TEXT
+                )
+            )
+        }
+    }
+
+    override fun onPlayerError(error: PlaybackException) {
         onErrorListeners.forEach {
             it(error.errorCodeName, error.message ?: "unknown message")
         }
@@ -123,7 +117,7 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
-        emitCurrentTime(force = true)
+        emitCoreState(forceCurrentTime = true)
     }
 
     private fun emitCoreState(forceCurrentTime: Boolean) {
