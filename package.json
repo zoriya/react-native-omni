@@ -57,11 +57,11 @@
 		"@biomejs/biome": "2.4.10",
 		"@types/jest": "^29.5.12",
 		"@types/react": "19.2.0",
-		"nitrogen": "0.35.3",
+		"nitrogen": "0.35.4",
 		"react": "19.2.3",
 		"react-native": "0.84.1",
 		"react-native-builder-bob": "^0.40.18",
-		"react-native-nitro-modules": "0.35.3",
+		"react-native-nitro-modules": "0.35.4",
 		"typescript": "^5.8.3"
 	},
 	"peerDependencies": {
