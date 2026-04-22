@@ -20,6 +20,7 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	}, [player, event, callback]);
 };
 
+// export const usePlayerState = (key: "progress", refresh?: number): OmniPlayerState["progress"];
 export const usePlayerState = <Key extends keyof OmniPlayerState>(
 	key: Key,
 ): OmniPlayerState[Key] => {
