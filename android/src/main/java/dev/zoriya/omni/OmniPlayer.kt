@@ -20,10 +20,15 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     val player = MpvPlayer(ctx)
     override val eventMap = EventMap(player)
 
+    init {
+        OmniPlaybackService.attachPlayer(player)
+    }
+
     override fun dispose() {
         super.dispose()
 
         eventMap.dispose()
+        OmniPlaybackService.detachPlayer(player)
         player.release()
     }
 
@@ -99,6 +104,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val rendition: Array<Rendition> get() = emptyArray()
 
     override fun play() {
+        OmniPlaybackService.ensureStarted(player)
         player.play()
     }
 

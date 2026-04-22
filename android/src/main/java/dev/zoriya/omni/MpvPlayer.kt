@@ -2,6 +2,7 @@ package dev.zoriya.omni
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Handler
 import android.os.Looper
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -9,7 +10,6 @@ import android.view.SurfaceView
 import android.view.TextureView
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.BasePlayer
-import androidx.media3.common.C
 import androidx.media3.common.C.FORMAT_HANDLED
 import androidx.media3.common.C.INDEX_UNSET
 import androidx.media3.common.C.TIME_UNSET
@@ -32,14 +32,33 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.Tracks.Group
 import androidx.media3.common.VideoSize
 import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.Clock
+import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import dev.jdtech.mpv.MPVLib
-import java.util.concurrent.CopyOnWriteArraySet
 
 @SuppressLint("UnsafeOptInUsageError")
 class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     private val applicationLooper: Looper = Looper.getMainLooper()
-    private val listeners = CopyOnWriteArraySet<Player.Listener>()
+    private val applicationHandler = Handler(applicationLooper)
+    private val listeners = ListenerSet<Player.Listener>(
+        applicationLooper,
+        Clock.DEFAULT
+    ) { listener, flags ->
+        listener.onEvents(this, Player.Events(flags))
+    }
+
+    private fun notifyListeners(eventFlag: Int, callback: (Player.Listener) -> Unit) {
+        val notifyAction = {
+            listeners.queueEvent(eventFlag, callback)
+            listeners.flushEvents()
+        }
+        if (Looper.myLooper() == applicationLooper) {
+            notifyAction()
+        } else {
+            applicationHandler.post(notifyAction)
+        }
+    }
 
     internal val mpv = (MPVLib.create(ctx) ?: throw Error("Failed to initialize MPVLib")).apply {
         setOptionString("vo", "gpu-next")
@@ -112,12 +131,16 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) {
         setMediaItems(
             mediaItems,
-            if (resetPosition) 0 else C.INDEX_UNSET,
-            if (resetPosition) 0L else C.TIME_UNSET
+            if (resetPosition) 0 else INDEX_UNSET,
+            if (resetPosition) 0L else TIME_UNSET
         )
     }
 
-    override fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int, startPositionMs: Long) {
+    override fun setMediaItems(
+        mediaItems: List<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long
+    ) {
         val target = when {
             mediaItems.isEmpty() -> null
             startIndex in mediaItems.indices -> mediaItems[startIndex]
@@ -130,7 +153,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
         mpv.command(arrayOf("stop"))
 
-        val targetMs = if (startPositionMs == C.TIME_UNSET) 0L else startPositionMs.coerceAtLeast(0L)
+        val targetMs = if (startPositionMs == TIME_UNSET) 0L else startPositionMs.coerceAtLeast(0L)
         mpv.setPropertyDouble("start", targetMs / 1000.0)
 
         if (target != null) {
@@ -193,9 +216,14 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun isLoading(): Boolean = mpv.getPropertyBoolean("paused-for-cache") ?: false
 
-    override fun seekTo(mediaItemIndex: Int, positionMs: Long, seekCommand: Int, isRepeatingCurrentItem: Boolean) {
-        if (mediaItemIndex != C.INDEX_UNSET && mediaItemIndex != 0) return
-        val targetMs = if (positionMs == C.TIME_UNSET) 0L else positionMs.coerceAtLeast(0L)
+    override fun seekTo(
+        mediaItemIndex: Int,
+        positionMs: Long,
+        seekCommand: Int,
+        isRepeatingCurrentItem: Boolean
+    ) {
+        if (mediaItemIndex != INDEX_UNSET && mediaItemIndex != 0) return
+        val targetMs = if (positionMs == TIME_UNSET) 0L else positionMs.coerceAtLeast(0L)
         mpv.command(arrayOf("seek", (targetMs / 1000.0).toString(), "absolute"))
     }
 
@@ -208,7 +236,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     }
 
     override fun getPlaybackParameters(): PlaybackParameters {
-        return PlaybackParameters((mpv.getPropertyDouble("speed") ?: 1.0).toFloat().coerceAtLeast(0f))
+        return PlaybackParameters(
+            (mpv.getPropertyDouble("speed") ?: 1.0).toFloat().coerceAtLeast(0f)
+        )
     }
 
     override fun stop() {
@@ -226,55 +256,57 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         if (count <= 0) return Tracks.EMPTY
 
         data class Entry(val id: Int, val format: Format)
+
         val grouped = LinkedHashMap<Int, MutableList<Entry>>()
         for (i in 0 until count) {
-                val base = "track-list/$i"
-                val type = when (mpv.getPropertyString("$base/type")) {
-                    "video" -> TRACK_TYPE_VIDEO
-                    "audio" -> TRACK_TYPE_AUDIO
-                    "sub" -> TRACK_TYPE_TEXT
-                    else -> TRACK_TYPE_UNKNOWN
-                }
-                if (type == TRACK_TYPE_UNKNOWN) continue
-
-                val id = mpv.getPropertyInt("$base/id") ?: continue
-                val label = mpv.getPropertyString("$base/title")
-                val language = mpv.getPropertyString("$base/lang")
-                val codec = mpv.getPropertyString("$base/codec")
-
-                val format = Format.Builder()
-                    .setId(id.toString())
-                    .setLabel(label)
-                    .setLanguage(language)
-                    .setCodecs(codec)
-                    .build()
-
-                grouped.getOrPut<Int, MutableList<Entry>>(type) { mutableListOf<Entry>() }
-                    .add(Entry(id, format))
+            val base = "track-list/$i"
+            val type = when (mpv.getPropertyString("$base/type")) {
+                "video" -> TRACK_TYPE_VIDEO
+                "audio" -> TRACK_TYPE_AUDIO
+                "sub" -> TRACK_TYPE_TEXT
+                else -> TRACK_TYPE_UNKNOWN
             }
+            if (type == TRACK_TYPE_UNKNOWN) continue
+
+            val id = mpv.getPropertyInt("$base/id") ?: continue
+            val label = mpv.getPropertyString("$base/title")
+            val language = mpv.getPropertyString("$base/lang")
+            val codec = mpv.getPropertyString("$base/codec")
+
+            val format = Format.Builder()
+                .setId(id.toString())
+                .setLabel(label)
+                .setLanguage(language)
+                .setCodecs(codec)
+                .build()
+
+            grouped.getOrPut<Int, MutableList<Entry>>(type) { mutableListOf<Entry>() }
+                .add(Entry(id, format))
+        }
         val selectedVideo = mpv.getPropertyInt("vid")
         val selectedAudio = mpv.getPropertyInt("aid")
         val selectedSubtitle = mpv.getPropertyInt("sid")
         val result = ArrayList<Group>()
         for ((type, entries) in grouped) {
-                if (entries.isEmpty()) continue
-                val group = TrackGroup("mpv-$type", *entries.map { it.format }.toTypedArray<Format>())
-                val selected = BooleanArray(entries.size) { idx ->
-                    val id = entries[idx].id
-                    when (type) {
-                        TRACK_TYPE_VIDEO -> selectedVideo == id
-                        TRACK_TYPE_AUDIO -> selectedAudio == id
-                        TRACK_TYPE_TEXT -> selectedSubtitle == id
-                        else -> false
-                    }
+            if (entries.isEmpty()) continue
+            val group = TrackGroup("mpv-$type", *entries.map { it.format }.toTypedArray<Format>())
+            val selected = BooleanArray(entries.size) { idx ->
+                val id = entries[idx].id
+                when (type) {
+                    TRACK_TYPE_VIDEO -> selectedVideo == id
+                    TRACK_TYPE_AUDIO -> selectedAudio == id
+                    TRACK_TYPE_TEXT -> selectedSubtitle == id
+                    else -> false
                 }
-                val support = IntArray(entries.size) { FORMAT_HANDLED }
-                result.add(Group(group, false, support, selected))
             }
+            val support = IntArray(entries.size) { FORMAT_HANDLED }
+            result.add(Group(group, false, support, selected))
+        }
         return Tracks(result)
     }
 
-    override fun getTrackSelectionParameters(): TrackSelectionParameters = currentTrackSelectionParameters
+    override fun getTrackSelectionParameters(): TrackSelectionParameters =
+        currentTrackSelectionParameters
 
     override fun setTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters) {
         currentTrackSelectionParameters = trackSelectionParameters
@@ -301,7 +333,8 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         }
     }
 
-    override fun getMediaMetadata(): MediaMetadata = currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY
+    override fun getMediaMetadata(): MediaMetadata =
+        currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY
 
     override fun getPlaylistMetadata(): MediaMetadata = playlistMetadata
 
@@ -315,15 +348,19 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         return object : Timeline() {
             override fun getWindowCount(): Int = 1
 
-            override fun getWindow(windowIndex: Int, window: Window, defaultPositionProjectionUs: Long): Window {
+            override fun getWindow(
+                windowIndex: Int,
+                window: Window,
+                defaultPositionProjectionUs: Long
+            ): Window {
                 check(windowIndex == 0)
                 return window.set(
-                    Window.SINGLE_WINDOW_UID,
+                    SINGLE_WINDOW_UID,
                     item,
                     null,
-                    C.TIME_UNSET,
-                    C.TIME_UNSET,
-                    C.TIME_UNSET,
+                    TIME_UNSET,
+                    TIME_UNSET,
+                    TIME_UNSET,
                     true,
                     false,
                     item.liveConfiguration,
@@ -339,26 +376,26 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
             override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
                 check(periodIndex == 0)
-                val uid = Window.SINGLE_WINDOW_UID
+                val uid = SINGLE_WINDOW_UID
                 val id = if (setIds) uid else null
                 return period.set(id, uid, 0, durationUs, 0L)
             }
 
             override fun getIndexOfPeriod(uid: Any): Int {
-                return if (uid == Window.SINGLE_WINDOW_UID) 0 else C.INDEX_UNSET
+                return if (uid == SINGLE_WINDOW_UID) 0 else INDEX_UNSET
             }
 
             override fun getUidOfPeriod(periodIndex: Int): Any {
                 check(periodIndex == 0)
-                return Window.SINGLE_WINDOW_UID
+                return SINGLE_WINDOW_UID
             }
         }
     }
 
-    override fun getCurrentPeriodIndex() = if (currentMediaItem == null) C.INDEX_UNSET else 0
+    override fun getCurrentPeriodIndex() = if (currentMediaItem == null) INDEX_UNSET else 0
 
     override fun getCurrentMediaItemIndex() =
-        if (currentMediaItem == null) C.INDEX_UNSET else 0
+        if (currentMediaItem == null) INDEX_UNSET else 0
 
     override fun getDuration() =
         ((mpv.getPropertyDouble("duration") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
@@ -374,9 +411,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun isPlayingAd(): Boolean = false
 
-    override fun getCurrentAdGroupIndex(): Int = C.INDEX_UNSET
+    override fun getCurrentAdGroupIndex(): Int = INDEX_UNSET
 
-    override fun getCurrentAdIndexInAdGroup(): Int = C.INDEX_UNSET
+    override fun getCurrentAdIndexInAdGroup(): Int = INDEX_UNSET
 
     override fun getMaxSeekToPreviousPosition() = 3_000L
 
@@ -405,7 +442,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     }
 
     override fun setVideoSurface(surface: Surface?) {
-        mpv.attachSurface(surface ?: return clearVideoSurface() )
+        mpv.attachSurface(surface ?: return clearVideoSurface())
         mpv.setOptionString("force-window", "yes")
         mpv.setOptionString("vo", "gpu-next")
     }
@@ -474,19 +511,24 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun setDeviceMuted(muted: Boolean, flags: Int) = Unit
 
-    override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) = Unit
+    override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) =
+        Unit
 
     override fun event(eventId: Int) {
         when (eventId) {
-            MPVLib.MpvEvent.MPV_EVENT_START_FILE -> listeners.forEach {
-                it.onPlaybackStateChanged(STATE_BUFFERING)
-            }
+            MPVLib.MpvEvent.MPV_EVENT_START_FILE ->
+                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
+                    it.onPlaybackStateChanged(STATE_BUFFERING)
+                }
 
-            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED ->
-                listeners.forEach {
+            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_READY)
+                }
+                notifyListeners(EVENT_IS_PLAYING_CHANGED) {
                     it.onIsPlayingChanged(playWhenReady)
                 }
+            }
 
             MPVLib.MpvEvent.MPV_EVENT_SEEK,
             MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
@@ -502,16 +544,15 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                     INDEX_UNSET,
                     INDEX_UNSET
                 )
-                listeners.forEach {
-                    it.onPositionDiscontinuity(position, position, Player.DISCONTINUITY_REASON_SEEK)
+                notifyListeners(EVENT_POSITION_DISCONTINUITY) {
+                    it.onPositionDiscontinuity(position, position, DISCONTINUITY_REASON_SEEK)
                 }
             }
 
-            MPVLib.MpvEvent.MPV_EVENT_END_FILE -> listeners.forEach {
-                it.onPlaybackStateChanged(
-                    STATE_ENDED
-                )
-            }
+            MPVLib.MpvEvent.MPV_EVENT_END_FILE ->
+                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
+                    it.onPlaybackStateChanged(STATE_ENDED)
+                }
 
             MPVLib.MpvEvent.MPV_EVENT_QUEUE_OVERFLOW -> {
                 playerError = PlaybackException(
@@ -519,7 +560,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                     null,
                     PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK
                 )
-                listeners.forEach {
+                notifyListeners(EVENT_PLAYER_ERROR) {
                     it.onPlayerErrorChanged(playerError)
                     it.onPlayerError(
                         playerError ?: PlaybackException(
@@ -538,7 +579,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     override fun eventProperty(property: String, value: Long) {
         when (property) {
             "vid", "aid", "sid" -> {
-                listeners.forEach { it.onTracksChanged(getCurrentTracks()) }
+                notifyListeners(EVENT_TRACKS_CHANGED) { it.onTracksChanged(getCurrentTracks()) }
             }
         }
     }
@@ -546,17 +587,21 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "duration" ->
-                listeners.forEach {
+                notifyListeners(EVENT_TIMELINE_CHANGED) {
                     it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
                 }
 
             "speed" ->
-                listeners.forEach {
-                    it.onPlaybackParametersChanged(PlaybackParameters(value.toFloat().coerceAtLeast(0f)))
+                notifyListeners(EVENT_PLAYBACK_PARAMETERS_CHANGED) {
+                    it.onPlaybackParametersChanged(
+                        PlaybackParameters(
+                            value.toFloat().coerceAtLeast(0f)
+                        )
+                    )
                 }
 
             "volume" ->
-                listeners.forEach {
+                notifyListeners(EVENT_VOLUME_CHANGED) {
                     it.onVolumeChanged((value.coerceIn(0.0, 100.0) / 100.0).toFloat())
                 }
         }
@@ -564,23 +609,29 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun eventProperty(property: String, value: Boolean) {
         when (property) {
-            "pause" ->
-                listeners.forEach {
+            "pause" -> {
+                notifyListeners(EVENT_PLAY_WHEN_READY_CHANGED) {
                     it.onPlayWhenReadyChanged(
                         !value,
                         PLAY_WHEN_READY_CHANGE_REASON_REMOTE
                     )
+                }
+                notifyListeners(EVENT_IS_PLAYING_CHANGED) {
                     it.onIsPlayingChanged(!value)
                 }
+            }
 
             "core-idle", "eof-reached" ->
-                listeners.forEach {
+                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(getPlaybackState())
                 }
 
             "paused-for-cache" -> {
-                listeners.forEach {
+                notifyListeners(EVENT_IS_LOADING_CHANGED) {
                     it.onIsLoadingChanged(value)
+                }
+
+                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(getPlaybackState())
                 }
             }
