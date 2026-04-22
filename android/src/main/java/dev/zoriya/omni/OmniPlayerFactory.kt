@@ -1,5 +1,6 @@
 package dev.zoriya.omni
 
+import android.util.Log
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerFactorySpec
 import com.margelo.nitro.omni.HybridOmniPlayerSpec

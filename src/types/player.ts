@@ -2,6 +2,7 @@ import type { Source } from "./source";
 
 export interface OmniPlayer extends OmniPlayerState {
 	source: Source;
+	showNotification?: boolean;
 
 	play(): void;
 	pause(): void;

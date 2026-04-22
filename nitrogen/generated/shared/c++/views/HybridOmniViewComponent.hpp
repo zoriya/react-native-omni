@@ -44,7 +44,6 @@ namespace margelo::nitro::omni::views {
   public:
     CachedProp<std::shared_ptr<HybridOmniPlayerSpec>> player;
     CachedProp<std::optional<bool>> autoplay;
-    CachedProp<std::optional<bool>> showNotification;
     CachedProp<std::optional<bool>> autoPip;
     CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridOmniViewSpec>& /* ref */)>>> hybridRef;
 

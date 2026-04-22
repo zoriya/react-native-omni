@@ -45,10 +45,6 @@ void JHybridOmniViewStateUpdater::updateViewProps(jni::alias_ref<jni::JClass> /*
     hybridView->setAutoplay(props->autoplay.value);
     props->autoplay.isDirty = false;
   }
-  if (props->showNotification.isDirty) {
-    hybridView->setShowNotification(props->showNotification.value);
-    props->showNotification.isDirty = false;
-  }
   if (props->autoPip.isDirty) {
     hybridView->setAutoPip(props->autoPip.value);
     props->autoPip.isDirty = false;

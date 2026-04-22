@@ -42,12 +42,6 @@ abstract class HybridOmniViewSpec: HybridView() {
   @get:Keep
   @set:DoNotStrip
   @set:Keep
-  abstract var showNotification: Boolean?
-  
-  @get:DoNotStrip
-  @get:Keep
-  @set:DoNotStrip
-  @set:Keep
   abstract var autoPip: Boolean?
 
   // Methods

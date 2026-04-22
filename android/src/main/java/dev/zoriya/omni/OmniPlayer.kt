@@ -1,10 +1,14 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
 import com.margelo.nitro.omni.PlayerStatus
@@ -12,7 +16,12 @@ import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
 import androidx.core.net.toUri
+import androidx.media3.common.MediaItem.RequestMetadata
+import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer : HybridOmniPlayerSpec() {
@@ -20,15 +29,26 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     val player = MpvPlayer(ctx)
     override val eventMap = EventMap(player)
 
-    init {
-        OmniPlaybackService.attachPlayer(player)
-    }
+    override var showNotification: Boolean? = false
+        set(value) {
+            Log.e("omni", "Toggle show notif, old: ${field}, new: ${value}")
+            if (value == true) {
+                if (notificationPlayer != null) {
+                    throw Error("Two players can't display notifications at the same time.")
+                }
+                notificationPlayer = player
+                ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
+            } else if (field == true) {
+                ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
+            }
+            field = value
+        }
 
     override fun dispose() {
+        showNotification = false
         super.dispose()
 
         eventMap.dispose()
-        OmniPlaybackService.detachPlayer(player)
         player.release()
     }
 
@@ -38,7 +58,50 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             ?: throw IllegalStateException("source should be initialized before get")
         set(value) {
             currentSource = value
-            player.setMediaItem(buildMediaItem(value))
+            val src = source.src.firstOrNull() ?: return player.setMediaItem(MediaItem.EMPTY)
+            //        val headers = Bundle().apply {
+            //            putStringArrayList(
+            //                MpvPlayer.REQUEST_HEADER_NAMES_KEY,
+            //                ArrayList(src.headers.keys)
+            //            )
+            //            putStringArrayList(
+            //                MpvPlayer.REQUEST_HEADER_VALUES_KEY,
+            //                ArrayList(src.headers.values)
+            //            )
+            //            source.startTime?.let {
+            //                putLong(MpvPlayer.REQUEST_START_MS_KEY, (it.coerceAtLeast(0.0) * 1000.0).toLong())
+            //            }
+            //        }
+            player.setMediaItem(
+                MediaItem.Builder()
+                    .setUri(src.uri)
+                    .setMimeType(src.mimeType)
+                    .setMediaId(src.uri)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(value.metadata?.title)
+                            .setAlbumTitle(value.metadata?.album)
+                            .setArtist(value.metadata?.artist)
+                            .apply {
+                                value.metadata?.imageLink?.let { setArtworkUri(it.toUri()) }
+                            }
+                            .build())
+                    .setSubtitleConfigurations(value.subtitles.map { subtitle ->
+                        SubtitleConfiguration.Builder(subtitle.link.toUri())
+                            .setId(subtitle.id)
+                            .setLanguage(subtitle.language)
+                            .setLabel(subtitle.label)
+                            .setMimeType(subtitle.mimeType)
+                            .build()
+                    })
+                    .setRequestMetadata(
+                        RequestMetadata.Builder()
+                            .setMediaUri(src.uri.toUri())
+                            // .setExtras(headers)
+                            .build()
+                    )
+                    .build()
+            )
         }
 
     fun setSurface(holder: SurfaceHolder?) {
@@ -53,10 +116,9 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val hasNext get() = player.hasNextMediaItem()
     override val status: PlayerStatus
         get() = when (player.playbackState) {
-            androidx.media3.common.Player.STATE_IDLE,
-            androidx.media3.common.Player.STATE_ENDED -> PlayerStatus.IDLE
-
-            androidx.media3.common.Player.STATE_BUFFERING -> PlayerStatus.LOADING
+            Player.STATE_IDLE,
+            Player.STATE_ENDED -> PlayerStatus.IDLE
+            Player.STATE_BUFFERING -> PlayerStatus.LOADING
             else -> PlayerStatus.READYTOPLAY
         }
 
@@ -104,7 +166,6 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val rendition: Array<Rendition> get() = emptyArray()
 
     override fun play() {
-        OmniPlaybackService.ensureStarted(player)
         player.play()
     }
 
@@ -147,57 +208,6 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override fun selectRendition(rendition: Rendition?) {
     }
 
-    private fun buildMediaItem(source: Source): MediaItem {
-        val src = source.src.firstOrNull() ?: return MediaItem.EMPTY
-
-        val mediaMetadata = MediaMetadata.Builder()
-            .setTitle(source.metadata?.title)
-            .setAlbumTitle(source.metadata?.album)
-            .setArtist(source.metadata?.artist)
-            .apply {
-                source.metadata?.imageLink?.let { setArtworkUri(it.toUri()) }
-            }
-            .build()
-
-        val subtitleConfigurations = source.subtitles.map { subtitle ->
-            MediaItem.SubtitleConfiguration.Builder(subtitle.link.toUri())
-                .setId(subtitle.id)
-                .setLanguage(subtitle.language)
-                .setLabel(subtitle.label)
-                .setMimeType(subtitle.mimeType)
-                .build()
-        }
-
-//        val headers = Bundle().apply {
-//            putStringArrayList(
-//                MpvPlayer.REQUEST_HEADER_NAMES_KEY,
-//                ArrayList(src.headers.keys)
-//            )
-//            putStringArrayList(
-//                MpvPlayer.REQUEST_HEADER_VALUES_KEY,
-//                ArrayList(src.headers.values)
-//            )
-//            source.startTime?.let {
-//                putLong(MpvPlayer.REQUEST_START_MS_KEY, (it.coerceAtLeast(0.0) * 1000.0).toLong())
-//            }
-//        }
-
-        val requestMetadata = MediaItem.RequestMetadata.Builder()
-            .setMediaUri(src.uri.toUri())
-//            .setExtras(headers)
-            .build()
-
-        val itemBuilder = MediaItem.Builder()
-            .setUri(src.uri)
-            .setMimeType(src.mimeType)
-            .setMediaId(src.uri)
-            .setMediaMetadata(mediaMetadata)
-            .setSubtitleConfigurations(subtitleConfigurations)
-            .setRequestMetadata(requestMetadata)
-
-        return itemBuilder.build()
-    }
-
     private fun tracksByType(trackType: Int): Array<Track> {
         val groups = player.currentTracks.groups.filter { it.type == trackType }
         if (groups.isEmpty()) return emptyArray()
@@ -237,4 +247,43 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         }
     }
 
+    companion object {
+        var notificationPlayer: Player? = null
+    }
+}
+
+@SuppressLint("UnsafeOptInUsageError")
+class OmniPlayerService : MediaSessionService() {
+    private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
+    private val player = OmniPlayer.notificationPlayer ?: throw Error("No player available")
+    var mediaSession: MediaSession = MediaSession.Builder(ctx, player).build()
+
+    init {
+        Log.e("omni", "service inited")
+    }
+
+    override fun onCreate() {
+        Log.e("omni", "service created")
+        super.onCreate()
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider.Builder(ctx).build()
+        )
+    }
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (!isPlaybackOngoing) {
+            pauseAllPlayersAndStopSelf()
+        }
+    }
+
+    override fun onDestroy() {
+        mediaSession.release()
+        super.onDestroy()
+    }
+
+    override fun getApplicationContext(): Context? {
+        return NitroModules.applicationContext
+    }
 }

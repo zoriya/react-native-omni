@@ -48,6 +48,7 @@ function PlayerExample({
 	const currentTime = usePlayerState("currentTime");
 	const duration = usePlayerState("duration");
 	const playbackRate = usePlayerState("playbackRate");
+
 	const muted = usePlayerState("muted");
 	const volume = usePlayerState("volume");
 	const [logs, setLogs] = useState<string[]>([]);
@@ -450,7 +451,7 @@ function App(): React.JSX.Element {
 	);
 
 	return (
-		<OmniProvider source={source}>
+		<OmniProvider source={source} showNotification>
 			<PlayerExample
 				onPrev={handlePrev}
 				onNext={handleNext}

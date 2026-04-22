@@ -51,8 +51,6 @@ namespace margelo::nitro::omni {
       virtual void setPlayer(const std::shared_ptr<HybridOmniPlayerSpec>& player) = 0;
       virtual std::optional<bool> getAutoplay() = 0;
       virtual void setAutoplay(std::optional<bool> autoplay) = 0;
-      virtual std::optional<bool> getShowNotification() = 0;
-      virtual void setShowNotification(std::optional<bool> showNotification) = 0;
       virtual std::optional<bool> getAutoPip() = 0;
       virtual void setAutoPip(std::optional<bool> autoPip) = 0;
 

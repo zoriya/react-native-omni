@@ -18,8 +18,6 @@ namespace margelo::nitro::omni {
       prototype.registerHybridSetter("player", &HybridOmniViewSpec::setPlayer);
       prototype.registerHybridGetter("autoplay", &HybridOmniViewSpec::getAutoplay);
       prototype.registerHybridSetter("autoplay", &HybridOmniViewSpec::setAutoplay);
-      prototype.registerHybridGetter("showNotification", &HybridOmniViewSpec::getShowNotification);
-      prototype.registerHybridSetter("showNotification", &HybridOmniViewSpec::setShowNotification);
       prototype.registerHybridGetter("autoPip", &HybridOmniViewSpec::getAutoPip);
       prototype.registerHybridSetter("autoPip", &HybridOmniViewSpec::setAutoPip);
     });

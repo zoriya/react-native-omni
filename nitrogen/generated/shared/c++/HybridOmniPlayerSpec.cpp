@@ -17,6 +17,8 @@ namespace margelo::nitro::omni {
       prototype.registerHybridGetter("eventMap", &HybridOmniPlayerSpec::getEventMap);
       prototype.registerHybridGetter("source", &HybridOmniPlayerSpec::getSource);
       prototype.registerHybridSetter("source", &HybridOmniPlayerSpec::setSource);
+      prototype.registerHybridGetter("showNotification", &HybridOmniPlayerSpec::getShowNotification);
+      prototype.registerHybridSetter("showNotification", &HybridOmniPlayerSpec::setShowNotification);
       prototype.registerHybridGetter("hasPrev", &HybridOmniPlayerSpec::getHasPrev);
       prototype.registerHybridGetter("hasNext", &HybridOmniPlayerSpec::getHasNext);
       prototype.registerHybridGetter("videos", &HybridOmniPlayerSpec::getVideos);

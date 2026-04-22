@@ -46,16 +46,6 @@ namespace margelo::nitro::omni::views {
         throw std::runtime_error(std::string("OmniView.autoplay: ") + exc.what());
       }
     }()),
-    showNotification([&]() -> CachedProp<std::optional<bool>> {
-      try {
-        const react::RawValue* rawValue = rawProps.at("showNotification", nullptr, nullptr);
-        if (rawValue == nullptr) return sourceProps.showNotification;
-        const auto& [runtime, value] = (std::pair<jsi::Runtime*, jsi::Value>)*rawValue;
-        return CachedProp<std::optional<bool>>::fromRawValue(*runtime, value, sourceProps.showNotification);
-      } catch (const std::exception& exc) {
-        throw std::runtime_error(std::string("OmniView.showNotification: ") + exc.what());
-      }
-    }()),
     autoPip([&]() -> CachedProp<std::optional<bool>> {
       try {
         const react::RawValue* rawValue = rawProps.at("autoPip", nullptr, nullptr);
@@ -81,7 +71,6 @@ namespace margelo::nitro::omni::views {
     switch (hashString(propName)) {
       case hashString("player"): return true;
       case hashString("autoplay"): return true;
-      case hashString("showNotification"): return true;
       case hashString("autoPip"): return true;
       case hashString("hybridRef"): return true;
       default: return false;

@@ -20,10 +20,17 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	}, [player, event, callback]);
 };
 
-// export const usePlayerState = (key: "progress", refresh?: number): OmniPlayerState["progress"];
-export const usePlayerState = <Key extends keyof OmniPlayerState>(
+export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
-): OmniPlayerState[Key] => {
+): OmniPlayerState[Key];
+export function usePlayerState(
+	key: "currentTime",
+	refresh?: number,
+): OmniPlayerState["currentTime"];
+export function usePlayerState<Key extends keyof OmniPlayerState>(
+	key: Key,
+	refresh?: number,
+): OmniPlayerState[Key] {
 	const player = usePlayer() as OmniPlayer;
 	const [ret, setState] = useState<any>(player[key]);
 
@@ -47,5 +54,14 @@ export const usePlayerState = <Key extends keyof OmniPlayerState>(
 		}
 	}, [player, key]);
 
+	if (key === "currentTime") refresh ??= 1;
+	useEffect(() => {
+		if (!refresh || refresh <= 0) return;
+		const int = setInterval(() => {
+			setState(player[key])
+		}, refresh);
+		return () => clearInterval(int);
+	}, [refresh, key, player]);
+
 	return ret;
-};
+}

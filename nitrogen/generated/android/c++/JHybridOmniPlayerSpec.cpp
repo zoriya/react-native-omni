@@ -94,6 +94,15 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSource> /* source */)>("setSource");
     method(_javaPart, JSource::fromCpp(source));
   }
+  std::optional<bool> JHybridOmniPlayerSpec::getShowNotification() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JBoolean>()>("getShowNotification");
+    auto __result = method(_javaPart);
+    return __result != nullptr ? std::make_optional(static_cast<bool>(__result->value())) : std::nullopt;
+  }
+  void JHybridOmniPlayerSpec::setShowNotification(std::optional<bool> showNotification) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JBoolean> /* showNotification */)>("setShowNotification");
+    method(_javaPart, showNotification.has_value() ? jni::JBoolean::valueOf(showNotification.value()) : nullptr);
+  }
   bool JHybridOmniPlayerSpec::getHasPrev() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jboolean()>("getHasPrev");
     auto __result = method(_javaPart);

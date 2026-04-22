@@ -5,28 +5,31 @@ import type { OmniPlayer } from "./types/player";
 import type { Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
-const ProviderFactory = NitroModules.createHybridObject<OmniPlayerFactory>(
-	"OmniPlayerFactory",
-);
+const ProviderFactory =
+	NitroModules.createHybridObject<OmniPlayerFactory>("OmniPlayerFactory");
 
 const PlayerCtx = createContext<OmniPlayer>(null!);
 
 export const OmniProvider = ({
 	children,
 	source,
+	showNotification = false,
 }: {
 	source: Source;
 	children: ReactNode;
+	showNotification?: boolean;
 }) => {
 	const player = useLazyRef(() => ProviderFactory.createPlayer(source));
 
 	useEffect(() => {
-		player.current.source = source;
+		player.source = source;
 	}, [source]);
 
-	return (
-		<PlayerCtx.Provider value={player.current}>{children}</PlayerCtx.Provider>
-	);
+	useEffect(() => {
+		player.showNotification = showNotification;
+	}, [showNotification]);
+
+	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
 };
 
 export const usePlayer = () => {

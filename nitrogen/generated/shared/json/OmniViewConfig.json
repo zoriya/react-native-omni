@@ -6,7 +6,6 @@
   "validAttributes": {
     "player": true,
     "autoplay": true,
-    "showNotification": true,
     "autoPip": true,
     "hybridRef": true
   }

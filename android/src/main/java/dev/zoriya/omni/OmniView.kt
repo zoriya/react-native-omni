@@ -3,7 +3,6 @@ package dev.zoriya.omni
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.View
 import android.widget.FrameLayout
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -25,7 +24,6 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
 
     override lateinit var player: HybridOmniPlayerSpec
     override var autoplay: Boolean? = true
-    override var showNotification: Boolean? = true
     override var autoPip: Boolean? = true
 
     override fun afterUpdate() {
@@ -62,7 +60,6 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
     }
 
     override fun onDropView() {
-        Log.e("omniView", "omni-view dropped")
         if (!::player.isInitialized) return
 
         val omniPlayer = player as? OmniPlayer ?: return
@@ -72,7 +69,6 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        Log.e("omniView", "surface created")
         boundPlayer?.setSurface(holder)
     }
 
@@ -81,12 +77,9 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
         format: Int,
         width: Int,
         height: Int
-    ) {
-        // Surface size is resolved from SurfaceHolder in MpvPlayer.
-    }
+    ) { }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        Log.e("omniView", "surface destroyed")
         surfaceReady = false
         boundPlayer?.setSurface(null)
     }

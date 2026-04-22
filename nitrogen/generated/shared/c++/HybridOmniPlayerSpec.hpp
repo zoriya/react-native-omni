@@ -27,11 +27,11 @@ namespace margelo::nitro::omni { enum class PlayerStatus; }
 #include <memory>
 #include "HybridOmniEventMapSpec.hpp"
 #include "Source.hpp"
+#include <optional>
 #include "Track.hpp"
 #include <vector>
 #include "Rendition.hpp"
 #include "PlayerStatus.hpp"
-#include <optional>
 
 namespace margelo::nitro::omni {
 
@@ -63,6 +63,8 @@ namespace margelo::nitro::omni {
       virtual std::shared_ptr<HybridOmniEventMapSpec> getEventMap() = 0;
       virtual Source getSource() = 0;
       virtual void setSource(const Source& source) = 0;
+      virtual std::optional<bool> getShowNotification() = 0;
+      virtual void setShowNotification(std::optional<bool> showNotification) = 0;
       virtual bool getHasPrev() = 0;
       virtual bool getHasNext() = 0;
       virtual std::vector<Track> getVideos() = 0;
