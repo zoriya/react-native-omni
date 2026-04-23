@@ -268,12 +268,7 @@ class OmniPlayerService : MediaSessionService() {
     lateinit var player: Player
     lateinit var mediaSession: MediaSession
 
-    init {
-        Log.e("omni", "service inited")
-    }
-
     override fun onCreate() {
-        Log.e("omni", "service created")
         super.onCreate()
         player = OmniPlayer.notificationPlayer ?: throw Error("No player available")
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
