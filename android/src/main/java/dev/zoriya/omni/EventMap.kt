@@ -72,7 +72,7 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-        onIsPlayingChanged(playWhenReady)
+        onIsPlayingChanged(player.isPlaying)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {

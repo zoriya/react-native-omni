@@ -29,24 +29,15 @@ class OmniView(val context: ThemedReactContext) : HybridOmniViewSpec(), SurfaceH
     override fun afterUpdate() {
         Log.e("omniView", "After update called")
         if (!::player.isInitialized) {
-            Log.w("omniView", "Skipping update because player is not set yet")
             return
         }
 
-        val omniPlayer = player as? OmniPlayer
-            ?: run {
-                Log.w(
-                    "omniView",
-                    "Skipping update because player has unexpected type: ${player::class.java.name}"
-                )
-                return
-            }
+        val omniPlayer = player as? OmniPlayer ?: return
 
         if (boundPlayer === omniPlayer) {
-            return;
+            return
         }
 
-        Log.e("omniView", "Resetting old player")
         boundPlayer?.setSurface(null)
         boundPlayer = omniPlayer
 

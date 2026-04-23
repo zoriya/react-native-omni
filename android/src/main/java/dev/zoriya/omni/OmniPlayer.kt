@@ -1,10 +1,11 @@
 package dev.zoriya.omni
 
+import android.R
 import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.content.Intent
 import android.util.Log
 import android.view.SurfaceHolder
-import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -36,15 +37,16 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
     override var showNotification: Boolean? = false
         set(value) {
-            Log.e("omni", "Toggle show notif, old: ${field}, new: ${value}")
+            Log.e("omni", "Toggle show notif, old: ${field}, new: $value")
             if (value == true) {
                 if (notificationPlayer != null) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
                 notificationPlayer = player
                 ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
-            } else if (field == true) {
+            } else if (field == true && notificationPlayer == player) {
                 ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
+                notificationPlayer = null
             }
             field = value
         }
@@ -62,6 +64,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         get() = currentSource
             ?: throw IllegalStateException("source should be initialized before get")
         set(value) {
+            Log.e("omni", "update source")
             currentSource = value
             val src = source.src.firstOrNull() ?: return player.setMediaItem(MediaItem.EMPTY)
             //        val headers = Bundle().apply {
@@ -106,7 +109,10 @@ class OmniPlayer : HybridOmniPlayerSpec() {
                             .build()
                     )
                     .build()
-            runOnMainThreadSync { player.setMediaItem(item) }
+            runOnMainThreadSync {
+                player.setMediaItem(item)
+                player.prepare()
+            }
         }
 
     fun setSurface(holder: SurfaceHolder?) {
@@ -157,7 +163,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     )
 
     override var volume by mainThreadProperty(
-        get = {player.volume.toDouble()},
+        get = { player.volume.toDouble() },
         set = { value -> player.volume = value.toFloat().coerceIn(0f, 1f) }
     )
 
@@ -168,9 +174,6 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
     override fun play() {
         runOnMainThreadSync { player.play() }
-        if (showNotification == true) {
-            ContextCompat.startForegroundService(ctx, Intent(ctx, OmniPlayerService::class.java))
-        }
     }
 
     override fun pause() {
@@ -262,8 +265,8 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayerService : MediaSessionService() {
-    private val player = OmniPlayer.notificationPlayer ?: throw Error("No player available")
-    var mediaSession: MediaSession = MediaSession.Builder(this, player).build()
+    lateinit var player: Player
+    lateinit var mediaSession: MediaSession
 
     init {
         Log.e("omni", "service inited")
@@ -272,17 +275,36 @@ class OmniPlayerService : MediaSessionService() {
     override fun onCreate() {
         Log.e("omni", "service created")
         super.onCreate()
-        setMediaNotificationProvider(
-            DefaultMediaNotificationProvider.Builder(this).build()
-        )
+        player = OmniPlayer.notificationPlayer ?: throw Error("No player available")
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        val sessionActivity = launchIntent?.let {
+            PendingIntent.getActivity(
+                this,
+                0,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        mediaSession = MediaSession.Builder(this, player)
+            .apply {
+                sessionActivity?.let { setSessionActivity(it) }
+            }
+            .build()
+
+        setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build().apply {
+            setSmallIcon(applicationInfo.icon.takeIf { it != 0 } ?: R.drawable.ic_media_play)
+        })
+        addSession(mediaSession)
+        setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)
+        triggerNotificationUpdate()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!isPlaybackOngoing) {
-            pauseAllPlayersAndStopSelf()
-        }
+        pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {

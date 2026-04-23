@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -12,13 +12,22 @@ import {
 const PLAYLIST = [
 	{
 		title: "Big Buck Bunny (HLS)",
+		artist: "Blender Foundation",
+		album: "Open Movie Project",
+		artwork:
+			"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg",
 		uri: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
 	},
 	{
 		title: "Sintel Trailer (MP4)",
+		artist: "Blender Foundation",
+		album: "Sintel",
+		artwork:
+			"https://download.blender.org/durian/trailer/sintel_trailer-480p.jpg",
 		uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
 	},
 ] as const;
+
 
 function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) {
@@ -261,9 +270,9 @@ function PlayerExample({
 					{tracks.videos.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No video tracks</Text>
 					) : (
-						tracks.videos.map((video) => (
+						tracks.videos.map((video, index) => (
 							<Pressable
-								key={`video-${video.id}`}
+								key={`video-${video.id}-${index}`}
 								style={[
 									styles.trackButton,
 									video.selected && styles.selectedTrackButton,
@@ -288,9 +297,9 @@ function PlayerExample({
 					{tracks.audios.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No audio tracks</Text>
 					) : (
-						tracks.audios.map((audio) => (
+						tracks.audios.map((audio, index) => (
 							<Pressable
-								key={`audio-${audio.id}`}
+								key={`audio-${audio.id}-${index}`}
 								style={[
 									styles.trackButton,
 									audio.selected && styles.selectedTrackButton,
@@ -333,9 +342,9 @@ function PlayerExample({
 					{tracks.subtitles.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No subtitles</Text>
 					) : (
-						tracks.subtitles.map((subtitle) => (
+						tracks.subtitles.map((subtitle, index) => (
 							<Pressable
-								key={`subtitle-${subtitle.id}`}
+								key={`subtitle-${subtitle.id}-${index}`}
 								style={[
 									styles.trackButton,
 									subtitle.selected && styles.selectedTrackButton,
@@ -378,9 +387,9 @@ function PlayerExample({
 					{tracks.renditions.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No renditions</Text>
 					) : (
-						tracks.renditions.map((rendition) => (
+						tracks.renditions.map((rendition, index) => (
 							<Pressable
-								key={`rendition-${rendition.id}`}
+								key={`rendition-${rendition.id}-${index}`}
 								style={[
 									styles.trackButton,
 									rendition.selected && styles.selectedTrackButton,
@@ -443,6 +452,9 @@ function App(): React.JSX.Element {
 			subtitles: [],
 			metadata: {
 				title: PLAYLIST[currentIndex].title,
+				artist: PLAYLIST[currentIndex].artist,
+				album: PLAYLIST[currentIndex].album,
+				imageLink: PLAYLIST[currentIndex].artwork,
 				hasPrev: true,
 				hasNext: true,
 			},

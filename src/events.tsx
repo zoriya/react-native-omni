@@ -58,8 +58,8 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 	useEffect(() => {
 		if (!refresh || refresh <= 0) return;
 		const int = setInterval(() => {
-			setState(player[key])
-		}, refresh);
+			setState(player[key]);
+		}, refresh * 1000);
 		return () => clearInterval(int);
 	}, [refresh, key, player]);
 
