@@ -67,11 +67,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     internal val mpv = (MPVLib.create(ctx) ?: throw Error("Failed to initialize MPVLib")).apply {
         setOptionString("vo", "gpu-next")
-        setOptionString("force-window", "yes")
+        setOptionString("force-window", "no")
         setOptionString("gpu-context", "android")
         setOptionString("opengl-es", "yes")
         setOptionString("hwdec", "mediacodec-copy")
         setOptionString("profile", "fast")
+        setOptionString("keep-open", "always")
 
         setOptionString("cache", "yes")
         setOptionString("cache-pause-initial", "yes")
@@ -234,9 +235,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun getPlaybackState(): Int =
         when (true) {
+            (currentMediaItem == null) -> STATE_IDLE
             mpv.getPropertyBoolean("paused-for-cache") -> STATE_BUFFERING
             mpv.getPropertyBoolean("eof-reached") -> STATE_ENDED
-            mpv.getPropertyBoolean("core-idle") -> STATE_IDLE
             else -> STATE_READY
         }
 
@@ -407,7 +408,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                     TIME_UNSET,
                     true,
                     false,
-                    item.liveConfiguration,
+                    null,
                     0L,
                     durationUs,
                     0,
@@ -441,8 +442,11 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     override fun getCurrentMediaItemIndex() =
         if (currentMediaItem == null) INDEX_UNSET else 0
 
-    override fun getDuration() =
-        ((mpv.getPropertyDouble("duration") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
+    override fun getDuration(): Long {
+        val duration = mpv.getPropertyDouble("duration") ?: return TIME_UNSET
+        if (!duration.isFinite() || duration <= 0.0) return TIME_UNSET
+        return (duration * 1000.0).toLong()
+    }
 
     override fun getCurrentPosition() =
         ((mpv.getPropertyDouble("time-pos") ?: 0.0).coerceAtLeast(0.0) * 1000.0).toLong()
@@ -499,6 +503,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         mpv.setOptionString("vo", "gpu-next")
     }
 
+    fun updateSurfaceSize(width: Int, height: Int) {
+        if (width > 0 && height > 0) {
+            mpv.setPropertyString("android-surface-size", "${width}x${height}")
+        }
+    }
+
     override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
         val holder = surfaceHolder ?: return clearVideoSurface()
         val surface = holder.surface
@@ -507,9 +517,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             val frame = holder.surfaceFrame
             val width = frame?.width() ?: 0
             val height = frame?.height() ?: 0
-            if (width > 0 && height > 0) {
-                mpv.setPropertyString("android-surface-size", "${width}x${height}")
-            }
+            updateSurfaceSize(width, height)
         }
     }
 
@@ -574,7 +582,16 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 }
 
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED ->
-                notifyListeners(arrayOf(EVENT_PLAYBACK_STATE_CHANGED, EVENT_IS_PLAYING_CHANGED)) {
+                notifyListeners(
+                    arrayOf(
+                        EVENT_TIMELINE_CHANGED,
+                        EVENT_MEDIA_METADATA_CHANGED,
+                        EVENT_PLAYBACK_STATE_CHANGED,
+                        EVENT_IS_PLAYING_CHANGED
+                    )
+                ) {
+                    it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
+                    it.onMediaMetadataChanged(mediaMetadata)
                     it.onPlaybackStateChanged(STATE_READY)
                     it.onIsPlayingChanged(playWhenReady)
                 }
@@ -636,8 +653,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "duration" ->
-                notifyListeners(EVENT_TIMELINE_CHANGED) {
+                notifyListeners(arrayOf(EVENT_TIMELINE_CHANGED, EVENT_MEDIA_METADATA_CHANGED)) {
                     it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
+                    it.onMediaMetadataChanged(mediaMetadata)
                 }
 
             "speed" ->

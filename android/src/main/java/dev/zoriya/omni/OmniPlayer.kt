@@ -31,8 +31,10 @@ import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
-    val player: Player = runOnMainThreadSync { ExoPlayer.Builder(ctx).build() }
-    // MpvPlayer(ctx)
+    val player: Player = runOnMainThreadSync {
+//        ExoPlayer.Builder(ctx).build()
+         MpvPlayer(ctx)
+    }
     override val eventMap = EventMap(player)
 
     override var showNotification: Boolean? = false
@@ -122,6 +124,13 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             } else {
                 player.setVideoSurfaceHolder(holder)
             }
+        }
+    }
+
+    fun updateSurfaceSize(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        runOnMainThread {
+            (player as? MpvPlayer)?.updateSurfaceSize(width, height)
         }
     }
 
