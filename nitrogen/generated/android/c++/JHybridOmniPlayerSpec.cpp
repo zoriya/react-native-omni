@@ -11,6 +11,8 @@
 namespace margelo::nitro::omni { class HybridOmniEventMapSpec; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
+// Forward declaration of `BaseSource` to properly resolve imports.
+namespace margelo::nitro::omni { struct BaseSource; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
 namespace margelo::nitro::omni { struct VideoSrc; }
 // Forward declaration of `Subtitle` to properly resolve imports.
@@ -31,11 +33,13 @@ namespace margelo::nitro::omni { enum class PlayerStatus; }
 #include "JHybridOmniEventMapSpec.hpp"
 #include "Source.hpp"
 #include "JSource.hpp"
+#include "BaseSource.hpp"
+#include <optional>
+#include "JBaseSource.hpp"
 #include "VideoSrc.hpp"
 #include <vector>
 #include "JVideoSrc.hpp"
 #include <string>
-#include <optional>
 #include <unordered_map>
 #include "Subtitle.hpp"
 #include "JSubtitle.hpp"

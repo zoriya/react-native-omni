@@ -1,9 +1,14 @@
-export interface Source {
+export interface BaseSource {
 	src: VideoSrc[];
 	startTime?: number;
 	subtitles: Subtitle[];
 	metadata?: Metadata;
 	mixAudio?: MixAudioMode;
+}
+
+export interface Source extends BaseSource {
+	prev?: BaseSource
+	next?: BaseSource
 }
 
 export interface VideoSrc {
@@ -27,9 +32,6 @@ export interface Metadata {
 	album?: string;
 	artist?: string;
 	imageLink?: string;
-	// if one of those is true, the prev/next button will be there and a `onPrevSelected` even will be fired.
-	hasPrev?: boolean;
-	hasNext?: boolean;
 }
 
 export type MixAudioMode = "mixWithOthers" | "doNotMix" | "duckOthers" | "auto";

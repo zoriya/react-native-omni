@@ -20,13 +20,14 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem.RequestMetadata
 import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dev.zoriya.omni.utils.ThreadHelper.mainThreadProperty
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
+import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.internal.synchronized
 
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer : HybridOmniPlayerSpec() {
@@ -39,9 +40,8 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
     override var showNotification: Boolean? = false
         set(value) {
-            Log.e("omni", "Toggle show notif, old: ${field}, new: $value")
             if (value == true) {
-                if (notificationPlayer != null) {
+                if (notificationPlayer != null && notificationPlayer?.isPlaying == true) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
                 notificationPlayer = player
@@ -68,54 +68,83 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         set(value) {
             Log.e("omni", "update source")
             currentSource = value
-            val src = source.src.firstOrNull() ?: return player.setMediaItem(MediaItem.EMPTY)
-            //        val headers = Bundle().apply {
-            //            putStringArrayList(
-            //                MpvPlayer.REQUEST_HEADER_NAMES_KEY,
-            //                ArrayList(src.headers.keys)
-            //            )
-            //            putStringArrayList(
-            //                MpvPlayer.REQUEST_HEADER_VALUES_KEY,
-            //                ArrayList(src.headers.values)
-            //            )
-            //            source.startTime?.let {
-            //                putLong(MpvPlayer.REQUEST_START_MS_KEY, (it.coerceAtLeast(0.0) * 1000.0).toLong())
-            //            }
-            //        }
+            val mediaItems = mutableListOf<MediaItem>()
 
-            val item = MediaItem.Builder()
-                    .setUri(src.uri)
-                    .setMimeType(src.mimeType)
-                    .setMediaId(src.uri)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(value.metadata?.title)
-                            .setAlbumTitle(value.metadata?.album)
-                            .setArtist(value.metadata?.artist)
-                            .apply {
-                                value.metadata?.imageLink?.let { setArtworkUri(it.toUri()) }
-                            }
-                            .build())
-                    .setSubtitleConfigurations(value.subtitles.map { subtitle ->
-                        SubtitleConfiguration.Builder(subtitle.link.toUri())
-                            .setId(subtitle.id)
-                            .setLanguage(subtitle.language)
-                            .setLabel(subtitle.label)
-                            .setMimeType(subtitle.mimeType)
-                            .build()
-                    })
-                    .setRequestMetadata(
-                        RequestMetadata.Builder()
-                            .setMediaUri(src.uri.toUri())
-                            // .setExtras(headers)
-                            .build()
-                    )
-                    .build()
+            value.prev?.let { prevSource ->
+                prevSource.src.firstOrNull()?.let { src ->
+                    mediaItems.add(buildMediaItem(src, prevSource.metadata, prevSource.subtitles))
+                }
+            }
+
+            value.src.firstOrNull()?.let { src ->
+                mediaItems.add(buildMediaItem(src, value.metadata, value.subtitles))
+            }
+
+            value.next?.let { nextSource ->
+                nextSource.src.firstOrNull()?.let { src ->
+                    mediaItems.add(buildMediaItem(src, nextSource.metadata, nextSource.subtitles))
+                }
+            }
+
             runOnMainThreadSync {
-                player.setMediaItem(item)
+                if (mediaItems.isEmpty()) {
+                    player.setMediaItem(MediaItem.EMPTY)
+                } else {
+                    val startIndex = if (value.prev != null) 1 else 0
+                    val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
+                    player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
+                }
                 player.prepare()
             }
         }
+
+    private fun buildMediaItem(
+        src: com.margelo.nitro.omni.VideoSrc,
+        metadata: com.margelo.nitro.omni.Metadata?,
+        subtitles: Array<com.margelo.nitro.omni.Subtitle>
+    ): MediaItem {
+        //        val headers = Bundle().apply {
+        //            putStringArrayList(
+        //                MpvPlayer.REQUEST_HEADER_NAMES_KEY,
+        //                ArrayList(src.headers.keys)
+        //            )
+        //            putStringArrayList(
+        //                MpvPlayer.REQUEST_HEADER_VALUES_KEY,
+        //                ArrayList(src.headers.values)
+        //            )
+        //            source.startTime?.let {
+        //                putLong(MpvPlayer.REQUEST_START_MS_KEY, (it.coerceAtLeast(0.0) * 1000.0).toLong())
+        //            }
+        //        }
+        return MediaItem.Builder()
+            .setUri(src.uri)
+            .setMimeType(src.mimeType)
+            .setMediaId(src.uri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(metadata?.title)
+                    .setAlbumTitle(metadata?.album)
+                    .setArtist(metadata?.artist)
+                    .apply {
+                        metadata?.imageLink?.let { setArtworkUri(it.toUri()) }
+                    }
+                    .build())
+            .setSubtitleConfigurations(subtitles.map { subtitle ->
+                SubtitleConfiguration.Builder(subtitle.link.toUri())
+                    .setId(subtitle.id)
+                    .setLanguage(subtitle.language)
+                    .setLabel(subtitle.label)
+                    .setMimeType(subtitle.mimeType)
+                    .build()
+            })
+            .setRequestMetadata(
+                RequestMetadata.Builder()
+                    .setMediaUri(src.uri.toUri())
+                    // .setExtras(headers)
+                    .build()
+            )
+            .build()
+    }
 
     fun setSurface(holder: SurfaceHolder?) {
         runOnMainThread {

@@ -25,7 +25,6 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
-import androidx.media3.common.Timeline.Window.SINGLE_WINDOW_UID
 import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
@@ -98,7 +97,8 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         observeProperty("sid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
     }
 
-    private var currentMediaItem: MediaItem? = null
+    private var mediaItems: List<MediaItem> = emptyList()
+    private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.DEFAULT_WITHOUT_CONTEXT
     private var playerError: PlaybackException? = null
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
@@ -112,6 +112,8 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
         .add(COMMAND_SEEK_BACK)
         .add(COMMAND_SEEK_FORWARD)
+        .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+        .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
         .add(COMMAND_SET_SPEED_AND_PITCH)
         .add(COMMAND_GET_VOLUME)
         .add(COMMAND_SET_VOLUME)
@@ -147,23 +149,25 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         startIndex: Int,
         startPositionMs: Long
     ) {
-        val prev = currentMediaItem
-        val target = when {
-            mediaItems.isEmpty() -> null
-            startIndex in mediaItems.indices -> mediaItems[startIndex]
-            else -> mediaItems[0]
+        val prev = currentMediaItemIndex
+        val targetIndex = when {
+            mediaItems.isEmpty() -> INDEX_UNSET
+            startIndex in mediaItems.indices -> startIndex
+            else -> 0
         }
 
-        currentMediaItem = target
+        this.mediaItems = mediaItems
+        currentMediaItemIndex = targetIndex
+        val target = if (targetIndex != INDEX_UNSET) mediaItems[targetIndex] else null
         playlistMetadata = target?.mediaMetadata ?: MediaMetadata.EMPTY
         playerError = null
 
         mpv.command(arrayOf("stop"))
 
-        val targetMs = if (startPositionMs == TIME_UNSET) 0L else startPositionMs.coerceAtLeast(0L)
-        mpv.setPropertyDouble("start", targetMs / 1000.0)
-
         if (target != null) {
+            val targetMs = if (startPositionMs == TIME_UNSET) 0L else startPositionMs.coerceAtLeast(0L)
+            mpv.setPropertyDouble("start", targetMs / 1000.0)
+
             val uri = target.localConfiguration?.uri?.toString()
             if (!uri.isNullOrEmpty()) {
                 mpv.command(arrayOf("loadfile", uri, "replace"))
@@ -178,14 +182,14 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             EVENT_MEDIA_METADATA_CHANGED,
             EVENT_PLAYLIST_METADATA_CHANGED
         )
-        if (prev != currentMediaItem) {
+        if (prev != currentMediaItemIndex) {
             events.add(EVENT_MEDIA_ITEM_TRANSITION)
         }
         notifyListeners(events.toTypedArray()) {
             it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
             it.onMediaMetadataChanged(mediaMetadata)
             it.onPlaylistMetadataChanged(playlistMetadata)
-            if (prev != currentMediaItem) {
+            if (prev != currentMediaItemIndex) {
                 it.onMediaItemTransition(
                     currentMediaItem,
                     MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
@@ -206,8 +210,9 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     }
 
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
-        val prev = currentMediaItem
-        currentMediaItem = null
+        val prev = currentMediaItemIndex
+        mediaItems = emptyList()
+        currentMediaItemIndex = INDEX_UNSET
         playlistMetadata = MediaMetadata.EMPTY
         mpv.command(arrayOf("stop"))
 
@@ -216,14 +221,14 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             EVENT_MEDIA_METADATA_CHANGED,
             EVENT_PLAYLIST_METADATA_CHANGED
         )
-        if (prev != null) {
+        if (prev != INDEX_UNSET) {
             events.add(EVENT_MEDIA_ITEM_TRANSITION)
         }
         notifyListeners(events.toTypedArray()) {
             it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
             it.onMediaMetadataChanged(mediaMetadata)
             it.onPlaylistMetadataChanged(playlistMetadata)
-            if (prev != null) {
+            if (prev != INDEX_UNSET) {
                 it.onMediaItemTransition(null, MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)
             }
         }
@@ -235,7 +240,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun getPlaybackState(): Int =
         when (true) {
-            (currentMediaItem == null) -> STATE_IDLE
+            (currentMediaItemIndex == INDEX_UNSET) -> STATE_IDLE
             mpv.getPropertyBoolean("paused-for-cache") -> STATE_BUFFERING
             mpv.getPropertyBoolean("eof-reached") -> STATE_ENDED
             else -> STATE_READY
@@ -267,7 +272,14 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         seekCommand: Int,
         isRepeatingCurrentItem: Boolean
     ) {
-        if (mediaItemIndex != INDEX_UNSET && mediaItemIndex != 0) return
+        val targetIndex = if (mediaItemIndex == INDEX_UNSET) currentMediaItemIndex else mediaItemIndex
+        if (targetIndex == INDEX_UNSET || targetIndex !in mediaItems.indices) return
+
+        if (targetIndex != currentMediaItemIndex) {
+            setMediaItems(mediaItems, targetIndex, positionMs)
+            return
+        }
+
         val targetMs = if (positionMs == TIME_UNSET) 0L else positionMs.coerceAtLeast(0L)
         mpv.command(arrayOf("seek", (targetMs / 1000.0).toString(), "absolute"))
     }
@@ -379,7 +391,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     }
 
     override fun getMediaMetadata(): MediaMetadata =
-        currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY
+        getCurrentMediaItem()?.mediaMetadata ?: MediaMetadata.EMPTY
 
     override fun getPlaylistMetadata(): MediaMetadata = playlistMetadata
 
@@ -388,19 +400,23 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     }
 
     override fun getCurrentTimeline(): Timeline {
-        val item = currentMediaItem ?: return Timeline.EMPTY
-        val durationUs = if (duration == TIME_UNSET) TIME_UNSET else duration * 1000L
+        if (mediaItems.isEmpty()) return Timeline.EMPTY
         return object : Timeline() {
-            override fun getWindowCount(): Int = 1
+            override fun getWindowCount(): Int = mediaItems.size
 
             override fun getWindow(
                 windowIndex: Int,
                 window: Window,
                 defaultPositionProjectionUs: Long
             ): Window {
-                check(windowIndex == 0)
+                check(windowIndex in mediaItems.indices)
+                val item = mediaItems[windowIndex]
+                val durationUs = if (windowIndex == currentMediaItemIndex) {
+                    val dur = duration
+                    if (dur == TIME_UNSET) TIME_UNSET else dur * 1000L
+                } else TIME_UNSET
                 return window.set(
-                    SINGLE_WINDOW_UID,
+                    windowIndex,
                     item,
                     null,
                     TIME_UNSET,
@@ -417,30 +433,31 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 )
             }
 
-            override fun getPeriodCount(): Int = 1
+            override fun getPeriodCount(): Int = mediaItems.size
 
             override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
-                check(periodIndex == 0)
-                val uid = SINGLE_WINDOW_UID
-                val id = if (setIds) uid else null
-                return period.set(id, uid, 0, durationUs, 0L)
+                check(periodIndex in mediaItems.indices)
+                val durationUs = if (periodIndex == currentMediaItemIndex) {
+                    val dur = duration
+                    if (dur == TIME_UNSET) TIME_UNSET else dur * 1000L
+                } else TIME_UNSET
+                return period.set(periodIndex, periodIndex, 0, durationUs, 0L)
             }
 
             override fun getIndexOfPeriod(uid: Any): Int {
-                return if (uid == SINGLE_WINDOW_UID) 0 else INDEX_UNSET
+                return if (uid is Int && uid in mediaItems.indices) uid else INDEX_UNSET
             }
 
             override fun getUidOfPeriod(periodIndex: Int): Any {
-                check(periodIndex == 0)
-                return SINGLE_WINDOW_UID
+                check(periodIndex in mediaItems.indices)
+                return periodIndex
             }
         }
     }
 
-    override fun getCurrentPeriodIndex() = if (currentMediaItem == null) INDEX_UNSET else 0
+    override fun getCurrentPeriodIndex() = if (currentMediaItemIndex == INDEX_UNSET) INDEX_UNSET else currentMediaItemIndex
 
-    override fun getCurrentMediaItemIndex() =
-        if (currentMediaItem == null) INDEX_UNSET else 0
+    override fun getCurrentMediaItemIndex() = currentMediaItemIndex
 
     override fun getDuration(): Long {
         val duration = mpv.getPropertyDouble("duration") ?: return TIME_UNSET
@@ -600,10 +617,10 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
                 val positionMs = getCurrentPosition()
                 val position = Player.PositionInfo(
-                    SINGLE_WINDOW_UID,
+                    currentMediaItemIndex,
                     getCurrentMediaItemIndex(),
                     getCurrentMediaItem(),
-                    SINGLE_WINDOW_UID,
+                    currentMediaItemIndex,
                     getCurrentPeriodIndex(),
                     positionMs,
                     positionMs,
