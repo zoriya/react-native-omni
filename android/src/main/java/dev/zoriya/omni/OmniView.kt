@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.core.view.isVisible
+import androidx.media3.common.Player
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -21,14 +22,17 @@ class OmniView(val context: ThemedReactContext) :
     HybridOmniViewSpec(),
     SurfaceHolder.Callback,
     LifecycleEventListener,
-    View.OnLayoutChangeListener {
+    View.OnLayoutChangeListener,
+    Player.Listener {
     companion object {
         private var activeView = WeakReference<OmniView>(null)
 
         @Suppress("unused")
         @JvmStatic
         fun onActivityPipTransitionToPip(activity: android.app.Activity) {
-            activeView.get()?.isolateUiForPipIfNeeded(activity)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                activeView.get()?.isolateUiForPipIfNeeded(activity)
+            }
         }
 
         @Suppress("unused")
@@ -38,9 +42,7 @@ class OmniView(val context: ThemedReactContext) :
             isInPictureInPictureMode: Boolean
         ) {
             if (isInPictureInPictureMode) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                    activeView.get()?.isolateUiForPipIfNeeded(activity)
-                }
+                activeView.get()?.isolateUiForPipIfNeeded(activity, afterEnteredPip = true)
             } else {
                 activeView.get()?.restoreUiAfterPip()
             }
@@ -135,8 +137,10 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
+        boundPlayer?.player?.removeListener(this)
         boundPlayer?.setSurface(null)
         boundPlayer = omniPlayer
+        omniPlayer.player.addListener(this)
 
         if (surfaceReady) {
             omniPlayer.setSurface(surfaceView.holder)
@@ -158,6 +162,7 @@ class OmniView(val context: ThemedReactContext) :
         if (!::player.isInitialized) return
 
         val omniPlayer = player as? OmniPlayer ?: return
+        boundPlayer?.player?.removeListener(this)
         omniPlayer.setSurface(null)
         boundPlayer = null
     }
@@ -193,6 +198,14 @@ class OmniView(val context: ThemedReactContext) :
 
     override fun onHostDestroy() {
         restoreUiAfterPip()
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        updatePictureInPictureParams()
+    }
+
+    override fun onPlaybackStateChanged(playbackState: Int) {
+        updatePictureInPictureParams()
     }
 
     private fun updatePictureInPictureParams() {
@@ -233,10 +246,14 @@ class OmniView(val context: ThemedReactContext) :
         return builder.build()
     }
 
-    fun isolateUiForPipIfNeeded(activity: android.app.Activity) {
-        if (context.currentActivity !== activity || autoPip != true || boundPlayer?.isPlaying != true) {
+    fun isolateUiForPipIfNeeded(activity: android.app.Activity, afterEnteredPip: Boolean = false) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !afterEnteredPip) {
             return
         }
+        if (context.currentActivity !== activity || autoPip != true || boundPlayer == null) {
+            return
+        }
+        if (!afterEnteredPip && boundPlayer?.isPlaying != true) return
         isolateUiForPip(activity)
     }
 
