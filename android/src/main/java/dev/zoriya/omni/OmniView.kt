@@ -1,6 +1,7 @@
 package dev.zoriya.omni
 
 import android.app.PictureInPictureParams
+import android.graphics.Rect
 import android.os.Build
 import android.util.Log
 import android.util.Rational
@@ -14,11 +15,38 @@ import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
 import com.margelo.nitro.omni.HybridOmniViewSpec
+import java.lang.ref.WeakReference
 
 class OmniView(val context: ThemedReactContext) :
     HybridOmniViewSpec(),
     SurfaceHolder.Callback,
-    LifecycleEventListener {
+    LifecycleEventListener,
+    View.OnLayoutChangeListener {
+    companion object {
+        private var activeView = WeakReference<OmniView>(null)
+
+        @Suppress("unused")
+        @JvmStatic
+        fun onActivityPipTransitionToPip(activity: android.app.Activity) {
+            activeView.get()?.isolateUiForPipIfNeeded(activity)
+        }
+
+        @Suppress("unused")
+        @JvmStatic
+        fun onActivityPipModeChanged(
+            activity: android.app.Activity,
+            isInPictureInPictureMode: Boolean
+        ) {
+            if (isInPictureInPictureMode) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                    activeView.get()?.isolateUiForPipIfNeeded(activity)
+                }
+            } else {
+                activeView.get()?.restoreUiAfterPip()
+            }
+        }
+    }
+
     override val view = object : FrameLayout(context) {
         // React Native manages layout via Yoga and swallows requestLayout() calls from native
         // views. When children are added/removed (e.g. during PIP transitions), addView triggers
@@ -44,6 +72,7 @@ class OmniView(val context: ThemedReactContext) :
             FrameLayout.LayoutParams.MATCH_PARENT
         )
         holder.addCallback(this@OmniView)
+        addOnLayoutChangeListener(this@OmniView)
         view.addView(this)
     }
     private var surfaceReady = false
@@ -60,8 +89,42 @@ class OmniView(val context: ThemedReactContext) :
         context.addLifecycleEventListener(this)
     }
 
+    override fun onLayoutChange(
+        view: View?,
+        left: Int,
+        top: Int,
+        right: Int,
+        bottom: Int,
+        oldLeft: Int,
+        oldTop: Int,
+        oldRight: Int,
+        oldBottom: Int
+    ) {
+        if (left != oldLeft || top != oldTop || right != oldRight || bottom != oldBottom) {
+            updatePictureInPictureParams()
+        }
+    }
+
     override fun afterUpdate() {
-        Log.e("omniView", "After update called")
+        Log.e("omniView", "After update called ${System.identityHashCode(this)}")
+
+        val curPip = activeView.get()
+        when {
+            autoPip == true && curPip == this -> {}
+            autoPip == true && curPip == null -> {
+                activeView = WeakReference(this)
+                updatePictureInPictureParams()
+            }
+
+            autoPip == true -> {
+                throw Error("Only one OmniView can have `autoPip` set at a time.")
+            }
+
+            autoPip == false && curPip == this -> {
+                activeView = WeakReference(null)
+            }
+        }
+
         if (!::player.isInitialized) {
             return
         }
@@ -86,6 +149,10 @@ class OmniView(val context: ThemedReactContext) :
 
     override fun onDropView() {
         restoreUiAfterPip()
+        if (activeView.get() == this) {
+            activeView = WeakReference(null)
+        }
+        surfaceView.removeOnLayoutChangeListener(this)
         context.removeLifecycleEventListener(this)
 
         if (!::player.isInitialized) return
@@ -96,13 +163,12 @@ class OmniView(val context: ThemedReactContext) :
     }
 
     override fun onHostResume() {
-        Log.e("omni", "resume")
         restoreUiAfterPip()
+        updatePictureInPictureParams()
     }
 
     override fun onHostPause() {
-        Log.e("omni", "pause")
-        if (autoPip != true) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || autoPip != true) {
             return
         }
 
@@ -116,17 +182,10 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
-        val aspectRatio = if (surfaceView.width > 0 && surfaceView.height > 0) {
-            Rational(surfaceView.width, surfaceView.height)
-        } else {
-            Rational(16, 9)
-        }
-
-        val params = PictureInPictureParams.Builder()
-            .setAspectRatio(aspectRatio)
-            .build()
-        isolateUiForPip(activity)
-        val enteredPip = activity.enterPictureInPictureMode(params)
+        isolateUiForPipIfNeeded(activity)
+        val enteredPip = activity.enterPictureInPictureMode(
+            buildPipParams(autoEnterEnabled = false)
+        )
         if (!enteredPip) {
             restoreUiAfterPip()
         }
@@ -136,10 +195,56 @@ class OmniView(val context: ThemedReactContext) :
         restoreUiAfterPip()
     }
 
+    private fun updatePictureInPictureParams() {
+        val activity = context.currentActivity ?: return
+        if (activity.isFinishing || activity.isDestroyed || movedSurfaceToRootForPip) {
+            return
+        }
+
+        Log.e("omni", "layout change")
+        val autoEnterEnabled =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            autoPip == true &&
+            boundPlayer?.isPlaying == true
+        activity.setPictureInPictureParams(buildPipParams(autoEnterEnabled))
+    }
+
+    private fun buildPipParams(autoEnterEnabled: Boolean): PictureInPictureParams {
+        val aspectRatio = if (surfaceView.width > 0 && surfaceView.height > 0) {
+            Rational(surfaceView.width, surfaceView.height)
+        } else {
+            Rational(16, 9)
+        }
+
+        val builder = PictureInPictureParams.Builder()
+            .setAspectRatio(aspectRatio)
+
+        val sourceRectHint = Rect()
+        if (surfaceView.getGlobalVisibleRect(sourceRectHint) && !sourceRectHint.isEmpty) {
+            builder.setSourceRectHint(sourceRectHint)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder
+                .setAutoEnterEnabled(autoEnterEnabled)
+                .setSeamlessResizeEnabled(true)
+        }
+
+        return builder.build()
+    }
+
+    fun isolateUiForPipIfNeeded(activity: android.app.Activity) {
+        if (context.currentActivity !== activity || autoPip != true || boundPlayer?.isPlaying != true) {
+            return
+        }
+        isolateUiForPip(activity)
+    }
+
     private fun isolateUiForPip(activity: android.app.Activity) {
         if (movedSurfaceToRootForPip) {
             return
         }
+        movedSurfaceToRootForPip = true
 
         val root = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content) ?: return
         rootContent = root
@@ -159,10 +264,9 @@ class OmniView(val context: ThemedReactContext) :
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         )
-        movedSurfaceToRootForPip = true
     }
 
-    private fun restoreUiAfterPip() {
+    fun restoreUiAfterPip() {
         if (!movedSurfaceToRootForPip) {
             return
         }
@@ -187,6 +291,7 @@ class OmniView(val context: ThemedReactContext) :
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         boundPlayer?.setSurface(holder)
+        updatePictureInPictureParams()
     }
 
     override fun surfaceChanged(
@@ -194,8 +299,7 @@ class OmniView(val context: ThemedReactContext) :
         format: Int,
         width: Int,
         height: Int
-    ) {
-    }
+    ) { }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false

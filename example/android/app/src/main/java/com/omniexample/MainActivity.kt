@@ -1,9 +1,12 @@
 package dev.zoriya.omniexample
 
+import android.app.PictureInPictureUiState
+import android.os.Build
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import dev.zoriya.omni.OmniView
 
 class MainActivity : ReactActivity() {
 
@@ -19,4 +22,16 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+    super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+    OmniView.onActivityPipModeChanged(this, isInPictureInPictureMode)
+  }
+
+  override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
+    super.onPictureInPictureUiStateChanged(pipState)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM && pipState.isTransitioningToPip) {
+      OmniView.onActivityPipTransitionToPip(this)
+    }
+  }
 }
