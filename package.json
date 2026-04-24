@@ -10,8 +10,9 @@
 	"scripts": {
 		"dev": "cd example && bun start",
 		"android": " cd example && bunx react-native run-android --no-packager --port 8082",
-		"typecheck": "tsc --noEmit",
-		"build": "bun run typecheck && bob build",
+		"typecheck": "tsc --noEmit && tsc -p plugin/tsconfig.json --noEmit",
+		"build:plugin": "tsc -p plugin/tsconfig.json",
+		"build": "bun run typecheck && bob build && bun run build:plugin",
 		"codegen": "nitrogen --logLevel=\"debug\" && node post-script.js"
 	},
 	"keywords": [
@@ -38,6 +39,7 @@
 		"ios/**/*.cpp",
 		"ios/**/*.swift",
 		"app.plugin.js",
+		"plugin/build",
 		"*.podspec",
 		"README.md"
 	],
@@ -52,6 +54,9 @@
 	"publishConfig": {
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
+	},
+	"dependencies": {
+		"@expo/config-plugins": "^10.0.2"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.10",
