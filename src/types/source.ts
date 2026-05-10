@@ -1,14 +1,9 @@
-export interface BaseSource {
+export interface Source {
 	src: VideoSrc[];
 	startTime?: number;
 	subtitles: Subtitle[];
 	metadata?: Metadata;
 	mixAudio?: MixAudioMode;
-}
-
-export interface Source extends BaseSource {
-	prev?: BaseSource
-	next?: BaseSource
 }
 
 export interface VideoSrc {
@@ -32,6 +27,8 @@ export interface Metadata {
 	album?: string;
 	artist?: string;
 	imageLink?: string;
+	hasPrev?: boolean;
+	hasNext?: boolean;
 }
 
 export type MixAudioMode = "mixWithOthers" | "doNotMix" | "duckOthers" | "auto";

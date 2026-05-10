@@ -5,9 +5,12 @@ import androidx.media3.common.C
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
 import androidx.media3.common.C.TRACK_TYPE_VIDEO
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
 import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
@@ -34,6 +37,7 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
     private var lastTimePosDispatchMs = 0L
+    private var lastMediaItemIndex = 0
 
     init {
         player.addListener(this)
@@ -110,6 +114,20 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
         onErrorListeners.forEach {
             it(error.errorCodeName, error.message ?: "unknown message")
         }
+    }
+
+    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        if (reason != MEDIA_ITEM_TRANSITION_REASON_AUTO && reason != MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+            lastMediaItemIndex = player.currentMediaItemIndex
+            return
+        }
+        val newIndex = player.currentMediaItemIndex
+        if (newIndex < lastMediaItemIndex) {
+            onPrevListeners.forEach { it() }
+        } else if (newIndex > lastMediaItemIndex) {
+            onNextListeners.forEach { it() }
+        }
+        lastMediaItemIndex = newIndex
     }
 
     override fun onPositionDiscontinuity(

@@ -68,32 +68,32 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         set(value) {
             Log.e("omni", "update source")
             currentSource = value
+            val src = value.src.firstOrNull()
+            if (src == null) {
+                runOnMainThreadSync {
+                    player.setMediaItem(MediaItem.EMPTY)
+                    player.prepare()
+                }
+                return
+            }
+
+            val currentItem = buildMediaItem(src, value.metadata, value.subtitles)
             val mediaItems = mutableListOf<MediaItem>()
 
-            value.prev?.let { prevSource ->
-                prevSource.src.firstOrNull()?.let { src ->
-                    mediaItems.add(buildMediaItem(src, prevSource.metadata, prevSource.subtitles))
-                }
+            if (value.metadata?.hasPrev == true) {
+                mediaItems.add(currentItem)
             }
 
-            value.src.firstOrNull()?.let { src ->
-                mediaItems.add(buildMediaItem(src, value.metadata, value.subtitles))
-            }
+            mediaItems.add(currentItem)
 
-            value.next?.let { nextSource ->
-                nextSource.src.firstOrNull()?.let { src ->
-                    mediaItems.add(buildMediaItem(src, nextSource.metadata, nextSource.subtitles))
-                }
+            if (value.metadata?.hasNext == true) {
+                mediaItems.add(currentItem)
             }
 
             runOnMainThreadSync {
-                if (mediaItems.isEmpty()) {
-                    player.setMediaItem(MediaItem.EMPTY)
-                } else {
-                    val startIndex = if (value.prev != null) 1 else 0
-                    val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
-                    player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
-                }
+                val startIndex = if (value.metadata?.hasPrev == true) 1 else 0
+                val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
+                player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
                 player.prepare()
             }
         }
@@ -163,8 +163,8 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         }
     }
 
-    override val hasPrev by mainThreadProperty { player.hasPreviousMediaItem() }
-    override val hasNext by mainThreadProperty { player.hasNextMediaItem() }
+    override val hasPrev: Boolean get() = currentSource?.metadata?.hasPrev == true
+    override val hasNext: Boolean get() = currentSource?.metadata?.hasNext == true
     override val status by mainThreadProperty {
         when (player.playbackState) {
             Player.STATE_IDLE,

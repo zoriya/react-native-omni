@@ -10,8 +10,6 @@
 #include <fbjni/fbjni.h>
 #include "Source.hpp"
 
-#include "BaseSource.hpp"
-#include "JBaseSource.hpp"
 #include "JMetadata.hpp"
 #include "JMixAudioMode.hpp"
 #include "JSubtitle.hpp"
@@ -44,10 +42,6 @@ namespace margelo::nitro::omni {
     [[nodiscard]]
     Source toCpp() const {
       static const auto clazz = javaClassStatic();
-      static const auto fieldPrev = clazz->getField<JBaseSource>("prev");
-      jni::local_ref<JBaseSource> prev = this->getFieldValue(fieldPrev);
-      static const auto fieldNext = clazz->getField<JBaseSource>("next");
-      jni::local_ref<JBaseSource> next = this->getFieldValue(fieldNext);
       static const auto fieldSrc = clazz->getField<jni::JArrayClass<JVideoSrc>>("src");
       jni::local_ref<jni::JArrayClass<JVideoSrc>> src = this->getFieldValue(fieldSrc);
       static const auto fieldStartTime = clazz->getField<jni::JDouble>("startTime");
@@ -59,8 +53,6 @@ namespace margelo::nitro::omni {
       static const auto fieldMixAudio = clazz->getField<JMixAudioMode>("mixAudio");
       jni::local_ref<JMixAudioMode> mixAudio = this->getFieldValue(fieldMixAudio);
       return Source(
-        prev != nullptr ? std::make_optional(prev->toCpp()) : std::nullopt,
-        next != nullptr ? std::make_optional(next->toCpp()) : std::nullopt,
         [&]() {
           size_t __size = src->size();
           std::vector<VideoSrc> __vector;
@@ -93,13 +85,11 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JSource::javaobject> fromCpp(const Source& value) {
-      using JSignature = JSource(jni::alias_ref<JBaseSource>, jni::alias_ref<JBaseSource>, jni::alias_ref<jni::JArrayClass<JVideoSrc>>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>);
+      using JSignature = JSource(jni::alias_ref<jni::JArrayClass<JVideoSrc>>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
-        value.prev.has_value() ? JBaseSource::fromCpp(value.prev.value()) : nullptr,
-        value.next.has_value() ? JBaseSource::fromCpp(value.next.value()) : nullptr,
         [&]() {
           size_t __size = value.src.size();
           jni::local_ref<jni::JArrayClass<JVideoSrc>> __array = jni::JArrayClass<JVideoSrc>::newArray(__size);

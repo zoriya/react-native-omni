@@ -40,11 +40,17 @@ namespace margelo::nitro::omni {
       jni::local_ref<jni::JString> artist = this->getFieldValue(fieldArtist);
       static const auto fieldImageLink = clazz->getField<jni::JString>("imageLink");
       jni::local_ref<jni::JString> imageLink = this->getFieldValue(fieldImageLink);
+      static const auto fieldHasPrev = clazz->getField<jni::JBoolean>("hasPrev");
+      jni::local_ref<jni::JBoolean> hasPrev = this->getFieldValue(fieldHasPrev);
+      static const auto fieldHasNext = clazz->getField<jni::JBoolean>("hasNext");
+      jni::local_ref<jni::JBoolean> hasNext = this->getFieldValue(fieldHasNext);
       return Metadata(
         title->toStdString(),
         album != nullptr ? std::make_optional(album->toStdString()) : std::nullopt,
         artist != nullptr ? std::make_optional(artist->toStdString()) : std::nullopt,
-        imageLink != nullptr ? std::make_optional(imageLink->toStdString()) : std::nullopt
+        imageLink != nullptr ? std::make_optional(imageLink->toStdString()) : std::nullopt,
+        hasPrev != nullptr ? std::make_optional(static_cast<bool>(hasPrev->value())) : std::nullopt,
+        hasNext != nullptr ? std::make_optional(static_cast<bool>(hasNext->value())) : std::nullopt
       );
     }
 
@@ -54,7 +60,7 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JMetadata::javaobject> fromCpp(const Metadata& value) {
-      using JSignature = JMetadata(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>);
+      using JSignature = JMetadata(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JBoolean>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -62,7 +68,9 @@ namespace margelo::nitro::omni {
         jni::make_jstring(value.title),
         value.album.has_value() ? jni::make_jstring(value.album.value()) : nullptr,
         value.artist.has_value() ? jni::make_jstring(value.artist.value()) : nullptr,
-        value.imageLink.has_value() ? jni::make_jstring(value.imageLink.value()) : nullptr
+        value.imageLink.has_value() ? jni::make_jstring(value.imageLink.value()) : nullptr,
+        value.hasPrev.has_value() ? jni::JBoolean::valueOf(value.hasPrev.value()) : nullptr,
+        value.hasNext.has_value() ? jni::JBoolean::valueOf(value.hasNext.value()) : nullptr
       );
     }
   };

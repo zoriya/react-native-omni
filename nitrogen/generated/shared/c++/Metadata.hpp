@@ -44,10 +44,12 @@ namespace margelo::nitro::omni {
     std::optional<std::string> album     SWIFT_PRIVATE;
     std::optional<std::string> artist     SWIFT_PRIVATE;
     std::optional<std::string> imageLink     SWIFT_PRIVATE;
+    std::optional<bool> hasPrev     SWIFT_PRIVATE;
+    std::optional<bool> hasNext     SWIFT_PRIVATE;
 
   public:
     Metadata() = default;
-    explicit Metadata(std::string title, std::optional<std::string> album, std::optional<std::string> artist, std::optional<std::string> imageLink): title(title), album(album), artist(artist), imageLink(imageLink) {}
+    explicit Metadata(std::string title, std::optional<std::string> album, std::optional<std::string> artist, std::optional<std::string> imageLink, std::optional<bool> hasPrev, std::optional<bool> hasNext): title(title), album(album), artist(artist), imageLink(imageLink), hasPrev(hasPrev), hasNext(hasNext) {}
 
   public:
     friend bool operator==(const Metadata& lhs, const Metadata& rhs) = default;
@@ -66,7 +68,9 @@ namespace margelo::nitro {
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "title"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "album"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "artist"))),
-        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "imageLink")))
+        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "imageLink"))),
+        JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "hasPrev"))),
+        JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "hasNext")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Metadata& arg) {
@@ -75,6 +79,8 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "album"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.album));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "artist"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.artist));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "imageLink"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.imageLink));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "hasPrev"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.hasPrev));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "hasNext"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.hasNext));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -89,6 +95,8 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "album")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "artist")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "imageLink")))) return false;
+      if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "hasPrev")))) return false;
+      if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "hasNext")))) return false;
       return true;
     }
   };

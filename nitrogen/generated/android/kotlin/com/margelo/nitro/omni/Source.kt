@@ -19,12 +19,6 @@ import com.facebook.proguard.annotations.DoNotStrip
 data class Source(
   @DoNotStrip
   @Keep
-  val prev: BaseSource?,
-  @DoNotStrip
-  @Keep
-  val next: BaseSource?,
-  @DoNotStrip
-  @Keep
   val src: Array<VideoSrc>,
   @DoNotStrip
   @Keep
@@ -49,8 +43,8 @@ data class Source(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(prev: BaseSource?, next: BaseSource?, src: Array<VideoSrc>, startTime: Double?, subtitles: Array<Subtitle>, metadata: Metadata?, mixAudio: MixAudioMode?): Source {
-      return Source(prev, next, src, startTime, subtitles, metadata, mixAudio)
+    private fun fromCpp(src: Array<VideoSrc>, startTime: Double?, subtitles: Array<Subtitle>, metadata: Metadata?, mixAudio: MixAudioMode?): Source {
+      return Source(src, startTime, subtitles, metadata, mixAudio)
     }
   }
 }

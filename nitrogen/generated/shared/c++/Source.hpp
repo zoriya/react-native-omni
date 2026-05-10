@@ -28,8 +28,6 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-// Forward declaration of `BaseSource` to properly resolve imports.
-namespace margelo::nitro::omni { struct BaseSource; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
 namespace margelo::nitro::omni { struct VideoSrc; }
 // Forward declaration of `Subtitle` to properly resolve imports.
@@ -39,10 +37,9 @@ namespace margelo::nitro::omni { struct Metadata; }
 // Forward declaration of `MixAudioMode` to properly resolve imports.
 namespace margelo::nitro::omni { enum class MixAudioMode; }
 
-#include "BaseSource.hpp"
-#include <optional>
 #include "VideoSrc.hpp"
 #include <vector>
+#include <optional>
 #include "Subtitle.hpp"
 #include "Metadata.hpp"
 #include "MixAudioMode.hpp"
@@ -54,8 +51,6 @@ namespace margelo::nitro::omni {
    */
   struct Source final {
   public:
-    std::optional<BaseSource> prev     SWIFT_PRIVATE;
-    std::optional<BaseSource> next     SWIFT_PRIVATE;
     std::vector<VideoSrc> src     SWIFT_PRIVATE;
     std::optional<double> startTime     SWIFT_PRIVATE;
     std::vector<Subtitle> subtitles     SWIFT_PRIVATE;
@@ -64,7 +59,7 @@ namespace margelo::nitro::omni {
 
   public:
     Source() = default;
-    explicit Source(std::optional<BaseSource> prev, std::optional<BaseSource> next, std::vector<VideoSrc> src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio): prev(prev), next(next), src(src), startTime(startTime), subtitles(subtitles), metadata(metadata), mixAudio(mixAudio) {}
+    explicit Source(std::vector<VideoSrc> src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio): src(src), startTime(startTime), subtitles(subtitles), metadata(metadata), mixAudio(mixAudio) {}
 
   public:
     friend bool operator==(const Source& lhs, const Source& rhs) = default;
@@ -80,8 +75,6 @@ namespace margelo::nitro {
     static inline margelo::nitro::omni::Source fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::omni::Source(
-        JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "prev"))),
-        JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "next"))),
         JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime"))),
         JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles"))),
@@ -91,8 +84,6 @@ namespace margelo::nitro {
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Source& arg) {
       jsi::Object obj(runtime);
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "prev"), JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::toJSI(runtime, arg.prev));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "next"), JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::toJSI(runtime, arg.next));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "src"), JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::toJSI(runtime, arg.src));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "startTime"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.startTime));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "subtitles"), JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::toJSI(runtime, arg.subtitles));
@@ -108,8 +99,6 @@ namespace margelo::nitro {
       if (!nitro::isPlainObject(runtime, obj)) {
         return false;
       }
-      if (!JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "prev")))) return false;
-      if (!JSIConverter<std::optional<margelo::nitro::omni::BaseSource>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "next")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles")))) return false;

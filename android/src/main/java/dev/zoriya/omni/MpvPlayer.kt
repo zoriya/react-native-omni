@@ -102,6 +102,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
     private var currentTrackSelectionParameters = TrackSelectionParameters.DEFAULT_WITHOUT_CONTEXT
     private var playerError: PlaybackException? = null
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
+    private var userInitiatedTransition: Boolean = false
 
     private val availableCommands: Player.Commands = Player.Commands.Builder()
         .add(COMMAND_PLAY_PAUSE)
@@ -185,6 +186,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         if (prev != currentMediaItemIndex) {
             events.add(EVENT_MEDIA_ITEM_TRANSITION)
         }
+        val transitionReason = if (userInitiatedTransition) {
+            MEDIA_ITEM_TRANSITION_REASON_SEEK
+        } else {
+            MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+        }
+        userInitiatedTransition = false
         notifyListeners(events.toTypedArray()) {
             it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
             it.onMediaMetadataChanged(mediaMetadata)
@@ -192,7 +199,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             if (prev != currentMediaItemIndex) {
                 it.onMediaItemTransition(
                     currentMediaItem,
-                    MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+                    transitionReason
                 )
             }
         }
@@ -276,6 +283,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         if (targetIndex == INDEX_UNSET || targetIndex !in mediaItems.indices) return
 
         if (targetIndex != currentMediaItemIndex) {
+            userInitiatedTransition = true
             setMediaItems(mediaItems, targetIndex, positionMs)
             return
         }
@@ -428,7 +436,7 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                     0L,
                     durationUs,
                     0,
-                    0,
+                    mediaItems.size-1,
                     0L
                 )
             }

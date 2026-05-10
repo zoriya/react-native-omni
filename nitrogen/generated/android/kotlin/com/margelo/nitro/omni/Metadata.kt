@@ -28,7 +28,13 @@ data class Metadata(
   val artist: String?,
   @DoNotStrip
   @Keep
-  val imageLink: String?
+  val imageLink: String?,
+  @DoNotStrip
+  @Keep
+  val hasPrev: Boolean?,
+  @DoNotStrip
+  @Keep
+  val hasNext: Boolean?
 ) {
   /* primary constructor */
 
@@ -40,8 +46,8 @@ data class Metadata(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(title: String, album: String?, artist: String?, imageLink: String?): Metadata {
-      return Metadata(title, album, artist, imageLink)
+    private fun fromCpp(title: String, album: String?, artist: String?, imageLink: String?, hasPrev: Boolean?, hasNext: Boolean?): Metadata {
+      return Metadata(title, album, artist, imageLink, hasPrev, hasNext)
     }
   }
 }
