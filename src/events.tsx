@@ -46,6 +46,7 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 				return () => em.removeStateListener(key, setState);
 			case "isPlaying":
 			case "muted":
+			case "isAutoQuality":
 				em.addStateBoolListener(key, setState);
 				return () => em.removeStateBoolListener(key, setState);
 			case "status":

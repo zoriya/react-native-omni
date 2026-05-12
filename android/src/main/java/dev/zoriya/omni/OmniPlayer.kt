@@ -1,10 +1,8 @@
 package dev.zoriya.omni
 
-import android.R
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
-import android.media.metrics.TrackChangeEvent.TRACK_TYPE_VIDEO
 import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
@@ -33,8 +31,8 @@ import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
 class OmniPlayer : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
     val player: Player = runOnMainThreadSync {
-//        ExoPlayer.Builder(ctx).build()
-         MpvPlayer(ctx)
+        // ExoPlayer.Builder(ctx).build()
+        MpvPlayer(ctx)
     }
     override val eventMap = EventMap(player)
 
@@ -66,7 +64,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         get() = currentSource
             ?: throw IllegalStateException("source should be initialized before get")
         set(value) {
-            Log.e("omni", "update source")
+            Log.i("omni", "update source")
             currentSource = value
             val src = value.src.firstOrNull()
             if (src == null) {
@@ -204,6 +202,12 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override val subtitles by mainThreadProperty { tracksByType(C.TRACK_TYPE_TEXT) }
     override val rendition by mainThreadProperty { getRenditions() }
 
+    override var isAutoQuality by mainThreadProperty {
+        player.trackSelectionParameters.overrides.none {
+            it.key.type == C.TRACK_TYPE_VIDEO
+        }
+    }
+
     override fun play() {
         runOnMainThreadSync { player.play() }
     }
@@ -286,16 +290,28 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             player.currentTracks.groups.firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_VIDEO }
                 ?: return emptyArray()
 
+        val currentIndex = when {
+            isAutoQuality -> {
+                if (player.videoSize.width > 0 && player.videoSize.height > 0) {
+                    (0 until group.length).firstOrNull { i ->
+                        val format = group.getTrackFormat(i)
+                        format.width == player.videoSize.width && format.height == player.videoSize.height
+                    }
+                } else null
+            }
+            else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
+        }
+
         val result = ArrayList<Rendition>()
         for (i in 0 until group.length) {
             val format = group.getTrackFormat(i)
             result.add(
                 Rendition(
-                    id = format.id ?: group.mediaTrackGroup.id,
+                    id = i.toString(),
                     width = format.width.toDouble().coerceAtLeast(0.0),
                     height = format.height.toDouble().coerceAtLeast(0.0),
                     bitrate = format.bitrate.toDouble().coerceAtLeast(0.0),
-                    selected = group.isTrackSelected(i)
+                    selected = i == currentIndex
                 )
             )
         }
@@ -316,17 +332,10 @@ class OmniPlayer : HybridOmniPlayerSpec() {
                 player.currentTracks.groups.find { it.isSelected && it.type == C.TRACK_TYPE_VIDEO }
                     ?: return@runOnMainThreadSync
 
-            for (i in 0 until group.length) {
-                val format = group.getTrackFormat(i)
-                val formatId = format.id ?: group.mediaTrackGroup.id
-                if (formatId == rendition.id) continue
-
-                player.trackSelectionParameters = player.trackSelectionParameters
-                        .buildUpon()
-                        .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, i))
-                        .build()
-                    return@runOnMainThreadSync
-                }
+            player.trackSelectionParameters = player.trackSelectionParameters
+                .buildUpon()
+                .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, rendition.id.toInt()))
+                .build()
         }
     }
 
@@ -361,7 +370,7 @@ class OmniPlayerService : MediaSessionService() {
             .build()
 
         setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build().apply {
-            setSmallIcon(applicationInfo.icon.takeIf { it != 0 } ?: R.drawable.ic_media_play)
+            setSmallIcon(applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_media_play)
         })
         addSession(mediaSession)
         setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)

@@ -34,21 +34,22 @@ export interface OmniPlayerState {
 	// between 0 and 1
 	volume: number;
 	muted: boolean;
+	readonly isAutoQuality: boolean
 }
 
 export type PlayerStatus = "idle" | "loading" | "readyToPlay" | "error";
 
 export interface Track {
-	id: string;
-	label?: string;
-	language?: string;
-	selected: boolean;
+	readonly id: string;
+	readonly label?: string;
+	readonly language?: string;
+	readonly selected: boolean;
 }
 
 export interface Rendition {
-	id: string;
-	width: number;
-	height: number;
-	bitrate: number;
-	selected: boolean;
+	readonly id: string;
+	readonly width: number;
+	readonly height: number;
+	readonly bitrate: number;
+	readonly selected: boolean;
 }

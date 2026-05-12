@@ -73,6 +73,7 @@ namespace margelo::nitro::omni {
     void setVolume(double volume) override;
     bool getMuted() override;
     void setMuted(bool muted) override;
+    bool getIsAutoQuality() override;
 
   public:
     // Methods

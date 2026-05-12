@@ -19,6 +19,7 @@ import androidx.media3.common.C.TRACK_TYPE_UNKNOWN
 import androidx.media3.common.C.TRACK_TYPE_VIDEO
 import androidx.media3.common.DeviceInfo
 import androidx.media3.common.Format
+import androidx.media3.common.Format.NO_VALUE
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -337,12 +338,15 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
             val label = mpv.getPropertyString("$base/title")
             val language = mpv.getPropertyString("$base/lang")
             val codec = mpv.getPropertyString("$base/codec")
+            val bitrate = mpv.getPropertyInt("$base/hls-bitrate")
+                ?: mpv.getPropertyInt("$base/demux-bitrate")
 
             val format = Format.Builder()
                 .setId(id.toString())
                 .setLabel(label)
                 .setLanguage(language)
                 .setCodecs(codec)
+                .setAverageBitrate(bitrate ?: NO_VALUE)
                 .build()
 
             grouped.getOrPut<Int, MutableList<Entry>>(type) { mutableListOf<Entry>() }
@@ -612,13 +616,15 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                         EVENT_TIMELINE_CHANGED,
                         EVENT_MEDIA_METADATA_CHANGED,
                         EVENT_PLAYBACK_STATE_CHANGED,
-                        EVENT_IS_PLAYING_CHANGED
+                        EVENT_IS_PLAYING_CHANGED,
+                        EVENT_TRACKS_CHANGED
                     )
                 ) {
                     it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
                     it.onMediaMetadataChanged(mediaMetadata)
                     it.onPlaybackStateChanged(STATE_READY)
                     it.onIsPlayingChanged(playWhenReady)
+                    it.onTracksChanged(getCurrentTracks())
                 }
 
             MPVLib.MpvEvent.MPV_EVENT_SEEK,

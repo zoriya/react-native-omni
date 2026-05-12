@@ -20,7 +20,8 @@ enum class NumberProperty(@DoNotStrip @Keep val value: Int) {
   BUFFERED(1),
   DURATION(2),
   PLAYBACKRATE(3),
-  VOLUME(4);
+  VOLUME(4),
+  ISAUTOQUALITY(5);
 
   companion object
 }

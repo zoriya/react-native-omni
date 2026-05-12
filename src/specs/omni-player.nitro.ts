@@ -11,7 +11,7 @@ export type NumberProperty = Exclude<
 	keyof OmniPlayerState,
 	"status" | "isPlaying" | "muted"
 >;
-export type BoolProperty = "isPlaying" | "muted";
+export type BoolProperty = "isPlaying" | "muted" | "isAutoQuality";
 
 export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 	addStateListener(key: NumberProperty, cb: (value: number) => void): void;

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -10,6 +10,12 @@ import {
 } from "react-native-omni";
 
 const PLAYLIST = [
+	{
+		title: "elephants dram",
+		artist: "multi audio",
+		album: "Adaptive",
+		uri: "https://playertest.longtailvideo.com/adaptive/elephants_dream_v4/index.m3u8",
+	},
 	{
 		title: "Big Buck Bunny (HLS)",
 		artist: "Blender Foundation",
@@ -60,6 +66,7 @@ function PlayerExample({
 
 	const muted = usePlayerState("muted");
 	const volume = usePlayerState("volume");
+	const isAutoQuality = usePlayerState("isAutoQuality");
 	const [logs, setLogs] = useState<string[]>([]);
 	const [tracks, setTracks] = useState(() => ({
 		videos: [...player.videos],
@@ -202,11 +209,6 @@ function PlayerExample({
 
 	const selectSubtitle = (subtitle?: (typeof tracks.subtitles)[number]) => {
 		player.selectSubtitle(subtitle);
-		refreshTracks();
-	};
-
-	const selectRendition = (rendition?: (typeof tracks.renditions)[number]) => {
-		player.selectRendition(rendition);
 		refreshTracks();
 	};
 
@@ -369,16 +371,14 @@ function PlayerExample({
 					<Pressable
 						style={[
 							styles.trackButton,
-							!tracks.renditions.some((rendition) => rendition.selected) &&
-								styles.selectedTrackButton,
+							isAutoQuality && styles.selectedTrackButton,
 						]}
-						onPress={() => selectRendition(undefined)}
+						onPress={() => player.selectRendition(undefined)}
 					>
 						<Text
 							style={[
 								styles.trackButtonText,
-								!tracks.renditions.some((rendition) => rendition.selected) &&
-									styles.selectedTrackButtonText,
+								isAutoQuality && styles.selectedTrackButtonText,
 							]}
 						>
 							Auto
@@ -394,7 +394,7 @@ function PlayerExample({
 									styles.trackButton,
 									rendition.selected && styles.selectedTrackButton,
 								]}
-								onPress={() => selectRendition(rendition)}
+								onPress={() => player.selectRendition(rendition)}
 							>
 								<Text
 									style={[

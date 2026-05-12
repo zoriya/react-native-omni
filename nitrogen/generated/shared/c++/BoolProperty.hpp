@@ -31,6 +31,7 @@ namespace margelo::nitro::omni {
   enum class BoolProperty {
     ISPLAYING      SWIFT_NAME(isplaying) = 0,
     MUTED      SWIFT_NAME(muted) = 1,
+    ISAUTOQUALITY      SWIFT_NAME(isautoquality) = 2,
   } CLOSED_ENUM;
 
 } // namespace margelo::nitro::omni
@@ -45,6 +46,7 @@ namespace margelo::nitro {
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("isPlaying"): return margelo::nitro::omni::BoolProperty::ISPLAYING;
         case hashString("muted"): return margelo::nitro::omni::BoolProperty::MUTED;
+        case hashString("isAutoQuality"): return margelo::nitro::omni::BoolProperty::ISAUTOQUALITY;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum BoolProperty - invalid value!");
       }
@@ -53,6 +55,7 @@ namespace margelo::nitro {
       switch (arg) {
         case margelo::nitro::omni::BoolProperty::ISPLAYING: return JSIConverter<std::string>::toJSI(runtime, "isPlaying");
         case margelo::nitro::omni::BoolProperty::MUTED: return JSIConverter<std::string>::toJSI(runtime, "muted");
+        case margelo::nitro::omni::BoolProperty::ISAUTOQUALITY: return JSIConverter<std::string>::toJSI(runtime, "isAutoQuality");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert BoolProperty to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");
@@ -66,6 +69,7 @@ namespace margelo::nitro {
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("isPlaying"):
         case hashString("muted"):
+        case hashString("isAutoQuality"):
           return true;
         default:
           return false;

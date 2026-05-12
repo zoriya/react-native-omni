@@ -104,6 +104,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   @set:DoNotStrip
   @set:Keep
   abstract var muted: Boolean
+  
+  @get:DoNotStrip
+  @get:Keep
+  abstract val isAutoQuality: Boolean
 
   // Methods
   @DoNotStrip

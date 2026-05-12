@@ -48,6 +48,9 @@ namespace margelo::nitro::omni {
         case BoolProperty::MUTED:
           static const auto fieldMUTED = clazz->getStaticField<JBoolProperty>("MUTED");
           return clazz->getStaticFieldValue(fieldMUTED);
+        case BoolProperty::ISAUTOQUALITY:
+          static const auto fieldISAUTOQUALITY = clazz->getStaticField<JBoolProperty>("ISAUTOQUALITY");
+          return clazz->getStaticFieldValue(fieldISAUTOQUALITY);
         default:
           std::string stringValue = std::to_string(static_cast<int>(value));
           throw std::invalid_argument("Invalid enum value (" + stringValue + "!");

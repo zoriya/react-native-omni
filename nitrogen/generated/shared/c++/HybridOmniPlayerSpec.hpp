@@ -83,6 +83,7 @@ namespace margelo::nitro::omni {
       virtual void setVolume(double volume) = 0;
       virtual bool getMuted() = 0;
       virtual void setMuted(bool muted) = 0;
+      virtual bool getIsAutoQuality() = 0;
 
     public:
       // Methods

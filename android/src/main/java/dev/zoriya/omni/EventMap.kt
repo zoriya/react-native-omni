@@ -1,6 +1,6 @@
 package dev.zoriya.omni
 
-import android.os.SystemClock
+import android.annotation.SuppressLint
 import androidx.media3.common.C
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
@@ -16,6 +16,7 @@ import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Player.STATE_READY
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
 import com.margelo.nitro.omni.BoolProperty
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
 import com.margelo.nitro.omni.NumberProperty
@@ -23,6 +24,7 @@ import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Track
 
+@SuppressLint("UnsafeOptInUsageError")
 class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Listener {
     private val onPrevListeners = mutableSetOf<() -> Unit>()
     private val onNextListeners = mutableSetOf<() -> Unit>()
@@ -36,8 +38,10 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
     private val stateListeners = mutableMapOf<NumberProperty, MutableSet<(Double) -> Unit>>()
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
-    private var lastTimePosDispatchMs = 0L
+
     private var lastMediaItemIndex = 0
+    private var lastRendition: Rendition? = null
+    private var lastIsAutoQuality: Boolean? = null
 
     init {
         player.addListener(this)
@@ -59,6 +63,53 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
             }
         }
         return null
+    }
+
+    private fun getCurrentRendition(): Rendition? {
+        val group = player.currentTracks.groups.firstOrNull {
+            it.isSelected && it.type == TRACK_TYPE_VIDEO
+        } ?: return null
+
+        val isAuto = player.trackSelectionParameters.overrides.none {
+            it.key.type == TRACK_TYPE_VIDEO
+        }
+
+        val currentIndex = when {
+            isAuto -> {
+                if (player.videoSize.width > 0 && player.videoSize.height > 0) {
+                    (0 until group.length).firstOrNull { i ->
+                        val format = group.getTrackFormat(i)
+                        format.width == player.videoSize.width && format.height == player.videoSize.height
+                    }
+                } else null
+            }
+            else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
+        } ?: return null
+
+        val format = group.getTrackFormat(currentIndex)
+        return Rendition(
+            id = currentIndex.toString(),
+            width = format.width.toDouble().coerceAtLeast(0.0),
+            height = format.height.toDouble().coerceAtLeast(0.0),
+            bitrate = format.bitrate.toDouble().coerceAtLeast(0.0),
+            selected = true
+        )
+    }
+
+    private fun emitIsAutoQualityChange() {
+        val isAuto = player.trackSelectionParameters.overrides.none {
+            it.key.type == C.TRACK_TYPE_VIDEO
+        }
+        if (isAuto == lastIsAutoQuality) return
+        lastIsAutoQuality = isAuto
+        stateBoolListeners[BoolProperty.ISAUTOQUALITY]?.forEach { it(isAuto) }
+    }
+
+    private fun emitRenditionChange() {
+        val rendition = getCurrentRendition() ?: return
+        if (rendition == lastRendition) return
+        lastRendition = rendition
+        onRenditionChangeListeners.forEach { it(rendition) }
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -108,6 +159,13 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
                 )
             )
         }
+        emitIsAutoQualityChange()
+        emitRenditionChange()
+    }
+
+    override fun onVideoSizeChanged(videoSize: VideoSize) {
+        emitIsAutoQualityChange()
+        emitRenditionChange()
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -135,26 +193,15 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
-        emitCoreState(forceCurrentTime = true)
-    }
-
-    private fun emitCoreState(forceCurrentTime: Boolean) {
-        emitCurrentTime(forceCurrentTime)
+        stateListeners[NumberProperty.CURRENTTIME]?.forEach {
+            it((player.currentPosition.toDouble() / 1000.0).coerceAtLeast(0.0))
+        }
         stateListeners[NumberProperty.BUFFERED]?.forEach {
             it((player.totalBufferedDuration.toDouble() / 1000.0).coerceAtLeast(0.0))
         }
         stateListeners[NumberProperty.DURATION]?.forEach {
             val duration = player.duration
             it(if (duration == C.TIME_UNSET) 0.0 else (duration.toDouble() / 1000.0).coerceAtLeast(0.0))
-        }
-    }
-
-    private fun emitCurrentTime(force: Boolean) {
-        val now = SystemClock.elapsedRealtime()
-        if (!force && now - lastTimePosDispatchMs < 1000L) return
-        lastTimePosDispatchMs = now
-        stateListeners[NumberProperty.CURRENTTIME]?.forEach {
-            it((player.currentPosition.toDouble() / 1000.0).coerceAtLeast(0.0))
         }
     }
 

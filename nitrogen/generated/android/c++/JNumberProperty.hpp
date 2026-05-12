@@ -57,6 +57,9 @@ namespace margelo::nitro::omni {
         case NumberProperty::VOLUME:
           static const auto fieldVOLUME = clazz->getStaticField<JNumberProperty>("VOLUME");
           return clazz->getStaticFieldValue(fieldVOLUME);
+        case NumberProperty::ISAUTOQUALITY:
+          static const auto fieldISAUTOQUALITY = clazz->getStaticField<JNumberProperty>("ISAUTOQUALITY");
+          return clazz->getStaticFieldValue(fieldISAUTOQUALITY);
         default:
           std::string stringValue = std::to_string(static_cast<int>(value));
           throw std::invalid_argument("Invalid enum value (" + stringValue + "!");

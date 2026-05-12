@@ -17,7 +17,8 @@ import com.facebook.proguard.annotations.DoNotStrip
 @Keep
 enum class BoolProperty(@DoNotStrip @Keep val value: Int) {
   ISPLAYING(0),
-  MUTED(1);
+  MUTED(1),
+  ISAUTOQUALITY(2);
 
   companion object
 }
