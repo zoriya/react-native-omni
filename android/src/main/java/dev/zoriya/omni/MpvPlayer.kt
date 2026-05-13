@@ -12,10 +12,11 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.BasePlayer
 import androidx.media3.common.C.FORMAT_HANDLED
 import androidx.media3.common.C.INDEX_UNSET
+import androidx.media3.common.C.SELECTION_FLAG_DEFAULT
+import androidx.media3.common.C.SELECTION_FLAG_FORCED
 import androidx.media3.common.C.TIME_UNSET
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
-import androidx.media3.common.C.TRACK_TYPE_UNKNOWN
 import androidx.media3.common.C.TRACK_TYPE_VIDEO
 import androidx.media3.common.DeviceInfo
 import androidx.media3.common.Format
@@ -96,6 +97,8 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         observeProperty("vid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
         observeProperty("aid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
         observeProperty("sid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+        observeProperty("width", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+        observeProperty("height", MPVLib.MpvFormat.MPV_FORMAT_INT64)
     }
 
     private var mediaItems: List<MediaItem> = emptyList()
@@ -321,56 +324,103 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         val count = mpv.getPropertyInt("track-list/count") ?: 0
         if (count <= 0) return Tracks.EMPTY
 
-        data class Entry(val id: Int, val format: Format)
-
-        val grouped = LinkedHashMap<Int, MutableList<Entry>>()
-        for (i in 0 until count) {
-            val base = "track-list/$i"
-            val type = when (mpv.getPropertyString("$base/type")) {
-                "video" -> TRACK_TYPE_VIDEO
-                "audio" -> TRACK_TYPE_AUDIO
-                "sub" -> TRACK_TYPE_TEXT
-                else -> TRACK_TYPE_UNKNOWN
-            }
-            if (type == TRACK_TYPE_UNKNOWN) continue
-
-            val id = mpv.getPropertyInt("$base/id") ?: continue
-            val label = mpv.getPropertyString("$base/title")
-            val language = mpv.getPropertyString("$base/lang")
-            val codec = mpv.getPropertyString("$base/codec")
-            val bitrate = mpv.getPropertyInt("$base/hls-bitrate")
-                ?: mpv.getPropertyInt("$base/demux-bitrate")
-
-            val format = Format.Builder()
-                .setId(id.toString())
-                .setLabel(label)
-                .setLanguage(language)
-                .setCodecs(codec)
-                .setAverageBitrate(bitrate ?: NO_VALUE)
-                .build()
-
-            grouped.getOrPut<Int, MutableList<Entry>>(type) { mutableListOf<Entry>() }
-                .add(Entry(id, format))
-        }
         val selectedVideo = mpv.getPropertyInt("vid")
         val selectedAudio = mpv.getPropertyInt("aid")
         val selectedSubtitle = mpv.getPropertyInt("sid")
+
+        val groupedVideoTracks = LinkedHashMap<String, MutableList<Pair<Int, Format>>>()
         val result = ArrayList<Group>()
-        for ((type, entries) in grouped) {
-            if (entries.isEmpty()) continue
-            val group = TrackGroup("mpv-$type", *entries.map { it.format }.toTypedArray<Format>())
-            val selected = BooleanArray(entries.size) { idx ->
-                val id = entries[idx].id
-                when (type) {
-                    TRACK_TYPE_VIDEO -> selectedVideo == id
-                    TRACK_TYPE_AUDIO -> selectedAudio == id
-                    TRACK_TYPE_TEXT -> selectedSubtitle == id
-                    else -> false
+
+        for (i in 0 until count) {
+            val base = "track-list/$i"
+            val type = mpv.getPropertyString("$base/type") ?: continue
+            val id = mpv.getPropertyInt("$base/id") ?: continue
+            val bitrate = mpv.getPropertyInt("$base/hls-bitrate")
+                ?: mpv.getPropertyInt("$base/demux-bitrate")
+            val isDefault = mpv.getPropertyBoolean("$base/default") ?: false
+            val isForced = mpv.getPropertyBoolean("$base/forced") ?: false
+
+            val format = Format.Builder()
+                .setId(id.toString())
+                .setLabel(mpv.getPropertyString("$base/title"))
+                .setLanguage(mpv.getPropertyString("$base/lang"))
+                .setCodecs(mpv.getPropertyString("$base/codec"))
+                .setAverageBitrate(bitrate ?: NO_VALUE)
+                .setSelectionFlags(
+                    when {
+                        isDefault && isForced -> SELECTION_FLAG_DEFAULT or SELECTION_FLAG_FORCED
+                        isDefault -> SELECTION_FLAG_DEFAULT
+                        isForced -> SELECTION_FLAG_FORCED
+                        else -> 0
+                    }
+                )
+                .setSampleMimeType(when(type) {
+                    "video" -> "video/x-unknown"
+                    "audio" -> "audio/x-unknown"
+                    "sub" -> "text/x-unknown"
+                    else -> null
+                })
+                .apply {
+                    if (type == "video") {
+                        val width = mpv.getPropertyInt("$base/demux-w")
+                        val height = mpv.getPropertyInt("$base/demux-h")
+                        if (width != null && width > 0 && height != null && height > 0) {
+                            setWidth(width).setHeight(height)
+                        }
+                    }
+                }
+                .build()
+
+
+            when (type) {
+                "video" -> {
+                    val programIds = mutableListOf<Int>()
+                    val programIdsCount = mpv.getPropertyInt("$base/program-ids/count") ?: 0
+                    for (programIndex in -1 until programIdsCount) {
+                        val programId = mpv.getPropertyInt("$base/program-ids/$programIndex")
+                        if (programId != null) {
+                            programIds.add(programId)
+                        }
+                    }
+                    programIds.sort()
+                    val programKey =
+                        if (programIds.isEmpty()) "none" else programIds.joinToString(",")
+                    val key =
+                        "programs=$programKey|title=${mpv.getPropertyString("$base/title").orEmpty()}|lang=${
+                            mpv.getPropertyString(
+                                "$base/lang"
+                            ).orEmpty()}|codec=${mpv.getPropertyString("$base/codec").orEmpty()}"
+                    groupedVideoTracks.getOrPut(key) { mutableListOf() }.add(id to format)
+                }
+
+                "audio" -> {
+                    val group = TrackGroup("mpv-audio-$id", format)
+                    val selected = booleanArrayOf(selectedAudio == id)
+                    val support = intArrayOf(FORMAT_HANDLED)
+                    result.add(Group(group, false, support, selected))
+                }
+
+                "sub" -> {
+                    val group = TrackGroup("mpv-sub-$id", format)
+                    val selected = booleanArrayOf(selectedSubtitle == id)
+                    val support = intArrayOf(FORMAT_HANDLED)
+                    result.add(Group(group, false, support, selected))
                 }
             }
-            val support = IntArray(entries.size) { FORMAT_HANDLED }
-            result.add(Group(group, false, support, selected))
         }
+
+        var videoGroupIndex = 0
+        for ((_, entries) in groupedVideoTracks) {
+            val formats = entries.map { it.second }.toTypedArray()
+            val group = TrackGroup("mpv-video-$videoGroupIndex", *formats)
+            val selected = BooleanArray(entries.size) { idx ->
+                selectedVideo == entries[idx].first
+            }
+            val support = IntArray(entries.size) { FORMAT_HANDLED }
+            result.add(Group(group, entries.size > 1, support, selected))
+            videoGroupIndex += 1
+        }
+
         return Tracks(result)
     }
 
@@ -379,15 +429,23 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun setTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters) {
         currentTrackSelectionParameters = trackSelectionParameters
-        if (trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_VIDEO)) {
+        val videoDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_VIDEO)
+        val audioDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_AUDIO)
+        val textDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)
+
+        if (videoDisabled) {
             mpv.setPropertyString("vid", "no")
         }
-        if (trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_AUDIO)) {
+        if (audioDisabled) {
             mpv.setPropertyString("aid", "no")
         }
-        if (trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)) {
+        if (textDisabled) {
             mpv.setPropertyString("sid", "no")
         }
+
+        var hasVideoOverride = false
+        var hasAudioOverride = false
+        var hasTextOverride = false
         for (override in trackSelectionParameters.overrides.values) {
             val selectedIndex = override.trackIndices.firstOrNull() ?: continue
             if (selectedIndex !in 0 until override.mediaTrackGroup.length) continue
@@ -395,11 +453,96 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
                 override.mediaTrackGroup.getFormat(selectedIndex).id?.toIntOrNull() ?: continue
 
             when (override.type) {
-                TRACK_TYPE_VIDEO -> mpv.setPropertyInt("vid", trackId)
-                TRACK_TYPE_AUDIO -> mpv.setPropertyInt("aid", trackId)
-                TRACK_TYPE_TEXT -> mpv.setPropertyInt("sid", trackId)
+                TRACK_TYPE_VIDEO -> {
+                    hasVideoOverride = true
+                    mpv.setPropertyInt("vid", trackId)
+                }
+                TRACK_TYPE_AUDIO -> {
+                    hasAudioOverride = true
+                    mpv.setPropertyInt("aid", trackId)
+                }
+                TRACK_TYPE_TEXT -> {
+                    hasTextOverride = true
+                    mpv.setPropertyInt("sid", trackId)
+                }
             }
         }
+
+        val tracks = getCurrentTracks()
+        val videoPreference = selectTrackByPreference(
+            tracks, TRACK_TYPE_VIDEO,
+            trackSelectionParameters.preferredVideoLanguages,
+            trackSelectionParameters.preferredVideoLabels,
+        )
+        if (!videoDisabled && !hasVideoOverride) {
+            videoPreference?.let { mpv.setPropertyInt("vid", it) }
+                ?: mpv.setPropertyString("vid", "auto")
+        }
+        val audioPreference = selectTrackByPreference(
+            tracks, TRACK_TYPE_AUDIO,
+            trackSelectionParameters.preferredAudioLanguages,
+            trackSelectionParameters.preferredAudioLabels,
+        )
+        if (!audioDisabled && !hasAudioOverride) {
+            audioPreference?.let { mpv.setPropertyInt("aid", it) }
+                ?: mpv.setPropertyString("aid", "auto")
+        }
+        val textPreference = selectTrackByPreference(
+            tracks, TRACK_TYPE_TEXT,
+            trackSelectionParameters.preferredTextLanguages,
+            trackSelectionParameters.preferredTextLabels,
+        )
+        if (!textDisabled && !hasTextOverride) {
+            textPreference?.let { mpv.setPropertyInt("sid", it) }
+                ?: mpv.setPropertyString("sid", "auto")
+        }
+    }
+
+    private fun selectTrackByPreference(
+        tracks: Tracks,
+        trackType: Int,
+        languages: List<String>,
+        labels: List<String>,
+    ): Int? {
+        val preferredLanguages = languages.filter { it.isNotEmpty() }
+        val preferredLabels = labels.filter { it.isNotEmpty() }
+
+        if (preferredLanguages.isEmpty() && preferredLabels.isEmpty()) return null
+
+        data class Candidate(val id: Int, val langIndex: Int, val labelIndex: Int, val hasDefaultFlag: Boolean)
+
+        val candidates = mutableListOf<Candidate>()
+
+        for (group in tracks.groups) {
+            if (group.type != trackType) continue
+            for (i in 0 until group.length) {
+                val format = group.getTrackFormat(i)
+                val id = format.id?.toIntOrNull() ?: continue
+
+                val langIndex = format.language?.let { preferredLanguages.indexOf(it) } ?: -1
+                val labelIndex = format.label?.let { preferredLabels.indexOf(it) } ?: -1
+
+                val matchesLang = preferredLanguages.isEmpty() || langIndex >= 0
+                val matchesLabel = preferredLabels.isEmpty() || labelIndex >= 0
+
+                if (matchesLang && matchesLabel) {
+                    candidates.add(
+                        Candidate(
+                            id,
+                            if (langIndex >= 0) langIndex else Int.MAX_VALUE,
+                            if (labelIndex >= 0) labelIndex else Int.MAX_VALUE,
+                            (format.selectionFlags and SELECTION_FLAG_DEFAULT) != 0
+                        )
+                    )
+                }
+            }
+        }
+
+        return candidates.minWithOrNull(
+            compareBy<Candidate> { it.langIndex }
+                .thenBy { it.labelIndex }
+                .thenByDescending { it.hasDefaultFlag }
+        )?.id
     }
 
     override fun getMediaMetadata(): MediaMetadata =
@@ -568,7 +711,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
 
     override fun clearVideoTextureView(textureView: TextureView?) = Unit
 
-    override fun getVideoSize(): VideoSize = VideoSize.UNKNOWN
+    override fun getVideoSize(): VideoSize {
+        val width = mpv.getPropertyInt("width") ?: 0
+        val height = mpv.getPropertyInt("height") ?: 0
+        if (width <= 0 || height <= 0) return VideoSize.UNKNOWN
+        return VideoSize(width, height)
+    }
 
     override fun getSurfaceSize(): Size = Size.UNKNOWN
 
@@ -677,6 +825,12 @@ class MpvPlayer(ctx: Context) : BasePlayer(), MPVLib.EventObserver {
         when (property) {
             "vid", "aid", "sid" -> {
                 notifyListeners(EVENT_TRACKS_CHANGED) { it.onTracksChanged(getCurrentTracks()) }
+            }
+
+            "width", "height" -> {
+                notifyListeners(EVENT_VIDEO_SIZE_CHANGED) {
+                    it.onVideoSizeChanged(videoSize)
+                }
             }
         }
     }
