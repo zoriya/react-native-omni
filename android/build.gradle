@@ -144,9 +144,9 @@ dependencies {
   implementation project(":react-native-nitro-modules")
 
   implementation("org.videolan.android:libvlc-all:4.0.0-eap24")
-  implementation("androidx.media3:media3-common:1.4.1")
-  implementation("androidx.media3:media3-session:1.4.1")
-  implementation("androidx.media3:media3-ui:1.4.1")
+  implementation("androidx.media3:media3-common:1.10.1")
+  implementation("androidx.media3:media3-session:1.10.1")
+  implementation("androidx.media3:media3-ui:1.10.1")
   implementation 'androidx.media3:media3-exoplayer:1.10.0'
   implementation("androidx.media3:media3-exoplayer-hls:1.10.0")
 }
