@@ -39,6 +39,7 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
+import org.videolan.libvlc.interfaces.IMedia.VideoTrack
 import org.videolan.libvlc.interfaces.IVLCVout
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -66,7 +67,6 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
     private val libVLC = LibVLC(ctx, arrayListOf(
         "--network-caching=1500",
         "--file-caching=1500",
-        "--no-save-config",
         "--no-stats",
         "--no-osd",
         "--quiet"
@@ -354,7 +354,7 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
 
     override fun getShuffleModeEnabled(): Boolean = false
 
-    override fun isLoading() = player.media?.state == IMedia.State.Opening
+    override fun isLoading() = player.playerState == IMedia.State.Opening
 
     override fun seekTo(
         mediaItemIndex: Int,
@@ -399,48 +399,47 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
 
     override fun getCurrentTracks(): Tracks {
         val result = ArrayList<Group>()
-        val selectedVideo = player.videoTrack
-        val selectedAudio = player.audioTrack
-        val selectedSubtitle = player.spuTrack
+        val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
+        val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
+        val selectedSubtitle = player.getSelectedTrack(IMedia.Track.Type.Text)
 
-        val videoTracks = player.videoTracks
+        val videoTracks = player.getTracks(IMedia.Track.Type.Video)
         if (!videoTracks.isNullOrEmpty()) {
             val videoFormats = videoTracks.map { track ->
                 Format.Builder()
-                    .setId(track.id.toString())
+                    .setId(track.id)
                     .setLabel(track.name)
                     .setSampleMimeType("video/x-unknown")
                     .build()
             }
             val group = TrackGroup("vlc-video", *videoFormats.toTypedArray())
             val selected = BooleanArray(videoFormats.size) { idx ->
-                selectedVideo == videoTracks[idx].id
+                selectedVideo != null && selectedVideo.id == videoTracks[idx].id
             }
             val support = IntArray(videoFormats.size) { FORMAT_HANDLED }
             result.add(Group(group, videoFormats.size > 1, support, selected))
         }
 
-        player.audioTracks?.forEach { track ->
+        player.getTracks(IMedia.Track.Type.Audio)?.forEach { track ->
             val format = Format.Builder()
-                .setId(track.id.toString())
+                .setId(track.id)
                 .setLabel(track.name)
                 .setSampleMimeType("audio/x-unknown")
                 .build()
             val group = TrackGroup("vlc-audio-${track.id}", format)
-            val selected = booleanArrayOf(selectedAudio == track.id)
+            val selected = booleanArrayOf(selectedAudio != null && selectedAudio.id == track.id)
             val support = intArrayOf(FORMAT_HANDLED)
             result.add(Group(group, false, support, selected))
         }
 
-        player.spuTracks?.forEach { track ->
-            if (track.id < 0) return@forEach
+        player.getTracks(IMedia.Track.Type.Text)?.forEach { track ->
             val format = Format.Builder()
-                .setId(track.id.toString())
+                .setId(track.id)
                 .setLabel(track.name)
                 .setSampleMimeType("text/x-unknown")
                 .build()
             val group = TrackGroup("vlc-sub-${track.id}", format)
-            val selected = booleanArrayOf(selectedSubtitle == track.id)
+            val selected = booleanArrayOf(selectedSubtitle != null && selectedSubtitle.id == track.id)
             val support = intArrayOf(FORMAT_HANDLED)
             result.add(Group(group, false, support, selected))
         }
@@ -458,8 +457,8 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
         val textDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)
 
         if (videoDisabled) player.setVideoTrackEnabled(false)
-        if (audioDisabled) player.setAudioTrack(-1)
-        if (textDisabled) player.setSpuTrack(-1)
+        if (audioDisabled) player.unselectTrackType(IMedia.Track.Type.Audio)
+        if (textDisabled) player.unselectTrackType(IMedia.Track.Type.Text)
 
         val tracks = getCurrentTracks()
 
@@ -470,21 +469,21 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
         for (override in trackSelectionParameters.overrides.values) {
             val selectedIndex = override.trackIndices.firstOrNull() ?: continue
             if (selectedIndex !in 0 until override.mediaTrackGroup.length) continue
-            val trackId = override.mediaTrackGroup.getFormat(selectedIndex).id?.toIntOrNull() ?: continue
+            val trackId = override.mediaTrackGroup.getFormat(selectedIndex).id ?: continue
 
             when (override.type) {
                 TRACK_TYPE_VIDEO -> {
                     hasVideoOverride = true
                     player.setVideoTrackEnabled(true)
-                    player.setVideoTrack(trackId)
+                    player.selectTrack(trackId)
                 }
                 TRACK_TYPE_AUDIO -> {
                     hasAudioOverride = true
-                    player.setAudioTrack(trackId)
+                    player.selectTrack(trackId)
                 }
                 TRACK_TYPE_TEXT -> {
                     hasTextOverride = true
-                    player.setSpuTrack(trackId)
+                    player.selectTrack(trackId)
                 }
             }
         }
@@ -496,7 +495,7 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
                 trackSelectionParameters.preferredVideoLabels,
             )
             player.setVideoTrackEnabled(true)
-            videoPreference?.let { player.setVideoTrack(it) }
+            videoPreference?.let { player.selectTrack(it) }
         }
         if (!audioDisabled && !hasAudioOverride) {
             val audioPreference = selectTrackByPreference(
@@ -504,7 +503,7 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
                 trackSelectionParameters.preferredAudioLanguages,
                 trackSelectionParameters.preferredAudioLabels,
             )
-            audioPreference?.let { player.setAudioTrack(it) }
+            audioPreference?.let { player.selectTrack(it) }
         }
         if (!textDisabled && !hasTextOverride) {
             val textPreference = selectTrackByPreference(
@@ -512,7 +511,7 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
                 trackSelectionParameters.preferredTextLanguages,
                 trackSelectionParameters.preferredTextLabels,
             )
-            textPreference?.let { player.setSpuTrack(it) }
+            textPreference?.let { player.selectTrack(it) }
         }
     }
 
@@ -521,19 +520,19 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
         trackType: Int,
         languages: List<String>,
         labels: List<String>,
-    ): Int? {
+    ): String? {
         val preferredLanguages = languages.filter { it.isNotEmpty() }
         val preferredLabels = labels.filter { it.isNotEmpty() }
         if (preferredLanguages.isEmpty() && preferredLabels.isEmpty()) return null
 
-        data class Candidate(val id: Int, val langIndex: Int, val labelIndex: Int, val hasDefaultFlag: Boolean)
+        data class Candidate(val id: String, val langIndex: Int, val labelIndex: Int, val hasDefaultFlag: Boolean)
 
         val candidates = tracks.groups
             .filter { it.type == trackType }
             .flatMap { group ->
                 (0 until group.length).mapNotNull { i ->
                     val format = group.getTrackFormat(i)
-                    val id = format.id?.toIntOrNull() ?: return@mapNotNull null
+                    val id = format.id ?: return@mapNotNull null
 
                     val langIndex = format.language?.let { lang ->
                         preferredLanguages.indexOfFirst { it.equals(lang, ignoreCase = true) }
@@ -712,7 +711,7 @@ class VlcPlayer(ctx: Context) : BasePlayer(), MediaPlayer.EventListener {
     override fun clearVideoTextureView(textureView: TextureView?) = Unit
 
     override fun getVideoSize(): VideoSize {
-        val videoTrack = player.currentVideoTrack ?: return VideoSize.UNKNOWN
+        val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack ?: return VideoSize.UNKNOWN
         if (videoTrack.width <= 0 || videoTrack.height <= 0) return VideoSize.UNKNOWN
         return VideoSize(videoTrack.width, videoTrack.height)
     }
