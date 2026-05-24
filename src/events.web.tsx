@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { usePlayer } from "./provider.web";
 import type { OmniEvents } from "./types/events";
 import type { OmniPlayerState, PlayerStatus } from "./types/player";
+import {
+	selectPlayback,
+	selectTime,
+	selectBuffer,
+	selectPlaybackRate,
+	selectVolume,
+	selectSource,
+	usePlayer,
+	type Selector,
+} from "@videojs/react";
 
 export const useEvent = <Event extends keyof OmniEvents>(
 	event: Event,
@@ -65,8 +74,7 @@ export const useEvent = <Event extends keyof OmniEvents>(
 					}
 				};
 				media.videoTracks?.addEventListener("change", handler);
-				return () =>
-					media.videoTracks?.removeEventListener("change", handler);
+				return () => media.videoTracks?.removeEventListener("change", handler);
 			}
 			case "audioTrackChange": {
 				const handler = () => {
@@ -85,8 +93,7 @@ export const useEvent = <Event extends keyof OmniEvents>(
 					}
 				};
 				media.audioTracks?.addEventListener("change", handler);
-				return () =>
-					media.audioTracks?.removeEventListener("change", handler);
+				return () => media.audioTracks?.removeEventListener("change", handler);
 			}
 			case "subtitleChange": {
 				const handler = () => {
@@ -116,6 +123,56 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	}, [player, event]);
 };
 
+type MapperConfig = {
+	[Key in keyof OmniPlayerState]?: {
+		selector: Selector<any, any>;
+		mapper: (ret: any) => OmniPlayerState[Key];
+	};
+};
+
+function createMapper<
+	Key extends keyof OmniPlayerState,
+	Result,
+	Ret extends OmniPlayerState[Key],
+>(key: Key, selector: Selector<any, Result>, mapper: (ret: Result) => Ret) {
+	return { [key]: { selector, mapper } };
+}
+
+const mapper: MapperConfig = {
+	...createMapper("status", selectPlayback, (s) => {
+		if (s?.waiting) return "loading";
+		if (s?.ended) return "idle";
+		return "readyToPlay";
+	}),
+	...createMapper("isPlaying", selectPlayback, (s) => {
+		if (!s) return false;
+		return !s.paused;
+	}),
+	...createMapper("currentTime", selectTime, (s) => {
+		return s?.currentTime ?? 0;
+	}),
+	...createMapper("buffered", selectBuffer, (s) => {
+		if (!s?.buffered.length) return 0;
+		const last = s.buffered[s.buffered.length - 1];
+		return last?.[1] ?? 0;
+	}),
+	...createMapper("duration", selectTime, (s) => {
+		return s?.duration ?? 0;
+	}),
+	...createMapper("playbackRate", selectPlaybackRate, (s) => {
+		return s?.playbackRate ?? 1;
+	}),
+	...createMapper("volume", selectVolume, (s) => {
+		return s?.volume ?? 1;
+	}),
+	...createMapper("muted", selectVolume, (s) => {
+		return s?.muted ?? false;
+	}),
+	...createMapper("isAutoQuality", selectSource, (s) => {
+		return false;
+	}),
+};
+
 export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
 ): OmniPlayerState[Key];
@@ -125,55 +182,10 @@ export function usePlayerState(
 ): OmniPlayerState["currentTime"];
 export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
-	refresh?: number,
+	_refresh?: number,
 ): OmniPlayerState[Key] {
-	const player = usePlayer();
-	const store = player.store;
-	const [ret, setState] = useState<any>(player[key]);
-
-	useEffect(() => {
-		switch (key) {
-			case "currentTime":
-			case "buffered":
-			case "duration":
-			case "playbackRate":
-			case "volume": {
-				setState(store.state[key]);
-				const handler = () => setState(store.state[key]);
-				const unsub = store.subscribe(handler);
-				return unsub;
-			}
-			case "isPlaying":
-			case "muted":
-			case "isAutoQuality": {
-				setState(player[key]);
-				const handler = () => setState(player[key]);
-				const unsub = store.subscribe(handler);
-				return unsub;
-			}
-			case "status": {
-				const prevRef = { current: player.status as PlayerStatus };
-				setState(prevRef.current);
-				const int = setInterval(() => {
-					const status = player.status;
-					if (status !== prevRef.current) {
-						prevRef.current = status;
-						setState(status);
-					}
-				}, 100);
-				return () => clearInterval(int);
-			}
-		}
-	}, [player, key, store]);
-
-	if (key === "currentTime") refresh ??= 1;
-	useEffect(() => {
-		if (!refresh || refresh <= 0) return;
-		const int = setInterval(() => {
-			setState(player[key]);
-		}, refresh * 1000);
-		return () => clearInterval(int);
-	}, [refresh, key, player]);
-
-	return ret;
+	const config = mapper[key];
+	if (!config) throw new Error(`No mapper for ${key}`);
+	const ret = usePlayer(config.selector);
+	return config.mapper(ret);
 }

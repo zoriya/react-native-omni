@@ -1,18 +1,57 @@
 import { createPlayer } from "@videojs/react";
 import { videoFeatures } from "@videojs/react/video";
+import type { VideoPlayerStore } from "@videojs/core/dom";
 import {
 	createContext,
 	type ReactNode,
 	useContext,
 	useEffect,
 } from "react";
-import type { PlayerStatus, Rendition, Track } from "./types/player";
+import type {
+	OmniPlayer,
+	PlayerStatus,
+	Rendition,
+	Track,
+} from "./types/player";
 import type { Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
+interface VideoTrack {
+	readonly id: string;
+	readonly label: string;
+	readonly language: string;
+	enabled: boolean;
+}
+
+interface VideoTrackList {
+	readonly length: number;
+	[index: number]: VideoTrack;
+	addEventListener(type: "change", listener: () => void): void;
+	removeEventListener(type: "change", listener: () => void): void;
+}
+
+interface AudioTrack {
+	readonly id: string;
+	readonly label: string;
+	readonly language: string;
+	enabled: boolean;
+}
+
+interface AudioTrackList {
+	readonly length: number;
+	[index: number]: AudioTrack;
+	addEventListener(type: "change", listener: () => void): void;
+	removeEventListener(type: "change", listener: () => void): void;
+}
+
+interface HtmlVideoElementWithTracks extends HTMLVideoElement {
+	videoTracks?: VideoTrackList;
+	audioTracks?: AudioTrackList;
+}
+
 export const VideoPlayer = createPlayer({ features: videoFeatures });
 
-const PlayerCtx = createContext<WebOmniPlayer>(null!);
+const PlayerCtx = createContext<OmniPlayer>(null!);
 
 export const OmniProvider = ({
 	children,
@@ -57,24 +96,35 @@ const PlayerInitializer = ({
 
 export const usePlayer = () => useContext(PlayerCtx);
 
-class WebOmniPlayer {
-	private _store: any;
+interface ExtendedStoreState {
+	onPrev?: () => void;
+	onNext?: () => void;
+}
+
+export class WebOmniPlayer implements OmniPlayer {
+	private _store: VideoPlayerStore;
 	private _source: Source;
 	private _showNotification = false;
+	private _mediaElement: HtmlVideoElementWithTracks | null = null;
 
-	constructor(store: any, source: Source) {
+	constructor(store: VideoPlayerStore, source: Source) {
 		this._store = store;
 		this._source = source;
 	}
 
-	get store() {
-		return this._store;
-	}
-
 	setMediaElement(media: HTMLVideoElement | null) {
+		this._mediaElement = media as HtmlVideoElementWithTracks | null;
 		if (media) {
 			this.setupSubtitleTracks(media);
 		}
+	}
+
+	get mediaElement(): HtmlVideoElementWithTracks | null {
+		return this._mediaElement;
+	}
+
+	get store(): VideoPlayerStore {
+		return this._store;
 	}
 
 	updateSource(source: Source) {
@@ -115,7 +165,7 @@ class WebOmniPlayer {
 
 	get buffered(): number {
 		const buffered = this._store.state.buffered;
-		if (!buffered || buffered.length === 0) return 0;
+		if (buffered.length === 0) return 0;
 		const lastRange = buffered[buffered.length - 1];
 		return lastRange ? lastRange[1] : 0;
 	}
@@ -166,12 +216,28 @@ class WebOmniPlayer {
 		this._store.seek(this.currentTime + offset).catch(() => {});
 	}
 
+	get onPrev(): (() => void) | undefined {
+		return (this._store.state as ExtendedStoreState).onPrev;
+	}
+
+	set onPrev(cb: (() => void) | undefined) {
+		(this._store.state as ExtendedStoreState).onPrev = cb;
+	}
+
+	get onNext(): (() => void) | undefined {
+		return (this._store.state as ExtendedStoreState).onNext;
+	}
+
+	set onNext(cb: (() => void) | undefined) {
+		(this._store.state as ExtendedStoreState).onNext = cb;
+	}
+
 	playPrev(): void {
-		this._store.state.onPrev?.();
+		this.onPrev?.();
 	}
 
 	playNext(): void {
-		this._store.state.onNext?.();
+		this.onNext?.();
 	}
 
 	get hasPrev(): boolean {
@@ -183,42 +249,60 @@ class WebOmniPlayer {
 	}
 
 	get videos(): Track[] {
-		const media = this._store.state.media;
-		if (!media?.videoTracks) return [];
-		return Array.from(media.videoTracks).map(
-			(track: any, i: number) => ({
-				id: track.id || `video-${i}`,
-				label: track.label,
-				language: track.language,
-				selected: track.enabled,
-			}),
-		);
+		const videoTracks = this._mediaElement?.videoTracks;
+		if (!videoTracks) return [];
+		const tracks: Track[] = [];
+		for (let i = 0; i < videoTracks.length; i++) {
+			const track = videoTracks[i];
+			if (track) {
+				tracks.push({
+					id: track.id || `video-${i}`,
+					label: track.label,
+					language: track.language,
+					selected: track.enabled,
+				});
+			}
+		}
+		return tracks;
 	}
 
 	selectVideo(video: Track): void {
-		const media = this._store.state.media;
-		if (!media?.videoTracks) return;
-		for (let i = 0; i < media.videoTracks.length; i++) {
-			media.videoTracks[i].enabled = media.videoTracks[i].id === video.id;
+		const videoTracks = this._mediaElement?.videoTracks;
+		if (!videoTracks) return;
+		for (let i = 0; i < videoTracks.length; i++) {
+			const track = videoTracks[i];
+			if (track) {
+				track.enabled = track.id === video.id;
+			}
 		}
 	}
 
 	get audios(): Track[] {
-		const media = this._store.state.media;
-		if (!media?.audioTracks) return [];
-		return Array.from(media.audioTracks).map((track: any, i: number) => ({
-			id: track.id || `audio-${i}`,
-			label: track.label,
-			language: track.language,
-			selected: track.enabled,
-		}));
+		const audioTracks = this._mediaElement?.audioTracks;
+		if (!audioTracks) return [];
+		const tracks: Track[] = [];
+		for (let i = 0; i < audioTracks.length; i++) {
+			const track = audioTracks[i];
+			if (track) {
+				tracks.push({
+					id: track.id || `audio-${i}`,
+					label: track.label,
+					language: track.language,
+					selected: track.enabled,
+				});
+			}
+		}
+		return tracks;
 	}
 
 	selectAudio(audio: Track): void {
-		const media = this._store.state.media;
-		if (!media?.audioTracks) return;
-		for (let i = 0; i < media.audioTracks.length; i++) {
-			media.audioTracks[i].enabled = media.audioTracks[i].id === audio.id;
+		const audioTracks = this._mediaElement?.audioTracks;
+		if (!audioTracks) return;
+		for (let i = 0; i < audioTracks.length; i++) {
+			const track = audioTracks[i];
+			if (track) {
+				track.enabled = track.id === audio.id;
+			}
 		}
 	}
 
@@ -230,12 +314,12 @@ class WebOmniPlayer {
 			selected: false,
 		}));
 
-		const media = this._store.state.media as any;
-		if (!media?.textTracks) return sourceSubtitles;
+		const textTracks = this._mediaElement?.textTracks;
+		if (!textTracks) return sourceSubtitles;
 
 		const mediaTracks: Track[] = [];
-		for (let i = 0; i < media.textTracks.length; i++) {
-			const track = media.textTracks[i];
+		for (let i = 0; i < textTracks.length; i++) {
+			const track = textTracks[i];
 			if (track && (track.kind === "subtitles" || track.kind === "captions")) {
 				mediaTracks.push({
 					id: track.id || `text-${i}`,
@@ -250,14 +334,15 @@ class WebOmniPlayer {
 	}
 
 	selectSubtitle(subtitle?: Track): void {
-		const media = this._store.state.media as any;
-		if (!media?.textTracks) return;
-		for (let i = 0; i < media.textTracks.length; i++) {
-			const track = media.textTracks[i];
+		const textTracks = this._mediaElement?.textTracks;
+		if (!textTracks) return;
+		for (let i = 0; i < textTracks.length; i++) {
+			const track = textTracks[i];
 			if (track && (track.kind === "subtitles" || track.kind === "captions")) {
-				track.mode = subtitle && (track.id === subtitle.id || track.label === subtitle.label)
-					? "showing"
-					: "hidden";
+				track.mode =
+					subtitle && (track.id === subtitle.id || track.label === subtitle.label)
+						? "showing"
+						: "hidden";
 			}
 		}
 	}
