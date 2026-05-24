@@ -4,7 +4,6 @@ import {
 	selectError,
 	selectPlayback,
 	selectPlaybackRate,
-	selectSource,
 	selectTextTrack,
 	selectTime,
 	selectVolume,
@@ -85,22 +84,23 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	}, [value, config]);
 };
 
-type MapperConfig = {
-	[Key in keyof OmniPlayerState]?: {
-		selector: Selector<any, any>;
-		mapper: (ret: any) => OmniPlayerState[Key];
-	};
-};
-
-function createMapper<
-	Key extends keyof OmniPlayerState,
-	Result,
-	Ret extends OmniPlayerState[Key],
->(key: Key, selector: Selector<any, Result>, mapper: (ret: Result) => Ret) {
-	return { [key]: { selector, mapper } };
+function createMapper<Key extends keyof OmniPlayerState, State, Result>(
+	key: Key,
+	selector: Selector<State, Result>,
+	mapper: (ret: Result) => OmniPlayerState[Key],
+): Pick<
+	{
+		[K in keyof OmniPlayerState]: {
+			selector: Selector<State, Result>;
+			mapper: (ret: Result) => OmniPlayerState[K];
+		};
+	},
+	Key
+> {
+	return { [key]: { selector, mapper } } as any;
 }
 
-const mapper: MapperConfig = {
+export const stateMapper = {
 	...createMapper("status", selectPlayback, (s) => {
 		if (s?.waiting) return "loading";
 		if (s?.ended) return "idle";
@@ -130,9 +130,13 @@ const mapper: MapperConfig = {
 	...createMapper("muted", selectVolume, (s) => {
 		return s?.muted ?? false;
 	}),
-	...createMapper("isAutoQuality", selectSource, (s) => {
-		return false;
-	}),
+	...createMapper(
+		"isAutoQuality",
+		() => {},
+		() => {
+			return true;
+		},
+	),
 };
 
 export function usePlayerState<Key extends keyof OmniPlayerState>(
@@ -146,8 +150,8 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
 	_refresh?: number,
 ): OmniPlayerState[Key] {
-	const config = mapper[key];
+	const config = stateMapper[key];
 	if (!config) throw new Error(`No mapper for ${key}`);
-	const ret = usePlayer(config.selector);
-	return config.mapper(ret);
+	const ret = usePlayer(config.selector as Selector<any, any>);
+	return config.mapper(ret) as OmniPlayerState[Key];
 }
