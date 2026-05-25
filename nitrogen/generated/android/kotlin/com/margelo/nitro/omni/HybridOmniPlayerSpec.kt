@@ -33,12 +33,6 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   @get:Keep
   @set:DoNotStrip
   @set:Keep
-  abstract var source: Source
-  
-  @get:DoNotStrip
-  @get:Keep
-  @set:DoNotStrip
-  @set:Keep
   abstract var showNotification: Boolean?
   
   @get:DoNotStrip
@@ -110,6 +104,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   abstract val isAutoQuality: Boolean
 
   // Methods
+  @DoNotStrip
+  @Keep
+  abstract fun setSource(src: Source): Unit
+  
   @DoNotStrip
   @Keep
   abstract fun play(): Unit

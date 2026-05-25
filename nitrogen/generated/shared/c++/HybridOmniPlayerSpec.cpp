@@ -15,8 +15,6 @@ namespace margelo::nitro::omni {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridGetter("eventMap", &HybridOmniPlayerSpec::getEventMap);
-      prototype.registerHybridGetter("source", &HybridOmniPlayerSpec::getSource);
-      prototype.registerHybridSetter("source", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridGetter("showNotification", &HybridOmniPlayerSpec::getShowNotification);
       prototype.registerHybridSetter("showNotification", &HybridOmniPlayerSpec::setShowNotification);
       prototype.registerHybridGetter("hasPrev", &HybridOmniPlayerSpec::getHasPrev);
@@ -38,6 +36,7 @@ namespace margelo::nitro::omni {
       prototype.registerHybridGetter("muted", &HybridOmniPlayerSpec::getMuted);
       prototype.registerHybridSetter("muted", &HybridOmniPlayerSpec::setMuted);
       prototype.registerHybridGetter("isAutoQuality", &HybridOmniPlayerSpec::getIsAutoQuality);
+      prototype.registerHybridMethod("setSource", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridMethod("play", &HybridOmniPlayerSpec::play);
       prototype.registerHybridMethod("pause", &HybridOmniPlayerSpec::pause);
       prototype.registerHybridMethod("seekBy", &HybridOmniPlayerSpec::seekBy);

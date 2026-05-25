@@ -9,6 +9,12 @@
 
 // Forward declaration of `HybridOmniEventMapSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniEventMapSpec; }
+// Forward declaration of `Track` to properly resolve imports.
+namespace margelo::nitro::omni { struct Track; }
+// Forward declaration of `Rendition` to properly resolve imports.
+namespace margelo::nitro::omni { struct Rendition; }
+// Forward declaration of `PlayerStatus` to properly resolve imports.
+namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
@@ -19,23 +25,23 @@ namespace margelo::nitro::omni { struct Subtitle; }
 namespace margelo::nitro::omni { struct Metadata; }
 // Forward declaration of `MixAudioMode` to properly resolve imports.
 namespace margelo::nitro::omni { enum class MixAudioMode; }
-// Forward declaration of `Track` to properly resolve imports.
-namespace margelo::nitro::omni { struct Track; }
-// Forward declaration of `Rendition` to properly resolve imports.
-namespace margelo::nitro::omni { struct Rendition; }
-// Forward declaration of `PlayerStatus` to properly resolve imports.
-namespace margelo::nitro::omni { enum class PlayerStatus; }
 
 #include <memory>
 #include "HybridOmniEventMapSpec.hpp"
 #include "JHybridOmniEventMapSpec.hpp"
+#include <optional>
+#include "Track.hpp"
+#include <vector>
+#include "JTrack.hpp"
+#include <string>
+#include "Rendition.hpp"
+#include "JRendition.hpp"
+#include "PlayerStatus.hpp"
+#include "JPlayerStatus.hpp"
 #include "Source.hpp"
 #include "JSource.hpp"
 #include "VideoSrc.hpp"
-#include <vector>
 #include "JVideoSrc.hpp"
-#include <string>
-#include <optional>
 #include <unordered_map>
 #include "Subtitle.hpp"
 #include "JSubtitle.hpp"
@@ -43,12 +49,6 @@ namespace margelo::nitro::omni { enum class PlayerStatus; }
 #include "JMetadata.hpp"
 #include "MixAudioMode.hpp"
 #include "JMixAudioMode.hpp"
-#include "Track.hpp"
-#include "JTrack.hpp"
-#include "Rendition.hpp"
-#include "JRendition.hpp"
-#include "PlayerStatus.hpp"
-#include "JPlayerStatus.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -84,15 +84,6 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniEventMapSpec::JavaPart>()>("getEventMap");
     auto __result = method(_javaPart);
     return __result->getJHybridOmniEventMapSpec();
-  }
-  Source JHybridOmniPlayerSpec::getSource() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JSource>()>("getSource");
-    auto __result = method(_javaPart);
-    return __result->toCpp();
-  }
-  void JHybridOmniPlayerSpec::setSource(const Source& source) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSource> /* source */)>("setSource");
-    method(_javaPart, JSource::fromCpp(source));
   }
   std::optional<bool> JHybridOmniPlayerSpec::getShowNotification() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JBoolean>()>("getShowNotification");
@@ -232,6 +223,10 @@ namespace margelo::nitro::omni {
   }
 
   // Methods
+  void JHybridOmniPlayerSpec::setSource(const Source& src) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSource> /* src */)>("setSource");
+    method(_javaPart, JSource::fromCpp(src));
+  }
   void JHybridOmniPlayerSpec::play() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("play");
     method(_javaPart);

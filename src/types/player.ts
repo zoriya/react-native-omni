@@ -1,7 +1,4 @@
-import type { Source } from "./source";
-
 export interface OmniPlayer extends OmniPlayerState {
-	source: Source;
 	showNotification?: boolean;
 
 	play(): void;
@@ -34,7 +31,7 @@ export interface OmniPlayerState {
 	// between 0 and 1
 	volume: number;
 	muted: boolean;
-	readonly isAutoQuality: boolean
+	readonly isAutoQuality: boolean;
 }
 
 export type PlayerStatus = "idle" | "loading" | "readyToPlay" | "error";

@@ -1,15 +1,8 @@
 import { createPlayer } from "@videojs/react";
 import { videoFeatures } from "@videojs/react/video";
-import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-} from "react";
+import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { WebOmniPlayer } from "./player.web";
-import type {
-	OmniPlayer,
-} from "./types/player";
+import type { OmniPlayer } from "./types/player";
 import type { Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
@@ -45,11 +38,11 @@ const PlayerInitializer = ({
 	showNotification: boolean;
 }) => {
 	const store = VideoPlayer.usePlayer();
-	const player = useLazyRef(() => new WebOmniPlayer(store, source));
+	const player = useLazyRef(() => new WebOmniPlayer(store));
 
 	useEffect(() => {
-		player.updateSource(source);
-	}, [source]);
+		store.source = source.src[0]?.uri || null;
+	}, [store, source]);
 
 	useEffect(() => {
 		player.showNotification = showNotification;

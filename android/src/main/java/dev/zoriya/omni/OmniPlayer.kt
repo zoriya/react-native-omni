@@ -24,7 +24,6 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem.RequestMetadata
 import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -63,43 +62,6 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         eventMap.dispose()
         runOnMainThread { player.release() }
     }
-
-    private var currentSource: Source? = null
-    override var source: Source
-        get() = currentSource
-            ?: throw IllegalStateException("source should be initialized before get")
-        set(value) {
-            Log.i("omni", "update source")
-            currentSource = value
-            val src = value.src.firstOrNull()
-            if (src == null) {
-                runOnMainThreadSync {
-                    player.setMediaItem(MediaItem.EMPTY)
-                    player.prepare()
-                }
-                return
-            }
-
-            val currentItem = buildMediaItem(src, value.metadata, value.subtitles)
-            val mediaItems = mutableListOf<MediaItem>()
-
-            if (value.metadata?.hasPrev == true) {
-                mediaItems.add(currentItem)
-            }
-
-            mediaItems.add(currentItem)
-
-            if (value.metadata?.hasNext == true) {
-                mediaItems.add(currentItem)
-            }
-
-            runOnMainThreadSync {
-                val startIndex = if (value.metadata?.hasPrev == true) 1 else 0
-                val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
-                player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
-                player.prepare()
-            }
-        }
 
     private fun buildMediaItem(
         src: com.margelo.nitro.omni.VideoSrc,
@@ -153,8 +115,8 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         }
     }
 
-    override val hasPrev: Boolean get() = currentSource?.metadata?.hasPrev == true
-    override val hasNext: Boolean get() = currentSource?.metadata?.hasNext == true
+    override val hasPrev: Boolean get() = player.hasPreviousMediaItem()
+    override val hasNext: Boolean get() = player.hasNextMediaItem()
     override val status by mainThreadProperty {
         when (player.playbackState) {
             Player.STATE_IDLE,
@@ -204,6 +166,38 @@ class OmniPlayer : HybridOmniPlayerSpec() {
     override var isAutoQuality by mainThreadProperty {
         player.trackSelectionParameters.overrides.none {
             it.key.type == C.TRACK_TYPE_VIDEO
+        }
+    }
+
+    override fun setSource(src: Source) {
+        Log.i("omni", "update source")
+        val source = src.src.firstOrNull()
+        if (source == null) {
+            runOnMainThreadSync {
+                player.setMediaItem(MediaItem.EMPTY)
+                player.prepare()
+            }
+            return
+        }
+
+        val currentItem = buildMediaItem(source, src.metadata, src.subtitles)
+        val mediaItems = mutableListOf<MediaItem>()
+
+        if (src.metadata?.hasPrev == true) {
+            mediaItems.add(currentItem)
+        }
+
+        mediaItems.add(currentItem)
+
+        if (src.metadata?.hasNext == true) {
+            mediaItems.add(currentItem)
+        }
+
+        runOnMainThreadSync {
+            val startIndex = if (src.metadata?.hasPrev == true) 1 else 0
+            val startPositionMs = (src.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
+            player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
+            player.prepare()
         }
     }
 

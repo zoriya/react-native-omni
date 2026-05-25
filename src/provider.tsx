@@ -22,7 +22,7 @@ export const OmniProvider = ({
 	const player = useLazyRef(() => ProviderFactory.createPlayer(source));
 
 	useEffect(() => {
-		player.source = source;
+		player.setSource(source);
 	}, [source]);
 
 	useEffect(() => {
