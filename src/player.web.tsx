@@ -1,4 +1,5 @@
 import type { VideoPlayerStore } from "@videojs/core/dom";
+import type Hls from "hls.js";
 import { stateMapper } from "./events.web";
 import type {
 	OmniPlayer,
@@ -15,6 +16,11 @@ export class WebOmniPlayer implements OmniPlayer {
 
 	constructor(store: VideoPlayerStore) {
 		this._store = store;
+	}
+
+	private getHls(): Hls | null {
+		const media = this._store.target?.media;
+		return (media?.engine as Hls | undefined) ?? null;
 	}
 
 	source: Source | null = null;
@@ -78,7 +84,9 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get isAutoQuality(): boolean {
-		return true;
+		const hls = this.getHls();
+		if (!hls) return false;
+		return hls.autoLevelEnabled;
 	}
 
 	play(): void {
@@ -112,16 +120,31 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get videos(): Track[] {
+		// hls.js does not support alternative video tracks (e.g. camera angles)
 		return [];
 	}
 
-	selectVideo(video: Track): void {}
+	selectVideo(_video: Track): void {
+		// hls.js does not support alternative video tracks
+	}
 
 	get audios(): Track[] {
-		return [];
+		const hls = this.getHls();
+		if (!hls) return [];
+		const currentTrackId = hls.audioTrack;
+		return hls.audioTracks.map((track, index) => ({
+			id: index.toString(),
+			label: track.name,
+			language: track.lang,
+			selected: index === currentTrackId,
+		}));
 	}
 
-	selectAudio(audio: Track): void {}
+	selectAudio(audio: Track): void {
+		const hls = this.getHls();
+		if (!hls) return;
+		hls.audioTrack = parseInt(audio.id, 10);
+	}
 
 	get subtitles(): Track[] {
 		return this._store.textTrackList
@@ -145,10 +168,21 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get rendition(): Rendition[] {
-		return [];
+		const hls = this.getHls();
+		if (!hls) return [];
+		const currentLevel = hls.currentLevel;
+		return hls.levels.map((level, index) => ({
+			id: index.toString(),
+			width: level.width,
+			height: level.height,
+			bitrate: level.bitrate,
+			selected: index === currentLevel,
+		}));
 	}
 
-	selectRendition(_rendition?: Rendition): void {
-		// Auto quality is handled by videojs/HLS
+	selectRendition(rendition?: Rendition): void {
+		const hls = this.getHls();
+		if (!hls) return;
+		hls.nextLevel = rendition ? parseInt(rendition.id, 10) : -1;
 	}
 }

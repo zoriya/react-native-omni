@@ -381,7 +381,7 @@ function PlayerExample({
 								isAutoQuality && styles.selectedTrackButtonText,
 							]}
 						>
-							Auto
+							Auto{isAutoQuality && tracks.renditions.find(r => r.selected) ? ` (${tracks.renditions.find(r => r.selected)!.height}p)` : ""}
 						</Text>
 					</Pressable>
 					{tracks.renditions.length === 0 ? (

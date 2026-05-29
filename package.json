@@ -10,6 +10,7 @@
 	"scripts": {
 		"dev": "cd example && bun start",
 		"android": " cd example && bunx react-native run-android --no-packager --port 8082",
+		"web": "cd example && bun web",
 		"typecheck": "tsc --noEmit && tsc -p plugin/tsconfig.json --noEmit",
 		"build:plugin": "tsc -p plugin/tsconfig.json",
 		"build": "bun run typecheck && bob build && bun run build:plugin",

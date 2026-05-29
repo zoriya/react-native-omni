@@ -24,6 +24,7 @@ export const OmniView = ({
 					autoPlay={autoplay}
 					playsInline
 					crossOrigin="anonymous"
+					style={{ width: "100%", height: "100%", objectFit: "cover" }}
 				/>
 			)}
 		</VideoPlayer.Container>
