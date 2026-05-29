@@ -6,6 +6,7 @@ import type {
 	Rendition,
 	Track,
 } from "./types/player";
+import type { Source } from "./types/source";
 
 export class WebOmniPlayer implements OmniPlayer {
 	_store: VideoPlayerStore;
@@ -15,6 +16,8 @@ export class WebOmniPlayer implements OmniPlayer {
 	constructor(store: VideoPlayerStore) {
 		this._store = store;
 	}
+
+	source: Source | null = null;
 
 	get showNotification(): boolean {
 		// TODO

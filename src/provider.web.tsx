@@ -41,8 +41,8 @@ const PlayerInitializer = ({
 	const player = useLazyRef(() => new WebOmniPlayer(store));
 
 	useEffect(() => {
-		store.source = source.src[0]?.uri || null;
-	}, [store, source]);
+		player.source = source;
+	}, [source]);
 
 	useEffect(() => {
 		player.showNotification = showNotification;
