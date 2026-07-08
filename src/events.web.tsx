@@ -1,15 +1,20 @@
+import type { MediaVideoRendition } from "@videojs/core";
 import {
 	type Selector,
+	selectAudioTrack,
 	selectBuffer,
 	selectError,
 	selectPlayback,
 	selectPlaybackRate,
+	selectQuality,
 	selectTextTrack,
 	selectTime,
 	selectVolume,
-	usePlayer,
+	usePlayer as useStoreSelector,
 } from "@videojs/react";
 import { useEffect, useRef } from "react";
+import type { WebOmniPlayer } from "./player.web";
+import { usePlayer } from "./provider.web";
 import type { OmniEvents } from "./types/events";
 import type { OmniPlayerState } from "./types/player";
 
@@ -31,6 +36,9 @@ function createEventMapper<Key extends keyof OmniEvents, Result>(
 ) {
 	return { [key]: { selector, handler } };
 }
+
+const renditionKey = (r: MediaVideoRendition | null | undefined): string =>
+	r ? `${r.id ?? ""}|${r.width}x${r.height}|${r.bitrate}` : "";
 
 const eventMapper: EventMapperConfig = {
 	...createEventMapper("end", selectPlayback, (cb, value, prev) => {
@@ -63,25 +71,79 @@ const eventMapper: EventMapperConfig = {
 		}
 		cb(undefined);
 	}),
+	...createEventMapper("audioTrackChange", selectAudioTrack, (cb, value, prev) => {
+		if (!value) return;
+		const index = value.audioTrackList.findIndex((t) => t.enabled);
+		if (index === -1) return;
+		const track = value.audioTrackList[index]!;
+		const nextValue = track.id ?? String(index);
+
+		const prevIndex = prev?.audioTrackList.findIndex((t) => t.enabled) ?? -1;
+		const prevTrack = prevIndex >= 0 ? prev!.audioTrackList[prevIndex] : undefined;
+		const prevValue = prevTrack ? (prevTrack.id ?? String(prevIndex)) : undefined;
+
+		if (nextValue === prevValue) return;
+		cb({
+			id: nextValue,
+			label: track.label,
+			language: track.language,
+			selected: true,
+		});
+	}),
+	...createEventMapper("renditionChange", selectQuality, (cb, value, prev) => {
+		const active = value?.activeVideoRendition;
+		if (!active) return;
+		if (renditionKey(active) === renditionKey(prev?.activeVideoRendition)) return;
+
+		const index = value.videoRenditionList.findIndex(
+			(r) => renditionKey(r) === renditionKey(active),
+		);
+		cb({
+			id: active.id ?? String(index),
+			width: active.width ?? 0,
+			height: active.height ?? 0,
+			bitrate: active.bitrate ?? 0,
+			selected: true,
+		});
+	}),
 };
 
 export const useEvent = <Event extends keyof OmniEvents>(
 	event: Event,
 	callback: OmniEvents[Event],
 ) => {
-	const config = eventMapper[event];
+	const player = usePlayer() as WebOmniPlayer;
 	const callbackRef = useRef(callback);
 	callbackRef.current = callback;
+
+	// Events derived from the reactive store state.
+	const config = eventMapper[event];
 	const prevRef = useRef<any>(undefined);
-
-	const value = usePlayer(config?.selector ?? (() => ({})));
-
+	const value = useStoreSelector(config?.selector ?? (() => undefined));
 	useEffect(() => {
 		if (!config) return;
-		const prev = prevRef.current;
-		config.handler(callbackRef.current as any, value, prev);
+		config.handler(callbackRef.current as any, value, prevRef.current);
 		prevRef.current = value;
 	}, [value, config]);
+
+	// prev/next are triggered by the app (or the media session) rather than the
+	// media element; wire the callback onto the player so `playPrev`/`playNext`
+	// can invoke it.
+	useEffect(() => {
+		if (event === "prev") {
+			player.onPrev = () => (callbackRef.current as () => void)();
+			return () => {
+				player.onPrev = undefined;
+			};
+		}
+		if (event === "next") {
+			player.onNext = () => (callbackRef.current as () => void)();
+			return () => {
+				player.onNext = undefined;
+			};
+		}
+		return undefined;
+	}, [event, player]);
 };
 
 function createMapper<Key extends keyof OmniPlayerState, State, Result>(
@@ -130,13 +192,10 @@ export const stateMapper = {
 	...createMapper("muted", selectVolume, (s) => {
 		return s?.muted ?? false;
 	}),
-	...createMapper(
-		"isAutoQuality",
-		() => {},
-		() => {
-			return true;
-		},
-	),
+	...createMapper("isAutoQuality", selectQuality, (q) => {
+		if (!q) return true;
+		return !q.videoRenditionList.some((r) => r.selected);
+	}),
 };
 
 export function usePlayerState<Key extends keyof OmniPlayerState>(
@@ -152,6 +211,6 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 ): OmniPlayerState[Key] {
 	const config = stateMapper[key];
 	if (!config) throw new Error(`No mapper for ${key}`);
-	const ret = usePlayer(config.selector as Selector<any, any>);
+	const ret = useStoreSelector(config.selector as Selector<any, any>);
 	return config.mapper(ret) as OmniPlayerState[Key];
 }
