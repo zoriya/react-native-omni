@@ -42,7 +42,8 @@ const PlayerInitializer = ({
 
 	useEffect(() => {
 		player.source = source;
-	}, [source]);
+		if (source.startTime) store.seek(source.startTime).catch(() => {});
+	}, [source, store]);
 
 	useEffect(() => {
 		player.showNotification = showNotification;
