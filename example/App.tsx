@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
 	OmniProvider,
@@ -33,7 +33,6 @@ const PLAYLIST = [
 		uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
 	},
 ] as const;
-
 
 function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) {
@@ -217,7 +216,21 @@ function PlayerExample({
 			<Text style={styles.heading}>react-native-omni</Text>
 			<Text style={styles.subheading}>{trackLabel}</Text>
 
-			<OmniView style={styles.video} autoplay={true} showNotification={true} />
+			<OmniView
+				style={styles.video}
+				autoplay={true}
+				showNotification={true}
+				subtitleAssets={{
+					// The worker is bundled by webpack; only the wasm binaries and the
+					// fallback font are self-hosted (see webpack devServer.static).
+					jassub: {
+						wasmUrl: "/jassub/jassub-worker.wasm",
+						modernWasmUrl: "/jassub/jassub-worker-modern.wasm",
+						fontUrl: "/jassub/default.woff2",
+					},
+					pgs: { workerUrl: "/pgs/libpgs.worker.js" },
+				}}
+			/>
 
 			<View style={styles.row}>
 				<Pressable style={styles.button} onPress={togglePlayback}>
@@ -381,7 +394,10 @@ function PlayerExample({
 								isAutoQuality && styles.selectedTrackButtonText,
 							]}
 						>
-							Auto{isAutoQuality && tracks.renditions.find(r => r.selected) ? ` (${tracks.renditions.find(r => r.selected)!.height}p)` : ""}
+							Auto
+							{isAutoQuality && tracks.renditions.find((r) => r.selected)
+								? ` (${tracks.renditions.find((r) => r.selected)!.height}p)`
+								: ""}
 						</Text>
 					</Pressable>
 					{tracks.renditions.length === 0 ? (
@@ -449,7 +465,21 @@ function App(): React.JSX.Element {
 					headers: {},
 				},
 			],
-			subtitles: [],
+			subtitles: [
+				{
+					id: "kusu",
+					link: "https://jassub.pages.dev/subtitles/Kusriya%20S2%20OP1v3.ass",
+				},
+				{
+					id: "pgs",
+					link: "https://raw.githubusercontent.com/Arcus92/libpgs-js/main/tests/files/test.sup",
+					label: "PGS test",
+				},
+			],
+			fonts: [
+				"https://jassub.pages.dev/fonts/FOT-TsukuCOldMinPr6NR.OTF",
+				"https://jassub.pages.dev/fonts/arial.ttf",
+			],
 			metadata: {
 				title: PLAYLIST[currentIndex].title,
 				artist: PLAYLIST[currentIndex].artist,

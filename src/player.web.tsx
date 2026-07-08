@@ -1,6 +1,10 @@
 import type { MediaVideoRendition } from "@videojs/core";
 import type { VideoPlayerStore } from "@videojs/core/dom";
-import { selectAudioTrack, selectQuality } from "@videojs/react";
+import {
+	selectAudioTrack,
+	selectQuality,
+	selectTextTrack,
+} from "@videojs/react";
 import { stateMapper } from "./events.web";
 import type {
 	OmniPlayer,
@@ -8,7 +12,35 @@ import type {
 	Rendition,
 	Track,
 } from "./types/player";
-import type { Source } from "./types/source";
+import type { Source, Subtitle } from "./types/source";
+
+export type SubtitleFormat = "vtt" | "ass" | "pgs" | "native";
+
+export const getSubtitleFormat = (subtitle: {
+	mimeType?: string;
+	link: string;
+}): SubtitleFormat => {
+	const mime = subtitle.mimeType?.toLowerCase() ?? "";
+	const ext = subtitle.link.split(/[?#]/)[0]?.split(".").pop()?.toLowerCase();
+	if (
+		mime.includes("ass") ||
+		mime.includes("ssa") ||
+		ext === "ass" ||
+		ext === "ssa"
+	)
+		return "ass";
+	if (mime.includes("pgs") || ext === "sup") return "pgs";
+	if (mime.includes("vtt") || ext === "vtt") return "vtt";
+	return "native";
+};
+
+export const isCustomSubtitle = (subtitle: {
+	mimeType?: string;
+	link: string;
+}): boolean => {
+	const format = getSubtitleFormat(subtitle);
+	return format === "ass" || format === "pgs";
+};
 
 export class WebOmniPlayer implements OmniPlayer {
 	_store: VideoPlayerStore;
@@ -22,12 +54,25 @@ export class WebOmniPlayer implements OmniPlayer {
 	_source: Source | null = null;
 	private _showNotification = false;
 
+	// Selected ASS/PGS subtitle (drawn by the overlay); `null` when the active
+	// subtitle is native or off. Exposed as an external store so the view can
+	// react to selection changes.
+	private overlaySubtitle: Subtitle | null = null;
+	private overlayListeners = new Set<() => void>();
+
 	get source(): Source | null {
 		return this._source;
 	}
 
 	set source(source: Source | null) {
 		this._source = source;
+		// Drop the overlay subtitle if it is not part of the new source.
+		if (
+			this.overlaySubtitle &&
+			!source?.subtitles.some((s) => s.id === this.overlaySubtitle?.id)
+		) {
+			this.setOverlaySubtitle(null);
+		}
 		this.updateMediaSession();
 	}
 
@@ -156,26 +201,52 @@ export class WebOmniPlayer implements OmniPlayer {
 		tracks.selectAudioTrack(audio.id);
 	}
 
+	private get overlaySubtitles(): Subtitle[] {
+		return (this._source?.subtitles ?? []).filter(isCustomSubtitle);
+	}
+
 	get subtitles(): Track[] {
-		return this._store.textTrackList
-			.map((x, i) => ({
-				id: i.toString(),
-				kind: x.kind,
-				label: x.label,
-				language: x.language,
-				selected: x.mode === "showing",
-			}))
-			.filter((x) => x.kind === "subtitles" || x.kind === "captions");
+		const textTracks = selectTextTrack(this._store.state)?.textTrackList ?? [];
+		const native = textTracks
+			.filter((x) => x.kind === "subtitles" || x.kind === "captions")
+			.map((track) => ({
+				id: track.id!,
+				label: track.label,
+				language: track.language,
+				selected: track.mode === "showing",
+			}));
+		const overlay = this.overlaySubtitles.map((sub) => ({
+			id: sub.id,
+			label: sub.label,
+			language: sub.language,
+			selected: this.overlaySubtitle?.id === sub.id,
+		}));
+		return [...native, ...overlay];
 	}
 
 	selectSubtitle(subtitle?: Track): void {
-		for (let i = 0; i < this._store.textTrackList.length; i++) {
-			const track = this._store.textTrackList[i]!;
-			if (track.kind !== "subtitles" && track.kind !== "captions") continue;
-			track.mode =
-				subtitle && i.toString() === subtitle.id ? "showing" : "hidden";
-		}
+		const overlay = subtitle
+			? this.overlaySubtitles.find((s) => s.id === subtitle.id)
+			: undefined;
+
+		const tracks = selectTextTrack(this._store.state);
+		tracks?.selectSubtitlesTrack(overlay || !subtitle ? "off" : subtitle.id);
+		this.setOverlaySubtitle(overlay ?? null);
 	}
+
+	private setOverlaySubtitle(sub: Subtitle | null): void {
+		if (this.overlaySubtitle === sub) return;
+		this.overlaySubtitle = sub;
+		for (const listener of this.overlayListeners) listener();
+	}
+
+	// External store used by the view to render the ASS/PGS overlay.
+	subscribeOverlaySubtitle = (callback: () => void): (() => void) => {
+		this.overlayListeners.add(callback);
+		return () => this.overlayListeners.delete(callback);
+	};
+
+	getOverlaySubtitle = (): Subtitle | null => this.overlaySubtitle;
 
 	get rendition(): Rendition[] {
 		function isSameRendition(

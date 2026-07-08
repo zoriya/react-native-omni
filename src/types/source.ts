@@ -2,6 +2,9 @@ export interface Source {
 	src: VideoSrc[];
 	startTime?: number;
 	subtitles: Subtitle[];
+	// fonts that can be used by ass subtitles on the web (native will use
+	// embedded fonts)
+	fonts?: string[];
 	metadata?: Metadata;
 	mixAudio?: MixAudioMode;
 }
