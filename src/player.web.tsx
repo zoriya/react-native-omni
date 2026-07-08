@@ -2,13 +2,19 @@ import type { MediaVideoRendition } from "@videojs/core";
 import type { VideoPlayerStore } from "@videojs/core/dom";
 import { selectAudioTrack, selectQuality } from "@videojs/react";
 import { stateMapper } from "./events.web";
+import { isCustomSubtitle } from "./subtitles.web";
 import type {
 	OmniPlayer,
 	PlayerStatus,
 	Rendition,
 	Track,
 } from "./types/player";
-import type { Source } from "./types/source";
+import type { Source, Subtitle } from "./types/source";
+
+// Track id prefixes distinguish native `<track>` entries from external
+// ASS/PGS subtitles that are rendered by a JS overlay.
+const NATIVE_PREFIX = "n:";
+const CUSTOM_PREFIX = "x:";
 
 /**
  * The quality feature reports the actively-playing rendition (`active`)
@@ -37,12 +43,25 @@ export class WebOmniPlayer implements OmniPlayer {
 	_source: Source | null = null;
 	private _showNotification = false;
 
+	// Selected ASS/PGS subtitle (rendered by the overlay); `null` when the
+	// active subtitle is native or off. Exposed as an external store so the
+	// view can react to selection changes.
+	private _customSubtitle: Subtitle | null = null;
+	private _customSubtitleListeners = new Set<() => void>();
+
 	get source(): Source | null {
 		return this._source;
 	}
 
 	set source(source: Source | null) {
 		this._source = source;
+		// The previous overlay subtitle no longer belongs to the new source.
+		if (
+			this._customSubtitle &&
+			!source?.subtitles.some((s) => s.id === this._customSubtitle?.id)
+		) {
+			this.setCustomSubtitle(null);
+		}
 		this.updateMediaSession();
 	}
 
@@ -172,25 +191,71 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get subtitles(): Track[] {
-		return this._store.textTrackList
-			.map((x, i) => ({
-				id: i.toString(),
-				kind: x.kind,
-				label: x.label,
-				language: x.language,
-				selected: x.mode === "showing",
-			}))
-			.filter((x) => x.kind === "subtitles" || x.kind === "captions");
+		// Native text tracks (in-manifest + external WebVTT rendered as <track>).
+		const native: Track[] = [];
+		this._store.textTrackList.forEach((track, i) => {
+			if (track.kind !== "subtitles" && track.kind !== "captions") return;
+			native.push({
+				id: `${NATIVE_PREFIX}${i}`,
+				label: track.label,
+				language: track.language,
+				selected: track.mode === "showing",
+			});
+		});
+
+		// External ASS/PGS subtitles rendered by the overlay.
+		const custom: Track[] = (this._source?.subtitles ?? [])
+			.filter(isCustomSubtitle)
+			.map((sub) => ({
+				id: `${CUSTOM_PREFIX}${sub.id}`,
+				label: sub.label,
+				language: sub.language,
+				selected: this._customSubtitle?.id === sub.id,
+			}));
+
+		return [...native, ...custom];
 	}
 
 	selectSubtitle(subtitle?: Track): void {
+		const id = subtitle?.id;
+
+		// External ASS/PGS subtitle -> overlay renderer.
+		if (id?.startsWith(CUSTOM_PREFIX)) {
+			const subId = id.slice(CUSTOM_PREFIX.length);
+			const sub = this._source?.subtitles.find((s) => s.id === subId);
+			if (sub) {
+				this.setNativeSubtitle(undefined);
+				this.setCustomSubtitle(sub);
+				return;
+			}
+		}
+
+		// Native subtitle or off.
+		this.setCustomSubtitle(null);
+		this.setNativeSubtitle(id?.startsWith(NATIVE_PREFIX) ? id : undefined);
+	}
+
+	private setNativeSubtitle(id?: string): void {
 		for (let i = 0; i < this._store.textTrackList.length; i++) {
 			const track = this._store.textTrackList[i]!;
 			if (track.kind !== "subtitles" && track.kind !== "captions") continue;
-			track.mode =
-				subtitle && i.toString() === subtitle.id ? "showing" : "hidden";
+			track.mode = id === `${NATIVE_PREFIX}${i}` ? "showing" : "hidden";
 		}
 	}
+
+	private setCustomSubtitle(sub: Subtitle | null): void {
+		if (this._customSubtitle === sub) return;
+		this._customSubtitle = sub;
+		for (const listener of this._customSubtitleListeners) listener();
+	}
+
+	// External store used by the view to render the ASS/PGS overlay.
+	subscribeCustomSubtitle = (callback: () => void): (() => void) => {
+		this._customSubtitleListeners.add(callback);
+		return () => this._customSubtitleListeners.delete(callback);
+	};
+
+	getCustomSubtitle = (): Subtitle | null => this._customSubtitle;
 
 	get rendition(): Rendition[] {
 		const quality = selectQuality(this._store.state);

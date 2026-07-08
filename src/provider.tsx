@@ -3,6 +3,7 @@ import { NitroModules } from "react-native-nitro-modules";
 import type { OmniPlayerFactory } from "./specs/omni-player.nitro";
 import type { OmniPlayer } from "./types/player";
 import type { Source } from "./types/source";
+import type { SubtitleAssets } from "./types/subtitles";
 import { useLazyRef } from "./utils/lazy-ref";
 
 const ProviderFactory =
@@ -18,6 +19,8 @@ export const OmniProvider = ({
 	source: Source;
 	children: ReactNode;
 	showNotification?: boolean;
+	/** Web-only: URLs for the ASS/PGS subtitle renderer assets. Ignored here. */
+	subtitleAssets?: SubtitleAssets;
 }) => {
 	const player = useLazyRef(() => ProviderFactory.createPlayer(source));
 

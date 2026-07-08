@@ -10,27 +10,34 @@ import {
 import { WebOmniPlayer } from "./player.web";
 import type { OmniPlayer } from "./types/player";
 import type { Source } from "./types/source";
+import type { SubtitleAssets } from "./types/subtitles";
 import { useLazyRef } from "./utils/lazy-ref";
 
 export const VideoPlayer = createPlayer({ features: videoFeatures });
 
 const PlayerCtx = createContext<OmniPlayer>(null!);
 const SourceCtx = createContext<Source | null>(null);
+const SubtitleAssetsCtx = createContext<SubtitleAssets | undefined>(undefined);
 
 export const OmniProvider = ({
 	children,
 	source,
 	showNotification = false,
+	subtitleAssets,
 }: {
 	source: Source;
 	children: ReactNode;
 	showNotification?: boolean;
+	/** Override URLs for the web ASS/PGS subtitle renderer assets. */
+	subtitleAssets?: SubtitleAssets;
 }) => {
 	return (
 		<VideoPlayer.Provider>
-			<PlayerInitializer source={source} showNotification={showNotification}>
-				{children}
-			</PlayerInitializer>
+			<SubtitleAssetsCtx.Provider value={subtitleAssets}>
+				<PlayerInitializer source={source} showNotification={showNotification}>
+					{children}
+				</PlayerInitializer>
+			</SubtitleAssetsCtx.Provider>
 		</VideoPlayer.Provider>
 	);
 };
@@ -94,3 +101,4 @@ const PlayerInitializer = ({
 
 export const usePlayer = () => useContext(PlayerCtx);
 export const useSource = () => useContext(SourceCtx);
+export const useSubtitleAssets = () => useContext(SubtitleAssetsCtx);

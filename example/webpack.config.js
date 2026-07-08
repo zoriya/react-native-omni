@@ -54,6 +54,15 @@ module.exports = {
         test: /\.(png|jpe?g|gif|svg)$/i,
         type: "asset/resource",
       },
+      {
+        // jassub references its bundled `./default.woff2` via
+        // `new URL(..., import.meta.url)` in a branch that only runs when no
+        // `defaultFont` is provided. We always pass one, so disable webpack's
+        // eager URL-asset parsing for jassub to avoid resolving a file it does
+        // not ship.
+        test: /[\\/]jassub[\\/]/,
+        parser: { url: false },
+      },
     ],
   },
   plugins: [

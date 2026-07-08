@@ -71,29 +71,37 @@ const eventMapper: EventMapperConfig = {
 		}
 		cb(undefined);
 	}),
-	...createEventMapper("audioTrackChange", selectAudioTrack, (cb, value, prev) => {
-		if (!value) return;
-		const index = value.audioTrackList.findIndex((t) => t.enabled);
-		if (index === -1) return;
-		const track = value.audioTrackList[index]!;
-		const nextValue = track.id ?? String(index);
+	...createEventMapper(
+		"audioTrackChange",
+		selectAudioTrack,
+		(cb, value, prev) => {
+			if (!value) return;
+			const index = value.audioTrackList.findIndex((t) => t.enabled);
+			if (index === -1) return;
+			const track = value.audioTrackList[index]!;
+			const nextValue = track.id ?? String(index);
 
-		const prevIndex = prev?.audioTrackList.findIndex((t) => t.enabled) ?? -1;
-		const prevTrack = prevIndex >= 0 ? prev!.audioTrackList[prevIndex] : undefined;
-		const prevValue = prevTrack ? (prevTrack.id ?? String(prevIndex)) : undefined;
+			const prevIndex = prev?.audioTrackList.findIndex((t) => t.enabled) ?? -1;
+			const prevTrack =
+				prevIndex >= 0 ? prev!.audioTrackList[prevIndex] : undefined;
+			const prevValue = prevTrack
+				? (prevTrack.id ?? String(prevIndex))
+				: undefined;
 
-		if (nextValue === prevValue) return;
-		cb({
-			id: nextValue,
-			label: track.label,
-			language: track.language,
-			selected: true,
-		});
-	}),
+			if (nextValue === prevValue) return;
+			cb({
+				id: nextValue,
+				label: track.label,
+				language: track.language,
+				selected: true,
+			});
+		},
+	),
 	...createEventMapper("renditionChange", selectQuality, (cb, value, prev) => {
 		const active = value?.activeVideoRendition;
 		if (!active) return;
-		if (renditionKey(active) === renditionKey(prev?.activeVideoRendition)) return;
+		if (renditionKey(active) === renditionKey(prev?.activeVideoRendition))
+			return;
 
 		const index = value.videoRenditionList.findIndex(
 			(r) => renditionKey(r) === renditionKey(active),
