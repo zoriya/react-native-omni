@@ -55,15 +55,6 @@ module.exports = {
 				test: /\.(png|jpe?g|gif|svg)$/i,
 				type: "asset/resource",
 			},
-			{
-				// Disable webpack's `new URL(..., import.meta.url)` asset emission for
-				// jassub. jassub references a `./default.woff2` it does not ship (which
-				// would fail the build) and its wasm URLs; we self-host the wasm + font
-				// and pass them via `subtitleAssets` instead. The worker itself is still
-				// bundled (that goes through `new Worker(new URL(...))`, not this rule).
-				test: /[\\/]jassub[\\/]/,
-				parser: { url: false },
-			},
 		],
 	},
 	plugins: [
@@ -82,19 +73,6 @@ module.exports = {
 			"Cross-Origin-Opener-Policy": "same-origin",
 			"Cross-Origin-Embedder-Policy": "credentialless",
 		},
-		// Host the ASS/PGS subtitle renderer assets under `/jassub` and `/pgs`.
-		// jassub/libpgs ship the worker + wasm; `public/jassub/default.woff2`
-		// provides the fallback font jassub does not bundle.
-		static: [
-			{ directory: path.resolve(appDirectory, "public") },
-			{
-				directory: path.resolve(rootDirectory, "node_modules/jassub/dist/wasm"),
-				publicPath: "/jassub",
-			},
-			{
-				directory: path.resolve(rootDirectory, "node_modules/libpgs/dist"),
-				publicPath: "/pgs",
-			},
-		],
+		static: [{ directory: path.resolve(appDirectory, "public") }],
 	},
 };

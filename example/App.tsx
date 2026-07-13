@@ -221,14 +221,9 @@ function PlayerExample({
 				autoplay={true}
 				showNotification={true}
 				subtitleAssets={{
-					// The worker is bundled by webpack; only the wasm binaries and the
-					// fallback font are self-hosted (see webpack devServer.static).
 					jassub: {
-						wasmUrl: "/jassub/jassub-worker.wasm",
-						modernWasmUrl: "/jassub/jassub-worker-modern.wasm",
 						fontUrl: "/jassub/default.woff2",
 					},
-					pgs: { workerUrl: "/pgs/libpgs.worker.js" },
 				}}
 			/>
 

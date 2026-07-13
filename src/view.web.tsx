@@ -72,7 +72,9 @@ const SubtitleOverlay = ({
 				const instance = new PgsRenderer({
 					video: el,
 					subUrl: subtitle.link,
-					...(pgs?.workerUrl && { workerUrl: pgs.workerUrl }),
+					workerUrl:
+						pgs?.workerUrl ??
+						new URL("libpgs/dist/libpgs.worker.js", import.meta.url).href,
 				});
 				attach({ destroy: () => instance.dispose() });
 			});
