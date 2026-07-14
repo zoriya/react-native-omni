@@ -43,16 +43,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - name: Install npm dependencies (bun)
+      - name: Install/Typecheck/Build
+        # We use a `prepare` script that run builds to support git installs.
         run: bun install
-
-      - name: Build lib
-        run: bun run build
 
       - name: Release
         env:
-          # No NPM_TOKEN: auth happens via OIDC trusted publishing (id-token: write above).
-          # Provenance is generated automatically, so NPM_CONFIG_PROVENANCE is not needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: ${{ github.actor }}
           GIT_AUTHOR_EMAIL: '${{ github.actor }}@users.noreply.github.com'

@@ -1,4 +1,4 @@
-# omni
+# react-native-omni
 
 A library to have real players on android and web. It uses VLC on android and
 videojs v10 on the web (ios not implemented yet, PR welcome)
@@ -52,14 +52,6 @@ subtitles rendering:
 <details>
 
 <summary>ass rendering</summary>
-
-#### Fonts
-
-JASSUB only renders glyphs for fonts it has, and does **not** ship a usable
-default font. Provide the fonts a subtitle references through
-`source.fonts` (an array of font-file URLs). Optionally set
-`subtitleAssets.jassub.fontUrl` as a fallback for styles whose font isn't
-listed. If no matching font is available, that text simply won't appear.
 
 #### Cross-origin isolation
 
