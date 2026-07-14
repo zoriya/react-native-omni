@@ -15,6 +15,7 @@ const PLAYLIST = [
 		artist: "multi audio",
 		album: "Adaptive",
 		uri: "https://playertest.longtailvideo.com/adaptive/elephants_dream_v4/index.m3u8",
+		imageLink: undefined,
 	},
 	{
 		title: "Big Buck Bunny (HLS)",
@@ -23,6 +24,7 @@ const PLAYLIST = [
 		artwork:
 			"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg",
 		uri: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+		imageLink: undefined,
 	},
 	{
 		title: "Sintel Trailer (MP4)",
@@ -31,6 +33,7 @@ const PLAYLIST = [
 		artwork:
 			"https://download.blender.org/durian/trailer/sintel_trailer-480p.jpg",
 		uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+		imageLink: undefined,
 	},
 ] as const;
 
@@ -219,7 +222,6 @@ function PlayerExample({
 			<OmniView
 				style={styles.video}
 				autoplay={true}
-				showNotification={true}
 				subtitleAssets={{
 					jassub: {
 						fontUrl: "/jassub/default.woff2",
@@ -280,9 +282,9 @@ function PlayerExample({
 					{tracks.videos.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No video tracks</Text>
 					) : (
-						tracks.videos.map((video, index) => (
+						tracks.videos.map((video) => (
 							<Pressable
-								key={`video-${video.id}-${index}`}
+								key={`video-${video.id}`}
 								style={[
 									styles.trackButton,
 									video.selected && styles.selectedTrackButton,
@@ -307,9 +309,9 @@ function PlayerExample({
 					{tracks.audios.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No audio tracks</Text>
 					) : (
-						tracks.audios.map((audio, index) => (
+						tracks.audios.map((audio) => (
 							<Pressable
-								key={`audio-${audio.id}-${index}`}
+								key={`audio-${audio.id}`}
 								style={[
 									styles.trackButton,
 									audio.selected && styles.selectedTrackButton,
@@ -352,9 +354,9 @@ function PlayerExample({
 					{tracks.subtitles.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No subtitles</Text>
 					) : (
-						tracks.subtitles.map((subtitle, index) => (
+						tracks.subtitles.map((subtitle) => (
 							<Pressable
-								key={`subtitle-${subtitle.id}-${index}`}
+								key={`subtitle-${subtitle.id}`}
 								style={[
 									styles.trackButton,
 									subtitle.selected && styles.selectedTrackButton,
@@ -398,9 +400,9 @@ function PlayerExample({
 					{tracks.renditions.length === 0 ? (
 						<Text style={styles.emptyTrackText}>No renditions</Text>
 					) : (
-						tracks.renditions.map((rendition, index) => (
+						tracks.renditions.map((rendition) => (
 							<Pressable
-								key={`rendition-${rendition.id}-${index}`}
+								key={`rendition-${rendition.id}`}
 								style={[
 									styles.trackButton,
 									rendition.selected && styles.selectedTrackButton,
@@ -430,8 +432,8 @@ function PlayerExample({
 				{logs.length === 0 ? (
 					<Text style={styles.logText}>Event log will appear here.</Text>
 				) : (
-					logs.map((entry, index) => (
-						<Text key={`${entry}-${index}`} style={styles.logText}>
+					logs.map((entry) => (
+						<Text key={`${entry}`} style={styles.logText}>
 							{entry}
 						</Text>
 					))
@@ -479,7 +481,7 @@ function App(): React.JSX.Element {
 				title: PLAYLIST[currentIndex].title,
 				artist: PLAYLIST[currentIndex].artist,
 				album: PLAYLIST[currentIndex].album,
-				imageLink: PLAYLIST[currentIndex].artwork,
+				imageLink: PLAYLIST[currentIndex].imageLink,
 				hasPrev: true,
 				hasNext: true,
 			},

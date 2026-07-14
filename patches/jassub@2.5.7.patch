@@ -1,0 +1,117 @@
+diff --git a/dist/jassub.d.ts b/dist/jassub.d.ts
+index 8b09b107be84ebde02961eb63637128bfb62f1a9..01f3792bb0e6532d782659b240aeb34e73018534 100644
+--- a/dist/jassub.d.ts
++++ b/dist/jassub.d.ts
+@@ -24,6 +24,14 @@ export type JASSUBOptions = {
+     queryFonts?: 'local' | 'localandremote' | false;
+     libassMemoryLimit?: number;
+     libassGlyphLimit?: number;
++    /**
++     * The video's native/source resolution, used as libass' storage size. Set
++     * this on adaptive (MSE/HLS) streams — where `video.videoWidth` follows the
++     * currently-decoded rendition — so subtitles keep full quality regardless
++     * of the active bitrate. Defaults to the decoded video size.
++     */
++    videoWidth?: number;
++    videoHeight?: number;
+ } & ({
+     video: HTMLVideoElement;
+     canvas?: HTMLCanvasElement;
+@@ -49,6 +57,8 @@ export default class JASSUB {
+     _video: HTMLVideoElement | undefined;
+     _videoWidth: number;
+     _videoHeight: number;
++    _storageWidth: number;
++    _storageHeight: number;
+     _videoColorSpace: string | null;
+     _canvas: HTMLCanvasElement;
+     _ro: ResizeObserver;
+diff --git a/dist/jassub.js b/dist/jassub.js
+index bbdaa8d4dcb5269617c53652c0702968093dc922..66cfdac4168e004ff9bb047da7e6ee6b53e02ce4 100644
+--- a/dist/jassub.js
++++ b/dist/jassub.js
+@@ -21,6 +21,13 @@ export default class JASSUB {
+     _video;
+     _videoWidth = 0;
+     _videoHeight = 0;
++    // The video's native/source resolution, used as libass' storage size. On
++    // adaptive (MSE/HLS) streams `video.videoWidth` reports the currently
++    // decoded rendition, which drops with bandwidth and would blur subtitles;
++    // set the `videoWidth`/`videoHeight` options to the stream's real
++    // resolution to keep subtitle quality independent of the active rendition.
++    _storageWidth = 0;
++    _storageHeight = 0;
+     _videoColorSpace = null;
+     _canvas;
+     _ro = new ResizeObserver(async () => {
+@@ -41,6 +48,8 @@ export default class JASSUB {
+         JASSUB._test();
+         this.timeOffset = opts.timeOffset ?? 0;
+         this._video = opts.video;
++        this._storageWidth = opts.videoWidth ?? 0;
++        this._storageHeight = opts.videoHeight ?? 0;
+         this._canvas = opts.canvas ?? document.createElement('canvas');
+         if (this._video && !opts.canvas) {
+             this._canvas.className = 'JASSUB';
+@@ -119,7 +128,7 @@ export default class JASSUB {
+             this._canvas.style.top = videoSize.y + 'px';
+             this._canvas.style.left = videoSize.x + 'px';
+         }
+-        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._videoWidth || renderWidth, this._videoHeight || renderHeight);
++        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._storageWidth || this._videoWidth || renderWidth, this._storageHeight || this._videoHeight || renderHeight);
+         if (this._lastDemandTime)
+             await this._demandRender(forceRepaint);
+     }
+diff --git a/src/jassub.ts b/src/jassub.ts
+index 65d290d6a5134aca26caf30c1720a2fbbe881430..c5c0596ec0db35b0607124cbb2045d4312c94259 100644
+--- a/src/jassub.ts
++++ b/src/jassub.ts
+@@ -37,6 +37,14 @@ export type JASSUBOptions = {
+   queryFonts?: 'local' | 'localandremote' | false
+   libassMemoryLimit?: number
+   libassGlyphLimit?: number
++  /**
++   * The video's native/source resolution, used as libass' storage size. Set
++   * this on adaptive (MSE/HLS) streams — where `video.videoWidth` follows the
++   * currently-decoded rendition — so subtitles keep full quality regardless of
++   * the active bitrate. Defaults to the decoded video size.
++   */
++  videoWidth?: number
++  videoHeight?: number
+ } & ({
+   video: HTMLVideoElement
+   canvas?: HTMLCanvasElement
+@@ -63,6 +71,13 @@ export default class JASSUB {
+   _video
+   _videoWidth = 0
+   _videoHeight = 0
++  // The video's native/source resolution, used as libass' storage size. On
++  // adaptive (MSE/HLS) streams `video.videoWidth` reports the currently
++  // decoded rendition, which drops with bandwidth and would blur subtitles;
++  // set the `videoWidth`/`videoHeight` options to the stream's real
++  // resolution to keep subtitle quality independent of the active rendition.
++  _storageWidth = 0
++  _storageHeight = 0
+   _videoColorSpace: string | null = null
+   _canvas
+   _ro = new ResizeObserver(async () => {
+@@ -83,6 +98,8 @@ export default class JASSUB {
+ 
+     this.timeOffset = opts.timeOffset ?? 0
+     this._video = opts.video
++    this._storageWidth = opts.videoWidth ?? 0
++    this._storageHeight = opts.videoHeight ?? 0
+     this._canvas = opts.canvas ?? document.createElement('canvas')
+     if (this._video && !opts.canvas) {
+       this._canvas.className = 'JASSUB'
+@@ -183,8 +200,8 @@ export default class JASSUB {
+     await this.renderer._resizeCanvas(
+       renderWidth,
+       renderHeight,
+-      this._videoWidth || renderWidth,
+-      this._videoHeight || renderHeight
++      this._storageWidth || this._videoWidth || renderWidth,
++      this._storageHeight || this._videoHeight || renderHeight
+     )
+ 
+     if (this._lastDemandTime) await this._demandRender(forceRepaint)

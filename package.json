@@ -93,6 +93,6 @@
 		]
 	},
 	"patchedDependencies": {
-		"jassub@2.5.6": "patches/jassub@2.5.6.patch"
+		"jassub@2.5.7": "patches/jassub@2.5.7.patch"
 	}
 }

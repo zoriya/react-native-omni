@@ -51,10 +51,19 @@ const SubtitleOverlay = ({
 		if (getSubtitleFormat(subtitle) === "ass") {
 			const jassub = assetsRef.current?.jassub;
 			const fonts = fontsRef.current;
+			// The video's source resolution (its highest available rendition).
+			// jassub uses this as libass' storage size so subtitles stay sharp
+			// even while a low-bitrate rendition is playing — otherwise the
+			// raster tracks the currently-decoded (possibly tiny) frame size.
+			const renditions = player.rendition;
+			const videoWidth = Math.max(0, ...renditions.map((r) => r.width));
+			const videoHeight = Math.max(0, ...renditions.map((r) => r.height));
 			import("jassub").then(({ default: JASSUB }) => {
 				const instance = new JASSUB({
 					video: el,
 					subUrl: subtitle.link,
+					...(videoWidth && { videoWidth }),
+					...(videoHeight && { videoHeight }),
 					...(fonts?.length && { fonts }),
 					...(jassub?.workerUrl && { workerUrl: jassub.workerUrl }),
 					...(jassub?.wasmUrl && { wasmUrl: jassub.wasmUrl }),
@@ -84,7 +93,7 @@ const SubtitleOverlay = ({
 			cancelled = true;
 			renderer?.destroy();
 		};
-	}, [video, subtitle]);
+	}, [video, subtitle, player]);
 
 	return null;
 };
