@@ -108,7 +108,11 @@ export const OmniView = ({
 	const ref = useRef<HTMLVideoElement>(undefined!);
 
 	const src = player.source?.src[0];
-	const Tech = src?.uri.endsWith("m3u8") ? HlsJsVideo : Video;
+	const isHls =
+		src?.mimeType?.toLowerCase().includes("mpegurl") ||
+		src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||
+		false;
+	const Tech = isHls ? HlsJsVideo : Video;
 
 	const config = useMemo<HlsMediaConfig | undefined>(() => {
 		const headers = src?.headers;
