@@ -148,6 +148,7 @@ export const OmniView = ({
 						.map((subtitle) => (
 							<track
 								key={subtitle.id}
+								id={subtitle.id}
 								kind="subtitles"
 								src={subtitle.link}
 								srcLang={subtitle.language}
