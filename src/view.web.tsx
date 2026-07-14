@@ -114,19 +114,23 @@ export const OmniView = ({
 		false;
 	const Tech = isHls ? HlsJsVideo : Video;
 
-	const config = useMemo<HlsMediaConfig | undefined>(() => {
-		const headers = src?.headers;
-		if (!headers || Object.keys(headers).length === 0) return undefined;
-		return {
+	const headersRef = useRef(src?.headers);
+	headersRef.current = src?.headers;
+
+	const config = useMemo<HlsMediaConfig>(
+		() => ({
 			hlsJs: {
 				xhrSetup: (xhr: XMLHttpRequest) => {
+					const headers = headersRef.current;
+					if (!headers) return;
 					for (const [key, value] of Object.entries(headers)) {
 						if (value) xhr.setRequestHeader(key, value);
 					}
 				},
 			},
-		};
-	}, [src?.headers]);
+		}),
+		[],
+	);
 
 	return (
 		<VideoPlayer.Container
@@ -137,7 +141,7 @@ export const OmniView = ({
 				<Tech
 					ref={ref}
 					src={src.uri}
-					config={config}
+					config={isHls ? config : undefined}
 					autoPlay={autoplay}
 					playsInline
 					crossOrigin="anonymous"

@@ -23,9 +23,9 @@
         "typescript": "^7.0.2",
       },
       "peerDependencies": {
-        "react": "19.2.7",
-        "react-native": "0.86.0",
-        "react-native-nitro-modules": "0.36.1",
+        "react": ">=19.0.0",
+        "react-native": ">=0.86.0",
+        "react-native-nitro-modules": ">=0.36.0",
       },
     },
     "example": {
