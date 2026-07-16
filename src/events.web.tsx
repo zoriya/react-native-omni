@@ -108,18 +108,16 @@ export const useEvent = <Event extends keyof OmniEvents>(
 		prevRef.current = value;
 	}, [value, config]);
 
-	// prev/next are triggered by the app (or the media session) rather than the
-	// media element
 	useEffect(() => {
+		// don't use callbackRef.current directly to keep future callback updates
+		const cb = () => (callbackRef.current as () => void)();
 		if (event === "prev") {
-			const cb = callbackRef.current as () => void;
 			player.onPrev.add(cb);
 			return () => {
 				player.onPrev.delete(cb);
 			};
 		}
 		if (event === "next") {
-			const cb = callbackRef.current as () => void;
 			player.onNext.add(cb);
 			return () => {
 				player.onNext.delete(cb);
