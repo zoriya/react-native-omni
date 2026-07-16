@@ -182,8 +182,7 @@ export const stateMapper = {
 		if (!r) return "unavailable";
 		if (r.remotePlaybackState === "connecting") return "connecting";
 		if (r.remotePlaybackState === "connected") return "connected";
-		if (r.remotePlaybackAvailability === "available") return "available";
-		return "unavailable";
+		return r.remotePlaybackAvailability
 	}),
 };
 

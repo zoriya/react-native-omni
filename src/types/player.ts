@@ -43,7 +43,8 @@ export type CastStatus =
 	| "connecting"
 	| "connected"
 	| "available"
-	| "unavailable";
+	| "unavailable"
+	| "unsupported";
 
 export interface Track {
 	readonly id: string;
