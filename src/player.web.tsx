@@ -13,7 +13,7 @@ import type {
 	Rendition,
 	Track,
 } from "./types/player";
-import type { Source, Subtitle } from "./types/source";
+import type { CastOptions, Source, Subtitle } from "./types/source";
 
 export type SubtitleFormat = "vtt" | "ass" | "pgs" | "native";
 
@@ -60,6 +60,7 @@ export class WebOmniPlayer implements OmniPlayer {
 		this._store.state.toggleRemotePlayback();
 	}
 
+	castOptions: CastOptions | null = null;
 	_source: Source | null = null;
 	private _showNotification = false;
 

@@ -2,7 +2,7 @@ import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { NitroModules } from "react-native-nitro-modules";
 import type { OmniPlayerFactory } from "./specs/omni-player.nitro";
 import type { OmniPlayer } from "./types/player";
-import type { Source } from "./types/source";
+import type { CastOptions, Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
 const ProviderFactory =
@@ -14,8 +14,10 @@ export const OmniProvider = ({
 	children,
 	source,
 	showNotification = false,
+	cast: _,
 }: {
 	source: Source;
+	cast?: CastOptions;
 	children: ReactNode;
 	showNotification?: boolean;
 }) => {

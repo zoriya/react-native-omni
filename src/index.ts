@@ -10,6 +10,7 @@ export type {
 	Track,
 } from "./types/player";
 export type {
+	CastOptions,
 	Metadata,
 	MixAudioMode,
 	Source,

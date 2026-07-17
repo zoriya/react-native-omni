@@ -7,6 +7,13 @@ export interface Source {
 	fonts?: string[];
 	metadata?: Metadata;
 	mixAudio?: MixAudioMode;
+	// Opaque, consumer-defined payload forwarded verbatim to the cast receiver
+	// as the load request's customData. omni does not interpret it.
+	castData?: unknown;
+}
+
+export interface CastOptions {
+	receiverApplicationId?: string;
 }
 
 export interface VideoSrc {

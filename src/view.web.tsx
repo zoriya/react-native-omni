@@ -1,6 +1,5 @@
 import type { HlsMediaConfig } from "@videojs/core/dom/media/hls-js";
 import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
-import { Video } from "@videojs/react/video";
 import {
 	type CSSProperties,
 	type RefObject,
@@ -108,28 +107,29 @@ export const OmniView = ({
 	const ref = useRef<HTMLVideoElement>(undefined!);
 
 	const src = player.source?.src[0];
-	const isHls =
-		src?.mimeType?.toLowerCase().includes("mpegurl") ||
-		src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||
-		false;
-	const Tech = isHls ? HlsJsVideo : Video;
 
 	const headersRef = useRef(src?.headers);
 	headersRef.current = src?.headers;
+	const castData = player.source?.castData;
 
 	const config = useMemo<HlsMediaConfig>(
-		() => ({
-			hlsJs: {
-				xhrSetup: (xhr: XMLHttpRequest) => {
-					const headers = headersRef.current;
-					if (!headers) return;
-					for (const [key, value] of Object.entries(headers)) {
-						if (value) xhr.setRequestHeader(key, value);
-					}
+		() =>
+			({
+				hlsJs: {
+					xhrSetup: (xhr: XMLHttpRequest) => {
+						const headers = headersRef.current;
+						if (!headers) return;
+						for (const [key, value] of Object.entries(headers)) {
+							if (value) xhr.setRequestHeader(key, value);
+						}
+					},
 				},
-			},
-		}),
-		[],
+				googleCast: {
+					receiver: player.castOptions?.receiverApplicationId,
+					customData: castData ?? null,
+				},
+			}) as HlsMediaConfig,
+		[player.castOptions, castData],
 	);
 
 	return (
@@ -138,10 +138,10 @@ export const OmniView = ({
 			style={{ position: "relative", ...style }}
 		>
 			{src && (
-				<Tech
+				<HlsJsVideo
 					ref={ref}
 					src={src.uri}
-					config={isHls ? config : undefined}
+					config={config}
 					autoPlay={autoplay}
 					playsInline
 					crossOrigin="anonymous"
@@ -159,7 +159,7 @@ export const OmniView = ({
 								label={subtitle.label ?? subtitle.language ?? subtitle.id}
 							/>
 						))}
-				</Tech>
+				</HlsJsVideo>
 			)}
 			<SubtitleOverlay
 				video={ref}
