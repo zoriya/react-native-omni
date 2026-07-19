@@ -19,6 +19,7 @@
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
 #include <optional>
+#include "SubtitleAssets.hpp"
 #include "HybridOmniViewSpec.hpp"
 #include <functional>
 
@@ -45,6 +46,7 @@ namespace margelo::nitro::omni::views {
     CachedProp<std::shared_ptr<HybridOmniPlayerSpec>> player;
     CachedProp<std::optional<bool>> autoplay;
     CachedProp<std::optional<bool>> autoPip;
+    CachedProp<std::optional<SubtitleAssets>> subtitleAssets;
     CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridOmniViewSpec>& /* ref */)>>> hybridRef;
 
   private:

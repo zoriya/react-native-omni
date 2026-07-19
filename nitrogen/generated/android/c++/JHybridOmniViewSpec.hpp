@@ -56,6 +56,8 @@ namespace margelo::nitro::omni {
     void setAutoplay(std::optional<bool> autoplay) override;
     std::optional<bool> getAutoPip() override;
     void setAutoPip(std::optional<bool> autoPip) override;
+    std::optional<SubtitleAssets> getSubtitleAssets() override;
+    void setSubtitleAssets(const std::optional<SubtitleAssets>& subtitleAssets) override;
 
   public:
     // Methods

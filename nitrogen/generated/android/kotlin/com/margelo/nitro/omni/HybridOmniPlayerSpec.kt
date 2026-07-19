@@ -102,6 +102,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   @get:DoNotStrip
   @get:Keep
   abstract val isAutoQuality: Boolean
+  
+  @get:DoNotStrip
+  @get:Keep
+  abstract val castStatus: CastStatus
 
   // Methods
   @DoNotStrip
@@ -119,6 +123,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   @DoNotStrip
   @Keep
   abstract fun seekBy(offset: Double): Unit
+  
+  @DoNotStrip
+  @Keep
+  abstract fun toggleCastStatus(): Unit
   
   @DoNotStrip
   @Keep

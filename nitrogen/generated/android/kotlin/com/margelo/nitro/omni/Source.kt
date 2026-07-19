@@ -9,6 +9,7 @@ package com.margelo.nitro.omni
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -28,12 +29,42 @@ data class Source(
   val subtitles: Array<Subtitle>,
   @DoNotStrip
   @Keep
+  val fonts: Array<String>?,
+  @DoNotStrip
+  @Keep
   val metadata: Metadata?,
   @DoNotStrip
   @Keep
-  val mixAudio: MixAudioMode?
+  val mixAudio: MixAudioMode?,
+  @DoNotStrip
+  @Keep
+  val castData: Map<String, String>?
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Source) return false
+    return Objects.deepEquals(this.src, other.src)
+      && Objects.deepEquals(this.startTime, other.startTime)
+      && Objects.deepEquals(this.subtitles, other.subtitles)
+      && Objects.deepEquals(this.fonts, other.fonts)
+      && Objects.deepEquals(this.metadata, other.metadata)
+      && Objects.deepEquals(this.mixAudio, other.mixAudio)
+      && Objects.deepEquals(this.castData, other.castData)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      src,
+      startTime,
+      subtitles,
+      fonts,
+      metadata,
+      mixAudio,
+      castData
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**
@@ -43,8 +74,8 @@ data class Source(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(src: Array<VideoSrc>, startTime: Double?, subtitles: Array<Subtitle>, metadata: Metadata?, mixAudio: MixAudioMode?): Source {
-      return Source(src, startTime, subtitles, metadata, mixAudio)
+    private fun fromCpp(src: Array<VideoSrc>, startTime: Double?, subtitles: Array<Subtitle>, fonts: Array<String>?, metadata: Metadata?, mixAudio: MixAudioMode?, castData: Map<String, String>?): Source {
+      return Source(src, startTime, subtitles, fonts, metadata, mixAudio, castData)
     }
   }
 }

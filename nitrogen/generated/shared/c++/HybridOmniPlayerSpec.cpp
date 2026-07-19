@@ -36,10 +36,12 @@ namespace margelo::nitro::omni {
       prototype.registerHybridGetter("muted", &HybridOmniPlayerSpec::getMuted);
       prototype.registerHybridSetter("muted", &HybridOmniPlayerSpec::setMuted);
       prototype.registerHybridGetter("isAutoQuality", &HybridOmniPlayerSpec::getIsAutoQuality);
+      prototype.registerHybridGetter("castStatus", &HybridOmniPlayerSpec::getCastStatus);
       prototype.registerHybridMethod("setSource", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridMethod("play", &HybridOmniPlayerSpec::play);
       prototype.registerHybridMethod("pause", &HybridOmniPlayerSpec::pause);
       prototype.registerHybridMethod("seekBy", &HybridOmniPlayerSpec::seekBy);
+      prototype.registerHybridMethod("toggleCastStatus", &HybridOmniPlayerSpec::toggleCastStatus);
       prototype.registerHybridMethod("playPrev", &HybridOmniPlayerSpec::playPrev);
       prototype.registerHybridMethod("playNext", &HybridOmniPlayerSpec::playNext);
       prototype.registerHybridMethod("selectVideo", &HybridOmniPlayerSpec::selectVideo);

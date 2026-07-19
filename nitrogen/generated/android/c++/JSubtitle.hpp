@@ -18,7 +18,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "Subtitle" and the the Kotlin data class "Subtitle".
+   * The C++ JNI bridge between the C++ struct "Subtitle" and the Kotlin data class "Subtitle".
    */
   struct JSubtitle final: public jni::JavaClass<JSubtitle> {
   public:

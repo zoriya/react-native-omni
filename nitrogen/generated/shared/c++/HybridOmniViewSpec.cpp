@@ -20,6 +20,8 @@ namespace margelo::nitro::omni {
       prototype.registerHybridSetter("autoplay", &HybridOmniViewSpec::setAutoplay);
       prototype.registerHybridGetter("autoPip", &HybridOmniViewSpec::getAutoPip);
       prototype.registerHybridSetter("autoPip", &HybridOmniViewSpec::setAutoPip);
+      prototype.registerHybridGetter("subtitleAssets", &HybridOmniViewSpec::getSubtitleAssets);
+      prototype.registerHybridSetter("subtitleAssets", &HybridOmniViewSpec::setSubtitleAssets);
     });
   }
 

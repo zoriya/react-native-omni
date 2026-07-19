@@ -41,8 +41,10 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 #include <vector>
 #include <optional>
 #include "Subtitle.hpp"
+#include <string>
 #include "Metadata.hpp"
 #include "MixAudioMode.hpp"
+#include <unordered_map>
 
 namespace margelo::nitro::omni {
 
@@ -54,12 +56,14 @@ namespace margelo::nitro::omni {
     std::vector<VideoSrc> src     SWIFT_PRIVATE;
     std::optional<double> startTime     SWIFT_PRIVATE;
     std::vector<Subtitle> subtitles     SWIFT_PRIVATE;
+    std::optional<std::vector<std::string>> fonts     SWIFT_PRIVATE;
     std::optional<Metadata> metadata     SWIFT_PRIVATE;
     std::optional<MixAudioMode> mixAudio     SWIFT_PRIVATE;
+    std::optional<std::unordered_map<std::string, std::string>> castData     SWIFT_PRIVATE;
 
   public:
     Source() = default;
-    explicit Source(std::vector<VideoSrc> src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio): src(src), startTime(startTime), subtitles(subtitles), metadata(metadata), mixAudio(mixAudio) {}
+    explicit Source(std::vector<VideoSrc> src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<std::vector<std::string>> fonts, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio, std::optional<std::unordered_map<std::string, std::string>> castData): src(src), startTime(startTime), subtitles(subtitles), fonts(fonts), metadata(metadata), mixAudio(mixAudio), castData(castData) {}
 
   public:
     friend bool operator==(const Source& lhs, const Source& rhs) = default;
@@ -78,8 +82,10 @@ namespace margelo::nitro {
         JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime"))),
         JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles"))),
+        JSIConverter<std::optional<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "fonts"))),
         JSIConverter<std::optional<margelo::nitro::omni::Metadata>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "metadata"))),
-        JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mixAudio")))
+        JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mixAudio"))),
+        JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castData")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Source& arg) {
@@ -87,8 +93,10 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "src"), JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::toJSI(runtime, arg.src));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "startTime"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.startTime));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "subtitles"), JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::toJSI(runtime, arg.subtitles));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "fonts"), JSIConverter<std::optional<std::vector<std::string>>>::toJSI(runtime, arg.fonts));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "metadata"), JSIConverter<std::optional<margelo::nitro::omni::Metadata>>::toJSI(runtime, arg.metadata));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "mixAudio"), JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::toJSI(runtime, arg.mixAudio));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "castData"), JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::toJSI(runtime, arg.castData));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -102,8 +110,10 @@ namespace margelo::nitro {
       if (!JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles")))) return false;
+      if (!JSIConverter<std::optional<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "fonts")))) return false;
       if (!JSIConverter<std::optional<margelo::nitro::omni::Metadata>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "metadata")))) return false;
       if (!JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mixAudio")))) return false;
+      if (!JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castData")))) return false;
       return true;
     }
   };

@@ -49,6 +49,10 @@ void JHybridOmniViewStateUpdater::updateViewProps(jni::alias_ref<jni::JClass> /*
     hybridView->setAutoPip(props->autoPip.value);
     props->autoPip.isDirty = false;
   }
+  if (props->subtitleAssets.isDirty) {
+    hybridView->setSubtitleAssets(props->subtitleAssets.value);
+    props->subtitleAssets.isDirty = false;
+  }
 
   // Update hybridRef if it changed
   if (props->hybridRef.isDirty) {

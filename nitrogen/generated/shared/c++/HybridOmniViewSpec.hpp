@@ -15,10 +15,13 @@
 
 // Forward declaration of `HybridOmniPlayerSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniPlayerSpec; }
+// Forward declaration of `SubtitleAssets` to properly resolve imports.
+namespace margelo::nitro::omni { struct SubtitleAssets; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
 #include <optional>
+#include "SubtitleAssets.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -53,6 +56,8 @@ namespace margelo::nitro::omni {
       virtual void setAutoplay(std::optional<bool> autoplay) = 0;
       virtual std::optional<bool> getAutoPip() = 0;
       virtual void setAutoPip(std::optional<bool> autoPip) = 0;
+      virtual std::optional<SubtitleAssets> getSubtitleAssets() = 0;
+      virtual void setSubtitleAssets(const std::optional<SubtitleAssets>& subtitleAssets) = 0;
 
     public:
       // Methods

@@ -56,6 +56,16 @@ namespace margelo::nitro::omni::views {
         throw std::runtime_error(std::string("OmniView.autoPip: ") + exc.what());
       }
     }()),
+    subtitleAssets([&]() -> CachedProp<std::optional<SubtitleAssets>> {
+      try {
+        const react::RawValue* rawValue = rawProps.at("subtitleAssets", nullptr, nullptr);
+        if (rawValue == nullptr) return sourceProps.subtitleAssets;
+        const auto& [runtime, value] = (std::pair<jsi::Runtime*, jsi::Value>)*rawValue;
+        return CachedProp<std::optional<SubtitleAssets>>::fromRawValue(*runtime, value, sourceProps.subtitleAssets);
+      } catch (const std::exception& exc) {
+        throw std::runtime_error(std::string("OmniView.subtitleAssets: ") + exc.what());
+      }
+    }()),
     hybridRef([&]() -> CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridOmniViewSpec>& /* ref */)>>> {
       try {
         const react::RawValue* rawValue = rawProps.at("hybridRef", nullptr, nullptr);
@@ -72,6 +82,7 @@ namespace margelo::nitro::omni::views {
       case hashString("player"): return true;
       case hashString("autoplay"): return true;
       case hashString("autoPip"): return true;
+      case hashString("subtitleAssets"): return true;
       case hashString("hybridRef"): return true;
       default: return false;
     }
@@ -79,7 +90,7 @@ namespace margelo::nitro::omni::views {
 
   HybridOmniViewComponentDescriptor::HybridOmniViewComponentDescriptor(const react::ComponentDescriptorParameters& parameters)
     : ConcreteComponentDescriptor(parameters,
-                                  react::RawPropsParser(/* enableJsiParser */ true)) {}
+                                  react::RawPropsParser()) {}
 
   std::shared_ptr<const react::Props> HybridOmniViewComponentDescriptor::cloneProps(const react::PropsParserContext& context,
                                                                                     const std::shared_ptr<const react::Props>& props,

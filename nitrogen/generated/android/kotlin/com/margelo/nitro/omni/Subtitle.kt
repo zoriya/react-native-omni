@@ -9,6 +9,7 @@ package com.margelo.nitro.omni
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -34,6 +35,26 @@ data class Subtitle(
   val label: String?
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Subtitle) return false
+    return Objects.deepEquals(this.id, other.id)
+      && Objects.deepEquals(this.link, other.link)
+      && Objects.deepEquals(this.mimeType, other.mimeType)
+      && Objects.deepEquals(this.language, other.language)
+      && Objects.deepEquals(this.label, other.label)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      id,
+      link,
+      mimeType,
+      language,
+      label
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**

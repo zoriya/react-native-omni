@@ -119,22 +119,21 @@ export const OmniView = ({
 	const castData = player.source?.castData;
 
 	const config = useMemo<HlsMediaConfig>(
-		() =>
-			({
-				hlsJs: {
-					xhrSetup: (xhr: XMLHttpRequest) => {
-						const headers = headersRef.current;
-						if (!headers) return;
-						for (const [key, value] of Object.entries(headers)) {
-							if (value) xhr.setRequestHeader(key, value);
-						}
-					},
+		() => ({
+			hlsJs: {
+				xhrSetup: (xhr: XMLHttpRequest) => {
+					const headers = headersRef.current;
+					if (!headers) return;
+					for (const [key, value] of Object.entries(headers)) {
+						if (value) xhr.setRequestHeader(key, value);
+					}
 				},
-				googleCast: {
-					receiver: player.castOptions?.receiverApplicationId,
-					customData: castData ?? null,
-				},
-			}) as HlsMediaConfig,
+			},
+			googleCast: {
+				receiver: player.castOptions?.receiverApplicationId,
+				customData: castData ?? null,
+			},
+		}),
 		[player.castOptions, castData],
 	);
 

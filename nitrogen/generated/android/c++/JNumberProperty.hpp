@@ -15,7 +15,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "NumberProperty" and the the Kotlin enum "NumberProperty".
+   * The C++ JNI bridge between the C++ enum "NumberProperty" and the Kotlin enum "NumberProperty".
    */
   struct JNumberProperty final: public jni::JavaClass<JNumberProperty> {
   public:
@@ -60,6 +60,9 @@ namespace margelo::nitro::omni {
         case NumberProperty::ISAUTOQUALITY:
           static const auto fieldISAUTOQUALITY = clazz->getStaticField<JNumberProperty>("ISAUTOQUALITY");
           return clazz->getStaticFieldValue(fieldISAUTOQUALITY);
+        case NumberProperty::CASTSTATUS:
+          static const auto fieldCASTSTATUS = clazz->getStaticField<JNumberProperty>("CASTSTATUS");
+          return clazz->getStaticFieldValue(fieldCASTSTATUS);
         default:
           std::string stringValue = std::to_string(static_cast<int>(value));
           throw std::invalid_argument("Invalid enum value (" + stringValue + "!");

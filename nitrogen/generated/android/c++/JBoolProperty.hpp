@@ -15,7 +15,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "BoolProperty" and the the Kotlin enum "BoolProperty".
+   * The C++ JNI bridge between the C++ enum "BoolProperty" and the Kotlin enum "BoolProperty".
    */
   struct JBoolProperty final: public jni::JavaClass<JBoolProperty> {
   public:

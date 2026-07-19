@@ -18,7 +18,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "Track" and the the Kotlin data class "Track".
+   * The C++ JNI bridge between the C++ struct "Track" and the Kotlin data class "Track".
    */
   struct JTrack final: public jni::JavaClass<JTrack> {
   public:

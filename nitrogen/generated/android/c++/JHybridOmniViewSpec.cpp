@@ -9,11 +9,24 @@
 
 // Forward declaration of `HybridOmniPlayerSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniPlayerSpec; }
+// Forward declaration of `SubtitleAssets` to properly resolve imports.
+namespace margelo::nitro::omni { struct SubtitleAssets; }
+// Forward declaration of `JassubAssets` to properly resolve imports.
+namespace margelo::nitro::omni { struct JassubAssets; }
+// Forward declaration of `PgsAssets` to properly resolve imports.
+namespace margelo::nitro::omni { struct PgsAssets; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
 #include "JHybridOmniPlayerSpec.hpp"
 #include <optional>
+#include "SubtitleAssets.hpp"
+#include "JSubtitleAssets.hpp"
+#include "JassubAssets.hpp"
+#include "JJassubAssets.hpp"
+#include <string>
+#include "PgsAssets.hpp"
+#include "JPgsAssets.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -71,6 +84,15 @@ namespace margelo::nitro::omni {
   void JHybridOmniViewSpec::setAutoPip(std::optional<bool> autoPip) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JBoolean> /* autoPip */)>("setAutoPip");
     method(_javaPart, autoPip.has_value() ? jni::JBoolean::valueOf(autoPip.value()) : nullptr);
+  }
+  std::optional<SubtitleAssets> JHybridOmniViewSpec::getSubtitleAssets() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JSubtitleAssets>()>("getSubtitleAssets");
+    auto __result = method(_javaPart);
+    return __result != nullptr ? std::make_optional(__result->toCpp()) : std::nullopt;
+  }
+  void JHybridOmniViewSpec::setSubtitleAssets(const std::optional<SubtitleAssets>& subtitleAssets) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSubtitleAssets> /* subtitleAssets */)>("setSubtitleAssets");
+    method(_javaPart, subtitleAssets.has_value() ? JSubtitleAssets::fromCpp(subtitleAssets.value()) : nullptr);
   }
 
   // Methods

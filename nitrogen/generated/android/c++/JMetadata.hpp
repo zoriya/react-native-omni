@@ -18,7 +18,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "Metadata" and the the Kotlin data class "Metadata".
+   * The C++ JNI bridge between the C++ struct "Metadata" and the Kotlin data class "Metadata".
    */
   struct JMetadata final: public jni::JavaClass<JMetadata> {
   public:

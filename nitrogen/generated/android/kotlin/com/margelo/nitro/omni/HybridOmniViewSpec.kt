@@ -43,6 +43,12 @@ abstract class HybridOmniViewSpec: HybridView() {
   @set:DoNotStrip
   @set:Keep
   abstract var autoPip: Boolean?
+  
+  @get:DoNotStrip
+  @get:Keep
+  @set:DoNotStrip
+  @set:Keep
+  abstract var subtitleAssets: SubtitleAssets?
 
   // Methods
   

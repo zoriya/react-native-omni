@@ -15,7 +15,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "MixAudioMode" and the the Kotlin enum "MixAudioMode".
+   * The C++ JNI bridge between the C++ enum "MixAudioMode" and the Kotlin enum "MixAudioMode".
    */
   struct JMixAudioMode final: public jni::JavaClass<JMixAudioMode> {
   public:

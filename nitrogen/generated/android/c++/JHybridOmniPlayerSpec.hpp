@@ -72,6 +72,7 @@ namespace margelo::nitro::omni {
     bool getMuted() override;
     void setMuted(bool muted) override;
     bool getIsAutoQuality() override;
+    CastStatus getCastStatus() override;
 
   public:
     // Methods
@@ -79,6 +80,7 @@ namespace margelo::nitro::omni {
     void play() override;
     void pause() override;
     void seekBy(double offset) override;
+    void toggleCastStatus() override;
     void playPrev() override;
     void playNext() override;
     void selectVideo(const Track& video) override;

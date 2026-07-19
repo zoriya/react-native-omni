@@ -21,6 +21,8 @@ namespace margelo::nitro::omni { struct Track; }
 namespace margelo::nitro::omni { struct Rendition; }
 // Forward declaration of `PlayerStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class PlayerStatus; }
+// Forward declaration of `CastStatus` to properly resolve imports.
+namespace margelo::nitro::omni { enum class CastStatus; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 
@@ -31,6 +33,7 @@ namespace margelo::nitro::omni { struct Source; }
 #include <vector>
 #include "Rendition.hpp"
 #include "PlayerStatus.hpp"
+#include "CastStatus.hpp"
 #include "Source.hpp"
 
 namespace margelo::nitro::omni {
@@ -82,6 +85,7 @@ namespace margelo::nitro::omni {
       virtual bool getMuted() = 0;
       virtual void setMuted(bool muted) = 0;
       virtual bool getIsAutoQuality() = 0;
+      virtual CastStatus getCastStatus() = 0;
 
     public:
       // Methods
@@ -89,6 +93,7 @@ namespace margelo::nitro::omni {
       virtual void play() = 0;
       virtual void pause() = 0;
       virtual void seekBy(double offset) = 0;
+      virtual void toggleCastStatus() = 0;
       virtual void playPrev() = 0;
       virtual void playNext() = 0;
       virtual void selectVideo(const Track& video) = 0;

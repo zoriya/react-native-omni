@@ -19,7 +19,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "VideoSrc" and the the Kotlin data class "VideoSrc".
+   * The C++ JNI bridge between the C++ struct "VideoSrc" and the Kotlin data class "VideoSrc".
    */
   struct JVideoSrc final: public jni::JavaClass<JVideoSrc> {
   public:

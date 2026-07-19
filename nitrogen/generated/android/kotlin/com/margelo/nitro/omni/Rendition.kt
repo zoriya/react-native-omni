@@ -9,6 +9,7 @@ package com.margelo.nitro.omni
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -34,6 +35,26 @@ data class Rendition(
   val selected: Boolean
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Rendition) return false
+    return Objects.deepEquals(this.id, other.id)
+      && Objects.deepEquals(this.width, other.width)
+      && Objects.deepEquals(this.height, other.height)
+      && Objects.deepEquals(this.bitrate, other.bitrate)
+      && Objects.deepEquals(this.selected, other.selected)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      id,
+      width,
+      height,
+      bitrate,
+      selected
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**

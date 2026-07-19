@@ -15,7 +15,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "PlayerStatus" and the the Kotlin enum "PlayerStatus".
+   * The C++ JNI bridge between the C++ enum "PlayerStatus" and the Kotlin enum "PlayerStatus".
    */
   struct JPlayerStatus final: public jni::JavaClass<JPlayerStatus> {
   public:

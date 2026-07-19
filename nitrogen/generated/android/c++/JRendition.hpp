@@ -17,7 +17,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "Rendition" and the the Kotlin data class "Rendition".
+   * The C++ JNI bridge between the C++ struct "Rendition" and the Kotlin data class "Rendition".
    */
   struct JRendition final: public jni::JavaClass<JRendition> {
   public:

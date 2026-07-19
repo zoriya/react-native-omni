@@ -9,7 +9,7 @@ export interface Source {
 	mixAudio?: MixAudioMode;
 	// Opaque, consumer-defined payload forwarded verbatim to the cast receiver
 	// as the load request's customData. omni does not interpret it.
-	castData?: unknown;
+	castData?: Record<string, string>;
 }
 
 export interface CastOptions {

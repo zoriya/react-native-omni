@@ -35,6 +35,7 @@ namespace margelo::nitro::omni {
     PLAYBACKRATE      SWIFT_NAME(playbackrate) = 3,
     VOLUME      SWIFT_NAME(volume) = 4,
     ISAUTOQUALITY      SWIFT_NAME(isautoquality) = 5,
+    CASTSTATUS      SWIFT_NAME(caststatus) = 6,
   } CLOSED_ENUM;
 
 } // namespace margelo::nitro::omni
@@ -53,6 +54,7 @@ namespace margelo::nitro {
         case hashString("playbackRate"): return margelo::nitro::omni::NumberProperty::PLAYBACKRATE;
         case hashString("volume"): return margelo::nitro::omni::NumberProperty::VOLUME;
         case hashString("isAutoQuality"): return margelo::nitro::omni::NumberProperty::ISAUTOQUALITY;
+        case hashString("castStatus"): return margelo::nitro::omni::NumberProperty::CASTSTATUS;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum NumberProperty - invalid value!");
       }
@@ -65,6 +67,7 @@ namespace margelo::nitro {
         case margelo::nitro::omni::NumberProperty::PLAYBACKRATE: return JSIConverter<std::string>::toJSI(runtime, "playbackRate");
         case margelo::nitro::omni::NumberProperty::VOLUME: return JSIConverter<std::string>::toJSI(runtime, "volume");
         case margelo::nitro::omni::NumberProperty::ISAUTOQUALITY: return JSIConverter<std::string>::toJSI(runtime, "isAutoQuality");
+        case margelo::nitro::omni::NumberProperty::CASTSTATUS: return JSIConverter<std::string>::toJSI(runtime, "castStatus");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert NumberProperty to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");
@@ -82,6 +85,7 @@ namespace margelo::nitro {
         case hashString("playbackRate"):
         case hashString("volume"):
         case hashString("isAutoQuality"):
+        case hashString("castStatus"):
           return true;
         default:
           return false;

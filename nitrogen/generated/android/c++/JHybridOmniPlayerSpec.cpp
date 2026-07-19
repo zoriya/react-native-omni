@@ -15,6 +15,8 @@ namespace margelo::nitro::omni { struct Track; }
 namespace margelo::nitro::omni { struct Rendition; }
 // Forward declaration of `PlayerStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class PlayerStatus; }
+// Forward declaration of `CastStatus` to properly resolve imports.
+namespace margelo::nitro::omni { enum class CastStatus; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
@@ -38,6 +40,8 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 #include "JRendition.hpp"
 #include "PlayerStatus.hpp"
 #include "JPlayerStatus.hpp"
+#include "CastStatus.hpp"
+#include "JCastStatus.hpp"
 #include "Source.hpp"
 #include "JSource.hpp"
 #include "VideoSrc.hpp"
@@ -107,58 +111,58 @@ namespace margelo::nitro::omni {
   std::vector<Track> JHybridOmniPlayerSpec::getVideos() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getVideos");
     auto __result = method(_javaPart);
-    return [&]() {
-      size_t __size = __result->size();
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
       std::vector<Track> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __result->getElement(__i);
+        auto __element = __input->getElement(__i);
         __vector.push_back(__element->toCpp());
       }
       return __vector;
-    }();
+    }(__result);
   }
   std::vector<Track> JHybridOmniPlayerSpec::getAudios() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getAudios");
     auto __result = method(_javaPart);
-    return [&]() {
-      size_t __size = __result->size();
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
       std::vector<Track> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __result->getElement(__i);
+        auto __element = __input->getElement(__i);
         __vector.push_back(__element->toCpp());
       }
       return __vector;
-    }();
+    }(__result);
   }
   std::vector<Track> JHybridOmniPlayerSpec::getSubtitles() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getSubtitles");
     auto __result = method(_javaPart);
-    return [&]() {
-      size_t __size = __result->size();
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
       std::vector<Track> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __result->getElement(__i);
+        auto __element = __input->getElement(__i);
         __vector.push_back(__element->toCpp());
       }
       return __vector;
-    }();
+    }(__result);
   }
   std::vector<Rendition> JHybridOmniPlayerSpec::getRendition() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JRendition>>()>("getRendition");
     auto __result = method(_javaPart);
-    return [&]() {
-      size_t __size = __result->size();
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
       std::vector<Rendition> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __result->getElement(__i);
+        auto __element = __input->getElement(__i);
         __vector.push_back(__element->toCpp());
       }
       return __vector;
-    }();
+    }(__result);
   }
   PlayerStatus JHybridOmniPlayerSpec::getStatus() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPlayerStatus>()>("getStatus");
@@ -221,6 +225,11 @@ namespace margelo::nitro::omni {
     auto __result = method(_javaPart);
     return static_cast<bool>(__result);
   }
+  CastStatus JHybridOmniPlayerSpec::getCastStatus() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JCastStatus>()>("getCastStatus");
+    auto __result = method(_javaPart);
+    return __result->toCpp();
+  }
 
   // Methods
   void JHybridOmniPlayerSpec::setSource(const Source& src) {
@@ -238,6 +247,10 @@ namespace margelo::nitro::omni {
   void JHybridOmniPlayerSpec::seekBy(double offset) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(double /* offset */)>("seekBy");
     method(_javaPart, offset);
+  }
+  void JHybridOmniPlayerSpec::toggleCastStatus() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("toggleCastStatus");
+    method(_javaPart);
   }
   void JHybridOmniPlayerSpec::playPrev() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("playPrev");

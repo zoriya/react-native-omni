@@ -9,6 +9,7 @@ package com.margelo.nitro.omni
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -28,6 +29,22 @@ data class VideoSrc(
   val headers: Map<String, String>
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is VideoSrc) return false
+    return Objects.deepEquals(this.uri, other.uri)
+      && Objects.deepEquals(this.mimeType, other.mimeType)
+      && Objects.deepEquals(this.headers, other.headers)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      uri,
+      mimeType,
+      headers
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**

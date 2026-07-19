@@ -28,7 +28,7 @@ namespace margelo::nitro::omni {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "Source" and the the Kotlin data class "Source".
+   * The C++ JNI bridge between the C++ struct "Source" and the Kotlin data class "Source".
    */
   struct JSource final: public jni::JavaClass<JSource> {
   public:
@@ -48,34 +48,56 @@ namespace margelo::nitro::omni {
       jni::local_ref<jni::JDouble> startTime = this->getFieldValue(fieldStartTime);
       static const auto fieldSubtitles = clazz->getField<jni::JArrayClass<JSubtitle>>("subtitles");
       jni::local_ref<jni::JArrayClass<JSubtitle>> subtitles = this->getFieldValue(fieldSubtitles);
+      static const auto fieldFonts = clazz->getField<jni::JArrayClass<jni::JString>>("fonts");
+      jni::local_ref<jni::JArrayClass<jni::JString>> fonts = this->getFieldValue(fieldFonts);
       static const auto fieldMetadata = clazz->getField<JMetadata>("metadata");
       jni::local_ref<JMetadata> metadata = this->getFieldValue(fieldMetadata);
       static const auto fieldMixAudio = clazz->getField<JMixAudioMode>("mixAudio");
       jni::local_ref<JMixAudioMode> mixAudio = this->getFieldValue(fieldMixAudio);
+      static const auto fieldCastData = clazz->getField<jni::JMap<jni::JString, jni::JString>>("castData");
+      jni::local_ref<jni::JMap<jni::JString, jni::JString>> castData = this->getFieldValue(fieldCastData);
       return Source(
-        [&]() {
-          size_t __size = src->size();
+        [&](auto&& __input) {
+          size_t __size = __input->size();
           std::vector<VideoSrc> __vector;
           __vector.reserve(__size);
           for (size_t __i = 0; __i < __size; __i++) {
-            auto __element = src->getElement(__i);
+            auto __element = __input->getElement(__i);
             __vector.push_back(__element->toCpp());
           }
           return __vector;
-        }(),
+        }(src),
         startTime != nullptr ? std::make_optional(startTime->value()) : std::nullopt,
-        [&]() {
-          size_t __size = subtitles->size();
+        [&](auto&& __input) {
+          size_t __size = __input->size();
           std::vector<Subtitle> __vector;
           __vector.reserve(__size);
           for (size_t __i = 0; __i < __size; __i++) {
-            auto __element = subtitles->getElement(__i);
+            auto __element = __input->getElement(__i);
             __vector.push_back(__element->toCpp());
           }
           return __vector;
-        }(),
+        }(subtitles),
+        fonts != nullptr ? std::make_optional([&](auto&& __input) {
+          size_t __size = __input->size();
+          std::vector<std::string> __vector;
+          __vector.reserve(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            auto __element = __input->getElement(__i);
+            __vector.push_back(__element->toStdString());
+          }
+          return __vector;
+        }(fonts)) : std::nullopt,
         metadata != nullptr ? std::make_optional(metadata->toCpp()) : std::nullopt,
-        mixAudio != nullptr ? std::make_optional(mixAudio->toCpp()) : std::nullopt
+        mixAudio != nullptr ? std::make_optional(mixAudio->toCpp()) : std::nullopt,
+        castData != nullptr ? std::make_optional([&]() {
+          std::unordered_map<std::string, std::string> __map;
+          __map.reserve(castData->size());
+          for (const auto& __entry : *castData) {
+            __map.emplace(__entry.first->toStdString(), __entry.second->toStdString());
+          }
+          return __map;
+        }()) : std::nullopt
       );
     }
 
@@ -85,34 +107,51 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JSource::javaobject> fromCpp(const Source& value) {
-      using JSignature = JSource(jni::alias_ref<jni::JArrayClass<JVideoSrc>>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>);
+      using JSignature = JSource(jni::alias_ref<jni::JArrayClass<JVideoSrc>>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
-        [&]() {
-          size_t __size = value.src.size();
+        [&](auto&& __input) {
+          size_t __size = __input.size();
           jni::local_ref<jni::JArrayClass<JVideoSrc>> __array = jni::JArrayClass<JVideoSrc>::newArray(__size);
           for (size_t __i = 0; __i < __size; __i++) {
-            const auto& __element = value.src[__i];
+            const auto& __element = __input[__i];
             auto __elementJni = JVideoSrc::fromCpp(__element);
             __array->setElement(__i, *__elementJni);
           }
           return __array;
-        }(),
+        }(value.src),
         value.startTime.has_value() ? jni::JDouble::valueOf(value.startTime.value()) : nullptr,
-        [&]() {
-          size_t __size = value.subtitles.size();
+        [&](auto&& __input) {
+          size_t __size = __input.size();
           jni::local_ref<jni::JArrayClass<JSubtitle>> __array = jni::JArrayClass<JSubtitle>::newArray(__size);
           for (size_t __i = 0; __i < __size; __i++) {
-            const auto& __element = value.subtitles[__i];
+            const auto& __element = __input[__i];
             auto __elementJni = JSubtitle::fromCpp(__element);
             __array->setElement(__i, *__elementJni);
           }
           return __array;
-        }(),
+        }(value.subtitles),
+        value.fonts.has_value() ? [&](auto&& __input) {
+          size_t __size = __input.size();
+          jni::local_ref<jni::JArrayClass<jni::JString>> __array = jni::JArrayClass<jni::JString>::newArray(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            const auto& __element = __input[__i];
+            auto __elementJni = jni::make_jstring(__element);
+            __array->setElement(__i, *__elementJni);
+          }
+          return __array;
+        }(value.fonts.value()) : nullptr,
         value.metadata.has_value() ? JMetadata::fromCpp(value.metadata.value()) : nullptr,
-        value.mixAudio.has_value() ? JMixAudioMode::fromCpp(value.mixAudio.value()) : nullptr
+        value.mixAudio.has_value() ? JMixAudioMode::fromCpp(value.mixAudio.value()) : nullptr,
+        value.castData.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JString>> {
+          auto __map = jni::JHashMap<jni::JString, jni::JString>::create(value.castData.value().size());
+          for (const auto& __entry : value.castData.value()) {
+            __map->put(jni::make_jstring(__entry.first), jni::make_jstring(__entry.second));
+          }
+          return __map;
+        }() : nullptr
       );
     }
   };
