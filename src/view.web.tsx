@@ -1,5 +1,6 @@
 import type { HlsMediaConfig } from "@videojs/core/dom/media/hls-js";
 import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
+import { Video } from "@videojs/react/video";
 import {
 	type CSSProperties,
 	type RefObject,
@@ -107,6 +108,11 @@ export const OmniView = ({
 	const ref = useRef<HTMLVideoElement>(undefined!);
 
 	const src = player.source?.src[0];
+	const isHls =
+		src?.mimeType?.toLowerCase().includes("mpegurl") ||
+		src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||
+		false;
+	const Tech = isHls ? HlsJsVideo : Video;
 
 	const headersRef = useRef(src?.headers);
 	headersRef.current = src?.headers;
@@ -138,7 +144,7 @@ export const OmniView = ({
 			style={{ position: "relative", ...style }}
 		>
 			{src && (
-				<HlsJsVideo
+				<Tech
 					ref={ref}
 					src={src.uri}
 					config={config}
@@ -159,7 +165,7 @@ export const OmniView = ({
 								label={subtitle.label ?? subtitle.language ?? subtitle.id}
 							/>
 						))}
-				</HlsJsVideo>
+				</Tech>
 			)}
 			<SubtitleOverlay
 				video={ref}
