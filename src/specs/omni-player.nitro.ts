@@ -56,8 +56,6 @@ export interface OmniPlayer
 	extends HybridObject<{ android: "kotlin" }>,
 		OmniPlayerT {
 	readonly eventMap: OmniEventMap;
-
-	setSource(src?: Source): void;
 }
 
 export interface OmniPlayerFactory extends HybridObject<{ android: "kotlin" }> {

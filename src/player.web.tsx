@@ -74,6 +74,10 @@ export class WebOmniPlayer implements OmniPlayer {
 		return this._source;
 	}
 
+	setSource(source?: Source): void {
+		this.source = source ?? null;
+	}
+
 	set source(source: Source | null) {
 		this._source = source;
 		// Drop the overlay subtitle if it is not part of the new source.

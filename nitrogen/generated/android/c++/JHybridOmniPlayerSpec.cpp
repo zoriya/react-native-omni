@@ -232,9 +232,9 @@ namespace margelo::nitro::omni {
   }
 
   // Methods
-  void JHybridOmniPlayerSpec::setSource(const std::optional<Source>& src) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSource> /* src */)>("setSource");
-    method(_javaPart, src.has_value() ? JSource::fromCpp(src.value()) : nullptr);
+  void JHybridOmniPlayerSpec::setSource(const std::optional<Source>& source) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JSource> /* source */)>("setSource");
+    method(_javaPart, source.has_value() ? JSource::fromCpp(source.value()) : nullptr);
   }
   void JHybridOmniPlayerSpec::play() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("play");

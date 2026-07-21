@@ -1,5 +1,9 @@
+import type { Source } from "./source";
+
 export interface OmniPlayer extends OmniPlayerState {
 	showNotification?: boolean;
+
+	setSource(source?: Source): void;
 
 	play(): void;
 	pause(): void;
