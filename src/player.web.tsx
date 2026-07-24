@@ -244,24 +244,20 @@ export class WebOmniPlayer implements OmniPlayer {
 		this.setOverlaySubtitle(overlay ?? null);
 
 		if (this.castStatus === "connected") {
-			try {
-				// if the cast receiver handles overlay subtitles like us, send this message.
-				const ctx = (
-					window as unknown as {
-						// biome-ignore lint/suspicious/noExplicitAny: cast sender SDK global
-						cast?: { framework?: { CastContext?: { getInstance(): any } } };
-					}
-				).cast?.framework?.CastContext?.getInstance?.();
-				ctx
-					?.getCurrentSession?.()
-					?.sendMessage("urn:x-cast:dev.zoriya.omni", {
-						subtitle: overlay?.id ?? null,
-					})
-					?.catch?.(() => {});
-			} catch {
-				// no active cast session / sender SDK not loaded
-			}
+			window.cast.framework.CastContext.getInstance()
+				.getCurrentSession()
+				?.sendMessage("urn:x-cast:dev.zoriya.omni", {
+					subtitle: overlay?.id ?? null,
+				})
+				.catch(() => {});
 		}
+	}
+
+	// To be used on a callback of a chromecast session, it only changes the local state
+	applyRemoteSubtitle(id: string | null): void {
+		this.setOverlaySubtitle(
+			id ? (this.overlaySubtitles.find((s) => s.id === id) ?? null) : null,
+		);
 	}
 
 	private setOverlaySubtitle(sub: Subtitle | null): void {

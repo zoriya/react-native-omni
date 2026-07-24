@@ -17,6 +17,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"target": "esnext",
+		"types": ["chromecast-caf-sender"],
 		"verbatimModuleSyntax": true
 	},
 	"exclude": [

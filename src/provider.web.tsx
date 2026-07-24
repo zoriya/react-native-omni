@@ -72,6 +72,44 @@ const PlayerInitializer = ({
 		player.showNotification = showNotification;
 	}, [showNotification]);
 
+	useEffect(() => {
+		const ctx = window.cast?.framework?.CastContext?.getInstance();
+		if (!window.cast?.framework || !ctx) return;
+
+		let attached: cast.framework.CastSession | null = null;
+
+		const onSessionChange = () => {
+			const session = ctx.getCurrentSession();
+			if (!session || session === attached) return;
+			attached = session;
+			session.addMessageListener(
+				"urn:x-cast:dev.zoriya.omni",
+				(_ns: string, message: string) => {
+					let data: unknown;
+					try {
+						data = JSON.parse(message);
+					} catch {
+						return;
+					}
+					if (data && typeof data === "object" && "subtitle" in data) {
+						const id = (data as { subtitle?: unknown }).subtitle;
+						player.applyRemoteSubtitle(typeof id === "string" ? id : null);
+					}
+				},
+			);
+		};
+		onSessionChange();
+		ctx.addEventListener(
+			window.cast?.framework.CastContextEventType.SESSION_STATE_CHANGED,
+			onSessionChange,
+		);
+		return () =>
+			ctx.removeEventListener(
+				window.cast?.framework.CastContextEventType.SESSION_STATE_CHANGED,
+				onSessionChange,
+			);
+	}, []);
+
 	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
 };
 
