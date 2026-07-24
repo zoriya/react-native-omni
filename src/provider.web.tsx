@@ -73,42 +73,34 @@ const PlayerInitializer = ({
 	}, [showNotification]);
 
 	useEffect(() => {
-		const ctx = window.cast?.framework?.CastContext?.getInstance();
-		if (!window.cast?.framework || !ctx) return;
+		let media: chrome.cast.media.Media | null = null;
 
-		let attached: cast.framework.CastSession | null = null;
-
-		const onSessionChange = () => {
-			const session = ctx.getCurrentSession();
-			if (!session || session === attached) return;
-			attached = session;
-			session.addMessageListener(
-				"urn:x-cast:dev.zoriya.omni",
-				(_ns: string, message: string) => {
-					let data: unknown;
-					try {
-						data = JSON.parse(message);
-					} catch {
-						return;
-					}
-					if (data && typeof data === "object" && "subtitle" in data) {
-						const id = (data as { subtitle?: unknown }).subtitle;
-						player.applyRemoteSubtitle(typeof id === "string" ? id : null);
-					}
-				},
+		const onMediaUpdate = () => {
+			const data = media?.customData as { subtitle?: unknown } | undefined;
+			player.applyRemoteSubtitle(
+				typeof data?.subtitle === "string" ? data.subtitle : null,
 			);
 		};
-		onSessionChange();
-		ctx.addEventListener(
-			window.cast?.framework.CastContextEventType.SESSION_STATE_CHANGED,
-			onSessionChange,
-		);
-		return () =>
-			ctx.removeEventListener(
-				window.cast?.framework.CastContextEventType.SESSION_STATE_CHANGED,
-				onSessionChange,
-			);
-	}, []);
+
+		const syncMedia = () => {
+			const next =
+				window.cast.framework.CastContext.getInstance()
+					.getCurrentSession()
+					?.getMediaSession() ?? null;
+			if (next === media) return;
+			media?.removeUpdateListener(onMediaUpdate);
+			media = next;
+			media?.addUpdateListener(onMediaUpdate);
+			onMediaUpdate();
+		};
+
+		const unsubscribe = store.subscribe(syncMedia);
+		syncMedia();
+		return () => {
+			unsubscribe();
+			media?.removeUpdateListener(onMediaUpdate);
+		};
+	}, [store]);
 
 	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
 };
