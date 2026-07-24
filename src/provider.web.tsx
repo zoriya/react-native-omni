@@ -56,7 +56,7 @@ const PlayerInitializer = ({
 	const seekedForSrc = useRef<string | undefined>(undefined);
 
 	useEffect(() => {
-		player.source = source ?? null;
+		player.source = source;
 		const uri = source?.src[0]?.uri;
 		if (uri !== seekedForSrc.current) {
 			seekedForSrc.current = uri;

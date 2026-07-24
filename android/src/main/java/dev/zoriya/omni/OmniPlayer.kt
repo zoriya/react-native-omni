@@ -177,49 +177,52 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         }
     }
 
-    override fun setSource(src: Source?) {
-        if (src == null) {
+    override var source: Source? = null
+        set(value) {
+            field = value
+            if (value == null) {
+                runOnMainThreadSync {
+                    player.setMediaItem(MediaItem.EMPTY)
+                    player.prepare()
+                }
+                return
+            }
+            val handleAudioFocus =
+                (value.mixAudio ?: MixAudioMode.AUTO) != MixAudioMode.MIXWITHOTHERS
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build()
+            runOnMainThread { player.setAudioAttributes(audioAttributes, handleAudioFocus) }
+            val firstSrc = value.src.firstOrNull()
+            if (firstSrc == null) {
+                runOnMainThreadSync {
+                    player.setMediaItem(MediaItem.EMPTY)
+                    player.prepare()
+                }
+                return
+            }
+
+            val currentItem = buildMediaItem(firstSrc, value.metadata, value.subtitles)
+            val mediaItems = mutableListOf<MediaItem>()
+
+            if (value.metadata?.hasPrev == true) {
+                mediaItems.add(currentItem)
+            }
+
+            mediaItems.add(currentItem)
+
+            if (value.metadata?.hasNext == true) {
+                mediaItems.add(currentItem)
+            }
+
             runOnMainThreadSync {
-                player.setMediaItem(MediaItem.EMPTY)
+                val startIndex = if (value.metadata?.hasPrev == true) 1 else 0
+                val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
+                player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
                 player.prepare()
             }
-            return
         }
-        val handleAudioFocus = (src.mixAudio ?: MixAudioMode.AUTO) != MixAudioMode.MIXWITHOTHERS
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-            .build()
-        runOnMainThread { player.setAudioAttributes(audioAttributes, handleAudioFocus) }
-        val source = src.src.firstOrNull()
-        if (source == null) {
-            runOnMainThreadSync {
-                player.setMediaItem(MediaItem.EMPTY)
-                player.prepare()
-            }
-            return
-        }
-
-        val currentItem = buildMediaItem(source, src.metadata, src.subtitles)
-        val mediaItems = mutableListOf<MediaItem>()
-
-        if (src.metadata?.hasPrev == true) {
-            mediaItems.add(currentItem)
-        }
-
-        mediaItems.add(currentItem)
-
-        if (src.metadata?.hasNext == true) {
-            mediaItems.add(currentItem)
-        }
-
-        runOnMainThreadSync {
-            val startIndex = if (src.metadata?.hasPrev == true) 1 else 0
-            val startPositionMs = (src.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
-            player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
-            player.prepare()
-        }
-    }
 
     override fun play() {
         runOnMainThreadSync { player.play() }
@@ -312,6 +315,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
                     }
                 } else null
             }
+
             else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
         }
 
@@ -347,7 +351,12 @@ class OmniPlayer : HybridOmniPlayerSpec() {
 
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
-                .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, rendition.id.toInt()))
+                .setOverrideForType(
+                    TrackSelectionOverride(
+                        group.mediaTrackGroup,
+                        rendition.id.toInt()
+                    )
+                )
                 .build()
         }
     }
@@ -383,7 +392,8 @@ class OmniPlayerService : MediaSessionService() {
             .build()
 
         setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build().apply {
-            setSmallIcon(applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_media_play)
+            setSmallIcon(applicationInfo.icon.takeIf { it != 0 }
+                ?: android.R.drawable.ic_media_play)
         })
         addSession(mediaSession)
         setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)
@@ -415,7 +425,8 @@ class OmniPlayerService : MediaSessionService() {
         )
 
         return NotificationCompat.Builder(this, "omni_playback")
-            .setSmallIcon(applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_media_play)
+            .setSmallIcon(applicationInfo.icon.takeIf { it != 0 }
+                ?: android.R.drawable.ic_media_play)
             .setContentTitle("Omni Player")
             .setContentText("Preparing playback...")
             .setContentIntent(pendingIntent)

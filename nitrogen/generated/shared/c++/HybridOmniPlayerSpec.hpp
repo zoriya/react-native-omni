@@ -15,6 +15,8 @@
 
 // Forward declaration of `HybridOmniEventMapSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniEventMapSpec; }
+// Forward declaration of `Source` to properly resolve imports.
+namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -23,18 +25,16 @@ namespace margelo::nitro::omni { struct Rendition; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
-// Forward declaration of `Source` to properly resolve imports.
-namespace margelo::nitro::omni { struct Source; }
 
 #include <memory>
 #include "HybridOmniEventMapSpec.hpp"
 #include <optional>
+#include "Source.hpp"
 #include "Track.hpp"
 #include <vector>
 #include "Rendition.hpp"
 #include "PlayerStatus.hpp"
 #include "CastStatus.hpp"
-#include "Source.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -66,6 +66,8 @@ namespace margelo::nitro::omni {
       virtual std::shared_ptr<HybridOmniEventMapSpec> getEventMap() = 0;
       virtual std::optional<bool> getShowNotification() = 0;
       virtual void setShowNotification(std::optional<bool> showNotification) = 0;
+      virtual std::optional<Source> getSource() = 0;
+      virtual void setSource(const std::optional<Source>& source) = 0;
       virtual bool getHasPrev() = 0;
       virtual bool getHasNext() = 0;
       virtual std::vector<Track> getVideos() = 0;
@@ -89,7 +91,6 @@ namespace margelo::nitro::omni {
 
     public:
       // Methods
-      virtual void setSource(const std::optional<Source>& source) = 0;
       virtual void play() = 0;
       virtual void pause() = 0;
       virtual void seekBy(double offset) = 0;

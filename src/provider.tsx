@@ -24,7 +24,7 @@ export const OmniProvider = ({
 	const player = useLazyRef(() => ProviderFactory.createPlayer(source));
 
 	useEffect(() => {
-		player.setSource(source);
+		player.source = source;
 	}, [source]);
 
 	useEffect(() => {

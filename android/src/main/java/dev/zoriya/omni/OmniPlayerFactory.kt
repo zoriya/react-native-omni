@@ -9,7 +9,7 @@ import com.margelo.nitro.omni.Source
 class OmniPlayerFactory(val context: ThemedReactContext) : HybridOmniPlayerFactorySpec() {
     override fun createPlayer(props: Source?): HybridOmniPlayerSpec {
         return OmniPlayer().apply {
-            setSource(props)
+            source = props
         }
     }
 }

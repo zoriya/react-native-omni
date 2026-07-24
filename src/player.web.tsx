@@ -61,7 +61,7 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	castOptions: CastOptions | null = null;
-	_source: Source | null = null;
+	_source: Source | undefined = undefined;
 	private _showNotification = false;
 
 	// Selected ASS/PGS subtitle (drawn by the overlay); `null` when the active
@@ -70,15 +70,11 @@ export class WebOmniPlayer implements OmniPlayer {
 	private overlaySubtitle: Subtitle | null = null;
 	private overlayListeners = new Set<() => void>();
 
-	get source(): Source | null {
+	get source(): Source | undefined {
 		return this._source;
 	}
 
-	setSource(source?: Source): void {
-		this.source = source ?? null;
-	}
-
-	set source(source: Source | null) {
+	set source(source: Source | undefined) {
 		this._source = source;
 		// Drop the overlay subtitle if it is not part of the new source.
 		if (

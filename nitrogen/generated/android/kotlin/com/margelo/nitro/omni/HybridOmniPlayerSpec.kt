@@ -37,6 +37,12 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   
   @get:DoNotStrip
   @get:Keep
+  @set:DoNotStrip
+  @set:Keep
+  abstract var source: Source?
+  
+  @get:DoNotStrip
+  @get:Keep
   abstract val hasPrev: Boolean
   
   @get:DoNotStrip
@@ -108,10 +114,6 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   abstract val castStatus: CastStatus
 
   // Methods
-  @DoNotStrip
-  @Keep
-  abstract fun setSource(source: Source?): Unit
-  
   @DoNotStrip
   @Keep
   abstract fun play(): Unit
