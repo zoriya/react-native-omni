@@ -107,7 +107,10 @@ class OmniPlayer(
     override var showNotification: Boolean? = false
         set(value) {
             if (value == true) {
-                if (notificationPlayer != null && notificationPlayer?.isPlaying == true) {
+                val otherIsPlaying = notificationPlayer?.let { other ->
+                    runOnMainThreadSync { other.isPlaying }
+                } == true
+                if (otherIsPlaying) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
                 notificationPlayer = localPlayer

@@ -2,6 +2,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
+	type AndroidBackend,
 	OmniProvider,
 	OmniView,
 	useEvent,
@@ -54,10 +55,14 @@ function PlayerExample({
 	onPrev,
 	onNext,
 	trackLabel,
+	backend,
+	onSwitchBackend,
 }: {
 	onPrev: () => void;
 	onNext: () => void;
 	trackLabel: string;
+	backend: AndroidBackend;
+	onSwitchBackend: (backend: AndroidBackend) => void;
 }): React.JSX.Element {
 	const player = usePlayer();
 	const status = usePlayerState("status");
@@ -176,6 +181,15 @@ function PlayerExample({
 		),
 	);
 
+	const switchBackend = (target: AndroidBackend) => {
+		if (target === backend) return;
+		// Pause before tearing down: the native media-session guard refuses a
+		// second player while the current one is still *playing*, so this keeps
+		// the transition clean (we don't preserve state across a switch anyway).
+		player.pause();
+		onSwitchBackend(target);
+	};
+
 	const togglePlayback = () => {
 		if (isPlaying) {
 			player.pause();
@@ -219,6 +233,27 @@ function PlayerExample({
 		<ScrollView style={styles.container}>
 			<Text style={styles.heading}>react-native-omni</Text>
 			<Text style={styles.subheading}>{trackLabel}</Text>
+
+			<View style={styles.row}>
+				<Pressable
+					style={[
+						styles.button,
+						backend === "vlc" && styles.selectedTrackButton,
+					]}
+					onPress={() => switchBackend("vlc")}
+				>
+					<Text style={styles.buttonText}>VLC</Text>
+				</Pressable>
+				<Pressable
+					style={[
+						styles.button,
+						backend === "exoplayer" && styles.selectedTrackButton,
+					]}
+					onPress={() => switchBackend("exoplayer")}
+				>
+					<Text style={styles.buttonText}>ExoPlayer</Text>
+				</Pressable>
+			</View>
 
 			<OmniView
 				style={styles.video}
@@ -461,6 +496,27 @@ function PlayerExample({
 
 function App(): React.JSX.Element {
 	const [currentIndex, setCurrentIndex] = useState(0);
+	const [backend, setBackend] = useState<AndroidBackend>("vlc");
+	const [pendingBackend, setPendingBackend] = useState<AndroidBackend | null>(
+		null,
+	);
+
+	// Switching backend recreates the native player, so we fully unmount the
+	// provider first (rendering nothing) and remount it on the next tick with
+	// the new backend. This lets the old OmniView/player tear down before the
+	// new one is created, avoiding the "only one view"/"two players" guards.
+	const handleSwitchBackend = useCallback((next: AndroidBackend) => {
+		setPendingBackend(next);
+	}, []);
+
+	useEffect(() => {
+		if (pendingBackend === null) return;
+		const id = setTimeout(() => {
+			setBackend(pendingBackend);
+			setPendingBackend(null);
+		}, 300);
+		return () => clearTimeout(id);
+	}, [pendingBackend]);
 
 	const handlePrev = useCallback(() => {
 		setCurrentIndex((index) => (index === 0 ? PLAYLIST.length - 1 : index - 1));
@@ -505,12 +561,28 @@ function App(): React.JSX.Element {
 		[currentIndex],
 	);
 
+	// While switching, render nothing so the current player is torn down first.
+	if (pendingBackend !== null) {
+		return (
+			<View style={styles.switching}>
+				<Text style={styles.subheading}>Switching to {pendingBackend}…</Text>
+			</View>
+		);
+	}
+
 	return (
-		<OmniProvider source={source} showNotification>
+		<OmniProvider
+			key={backend}
+			source={source}
+			backend={{ android: backend }}
+			showNotification
+		>
 			<PlayerExample
 				onPrev={handlePrev}
 				onNext={handleNext}
 				trackLabel={PLAYLIST[currentIndex].title}
+				backend={backend}
+				onSwitchBackend={handleSwitchBackend}
 			/>
 		</OmniProvider>
 	);
@@ -524,6 +596,12 @@ const styles = StyleSheet.create({
 		marginTop: 64,
 		paddingVertical: 12,
 		gap: 12,
+	},
+	switching: {
+		flex: 1,
+		backgroundColor: "#0b1020",
+		alignItems: "center",
+		justifyContent: "center",
 	},
 	heading: {
 		fontSize: 24,
