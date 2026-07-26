@@ -8,7 +8,6 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.view.SurfaceHolder
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -208,13 +207,26 @@ class OmniPlayer(
             .build()
     }
 
-    fun setSurface(holder: SurfaceHolder?) {
+    fun setVideoView(surfaceView: android.view.SurfaceView?) {
         runOnMainThread {
-            if (holder == null) {
+            if (surfaceView == null) {
                 localPlayer.clearVideoSurface()
             } else {
-                localPlayer.setVideoSurfaceHolder(holder)
+                localPlayer.setVideoSurfaceView(surfaceView)
             }
+        }
+    }
+
+    // rebuild video pipeline after pip, noop for exoplayer that recover on it's own.
+    fun rebuildVideoOutput() {
+        runOnMainThread {
+            (localPlayer as? VlcPlayer)?.rebuildVideoOutput()
+        }
+    }
+
+    fun updateVideoLayout(width: Int, height: Int) {
+        runOnMainThread {
+            (localPlayer as? VlcPlayer)?.updateVideoLayout(width, height)
         }
     }
 

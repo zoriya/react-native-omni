@@ -140,12 +140,12 @@ class OmniView(val context: ThemedReactContext) :
         }
 
         boundPlayer?.localPlayer?.removeListener(this)
-        boundPlayer?.setSurface(null)
+        boundPlayer?.setVideoView(null)
         boundPlayer = omniPlayer
         omniPlayer.localPlayer.addListener(this)
 
         if (surfaceReady) {
-            omniPlayer.setSurface(surfaceView.holder)
+            omniPlayer.setVideoView(surfaceView)
         }
 
         if (autoplay == true && !omniPlayer.isPlaying) {
@@ -166,7 +166,7 @@ class OmniView(val context: ThemedReactContext) :
 
         val omniPlayer = player as? OmniPlayer ?: return
         boundPlayer?.localPlayer?.removeListener(this)
-        omniPlayer.setSurface(null)
+        omniPlayer.setVideoView(null)
         boundPlayer = null
     }
 
@@ -322,9 +322,22 @@ class OmniView(val context: ThemedReactContext) :
         movedSurfaceToRootForPip = false
     }
 
+    // A surface that is destroyed and recreated while playback runs (the PIP
+    // reparent) makes VLC drop its video pipeline; it won't rebuild it for the
+    // new surface on its own, so we must ask it to. The rebuild only succeeds
+    // once the (PIP) window has settled at its final size — firing it mid-resize
+    // leaves the vout stopped — so it is debounced off surfaceChanged.
+    private var pendingVideoRebuild = false
+    private val rebuildRunnable = Runnable {
+        if (!pendingVideoRebuild) return@Runnable
+        pendingVideoRebuild = false
+        boundPlayer?.rebuildVideoOutput()
+    }
+
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        boundPlayer?.setSurface(holder)
+        boundPlayer?.setVideoView(surfaceView)
+        if (boundPlayer?.isPlaying == true) pendingVideoRebuild = true
         updatePictureInPictureParams()
     }
 
@@ -333,10 +346,17 @@ class OmniView(val context: ThemedReactContext) :
         format: Int,
         width: Int,
         height: Int
-    ) { }
+    ) {
+        boundPlayer?.updateVideoLayout(width, height)
+        if (pendingVideoRebuild) {
+            surfaceView.removeCallbacks(rebuildRunnable)
+            surfaceView.postDelayed(rebuildRunnable, 200)
+        }
+    }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        boundPlayer?.setSurface(null)
+        surfaceView.removeCallbacks(rebuildRunnable)
+        boundPlayer?.setVideoView(null)
     }
 }
