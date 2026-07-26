@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Surface
@@ -350,6 +351,7 @@ class VlcPlayer(ctx: Context) :
             if (!uri.isNullOrEmpty()) {
                 val media = Media(libVLC, uri.toUri())
                 media.setHWDecoderEnabled(true, false)
+                applyRequestHeaders(media, item.requestMetadata.extras)
 
                 item.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
                     media.addSlave(
@@ -378,6 +380,18 @@ class VlcPlayer(ctx: Context) :
             it.onPlaylistMetadataChanged(playlistMetadata)
             if (prev != currentMediaItemIndex) {
                 it.onMediaItemTransition(currentMediaItem, reason)
+            }
+        }
+    }
+
+    // vlc doesn't allow arbitrary headers :c
+    private fun applyRequestHeaders(media: Media, extras: Bundle?) {
+        if (extras == null) return
+        for (name in extras.keySet()) {
+            val value = extras.getString(name) ?: continue
+            when (name.lowercase()) {
+                "user-agent" -> media.addOption(":http-user-agent=$value")
+                "referer", "referrer" -> media.addOption(":http-referrer=$value")
             }
         }
     }

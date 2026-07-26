@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.view.SurfaceHolder
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
@@ -37,7 +38,13 @@ import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
 class OmniPlayer : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
     val player: Player = runOnMainThreadSync {
-        // ExoPlayer.Builder(ctx).build()
+        // To use ExoPlayer, build it with an http data source and refresh its
+        // request headers from the source on each change:
+        //   val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        //   ExoPlayer.Builder(ctx)
+        //       .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http)))
+        //       .build()
+        //   // in the source setter: http.setDefaultRequestProperties(firstSrc.headers)
         VlcPlayer(ctx)
     }
     override val eventMap = EventMap(player)
@@ -77,13 +84,10 @@ class OmniPlayer : HybridOmniPlayerSpec() {
         metadata: com.margelo.nitro.omni.Metadata?,
         subtitles: Array<com.margelo.nitro.omni.Subtitle>
     ): MediaItem {
-        //        val headers = Bundle().apply {
-        //            putStringArrayList(
-        //                VlcPlayer.REQUEST_HEADER_NAMES_KEY,
-        //                VlcPlayer.REQUEST_HEADER_VALUES_KEY,
-        //                putLong(VlcPlayer.REQUEST_START_MS_KEY, (it.coerceAtLeast(0.0) * 1000.0).toLong())
-        //            }
-        //        }
+        // vlc only path (and it only supports a few headers :c)
+        val extras = if (src.headers.isEmpty()) null else Bundle(src.headers.size).apply {
+            for ((name, value) in src.headers) putString(name, value)
+        }
         return MediaItem.Builder()
             .setUri(src.uri)
             .setMimeType(src.mimeType)
@@ -108,7 +112,7 @@ class OmniPlayer : HybridOmniPlayerSpec() {
             .setRequestMetadata(
                 RequestMetadata.Builder()
                     .setMediaUri(src.uri.toUri())
-                    // .setExtras(headers)
+                    .apply { extras?.let { setExtras(it) } }
                     .build()
             )
             .build()
