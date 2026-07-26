@@ -19,6 +19,10 @@ namespace margelo::nitro::omni { struct Subtitle; }
 namespace margelo::nitro::omni { struct Metadata; }
 // Forward declaration of `MixAudioMode` to properly resolve imports.
 namespace margelo::nitro::omni { enum class MixAudioMode; }
+// Forward declaration of `PlayerBackend` to properly resolve imports.
+namespace margelo::nitro::omni { struct PlayerBackend; }
+// Forward declaration of `AndroidBackend` to properly resolve imports.
+namespace margelo::nitro::omni { enum class AndroidBackend; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
@@ -37,6 +41,10 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 #include "JMetadata.hpp"
 #include "MixAudioMode.hpp"
 #include "JMixAudioMode.hpp"
+#include "PlayerBackend.hpp"
+#include "JPlayerBackend.hpp"
+#include "AndroidBackend.hpp"
+#include "JAndroidBackend.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -71,9 +79,9 @@ namespace margelo::nitro::omni {
   
 
   // Methods
-  std::shared_ptr<HybridOmniPlayerSpec> JHybridOmniPlayerFactorySpec::createPlayer(const std::optional<Source>& props) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>(jni::alias_ref<JSource> /* props */)>("createPlayer");
-    auto __result = method(_javaPart, props.has_value() ? JSource::fromCpp(props.value()) : nullptr);
+  std::shared_ptr<HybridOmniPlayerSpec> JHybridOmniPlayerFactorySpec::createPlayer(const std::optional<Source>& props, const std::optional<PlayerBackend>& backend) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>(jni::alias_ref<JSource> /* props */, jni::alias_ref<JPlayerBackend> /* backend */)>("createPlayer");
+    auto __result = method(_javaPart, props.has_value() ? JSource::fromCpp(props.value()) : nullptr, backend.has_value() ? JPlayerBackend::fromCpp(backend.value()) : nullptr);
     return __result->getJHybridOmniPlayerSpec();
   }
 

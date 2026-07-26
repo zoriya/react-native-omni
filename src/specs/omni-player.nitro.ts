@@ -3,6 +3,7 @@ import type { OmniEvents } from "../types/events";
 import type {
 	OmniPlayerState,
 	OmniPlayer as OmniPlayerT,
+	PlayerBackend,
 	PlayerStatus,
 } from "../types/player";
 import type { Source } from "../types/source";
@@ -59,5 +60,5 @@ export interface OmniPlayer
 }
 
 export interface OmniPlayerFactory extends HybridObject<{ android: "kotlin" }> {
-	createPlayer(props?: Source): OmniPlayer;
+	createPlayer(props?: Source, backend?: PlayerBackend): OmniPlayer;
 }

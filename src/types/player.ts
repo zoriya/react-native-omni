@@ -64,3 +64,9 @@ export interface Rendition {
 	readonly bitrate: number;
 	readonly selected: boolean;
 }
+
+export type AndroidBackend = "vlc" | "exoplayer";
+
+export interface PlayerBackend {
+	android?: AndroidBackend;
+}

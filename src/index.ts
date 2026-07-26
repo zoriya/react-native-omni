@@ -2,9 +2,11 @@ export { useEvent, usePlayerState } from "./events";
 export { OmniProvider, usePlayer } from "./provider";
 export type { OmniEvents } from "./types/events";
 export type {
+	AndroidBackend,
 	CastStatus,
 	OmniPlayer,
 	OmniPlayerState,
+	PlayerBackend,
 	PlayerStatus,
 	Rendition,
 	Track,

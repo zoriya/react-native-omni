@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { NitroModules } from "react-native-nitro-modules";
 import type { OmniPlayerFactory } from "./specs/omni-player.nitro";
-import type { OmniPlayer } from "./types/player";
+import type { OmniPlayer, PlayerBackend } from "./types/player";
 import type { CastOptions, Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
@@ -13,15 +13,19 @@ const PlayerCtx = createContext<OmniPlayer>(null!);
 export const OmniProvider = ({
 	children,
 	source,
+	backend = { android: "vlc" },
 	showNotification = false,
 	cast: _,
 }: {
 	source?: Source;
 	cast?: CastOptions;
+	backend?: PlayerBackend;
 	children: ReactNode;
 	showNotification?: boolean;
 }) => {
-	const player = useLazyRef(() => ProviderFactory.createPlayer(source));
+	const player = useLazyRef(() =>
+		ProviderFactory.createPlayer(source, backend),
+	);
 
 	useEffect(() => {
 		player.source = source;

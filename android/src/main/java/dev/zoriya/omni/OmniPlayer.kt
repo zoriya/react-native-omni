@@ -15,7 +15,12 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.margelo.nitro.NitroModules
+import com.margelo.nitro.omni.AndroidBackend
 import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
 import com.margelo.nitro.omni.MixAudioMode
@@ -35,17 +40,26 @@ import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
 
 @SuppressLint("UnsafeOptInUsageError")
-class OmniPlayer : HybridOmniPlayerSpec() {
+class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
+
+    // exoplayer only, used to specify request headers.
+    private var httpDataSourceFactory: DefaultHttpDataSource.Factory? = null
+
     val player: Player = runOnMainThreadSync {
-        // To use ExoPlayer, build it with an http data source and refresh its
-        // request headers from the source on each change:
-        //   val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
-        //   ExoPlayer.Builder(ctx)
-        //       .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http)))
-        //       .build()
-        //   // in the source setter: http.setDefaultRequestProperties(firstSrc.headers)
-        VlcPlayer(ctx)
+        when (backend) {
+            AndroidBackend.EXOPLAYER -> {
+                val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+                httpDataSourceFactory = http
+                ExoPlayer.Builder(ctx)
+                    .setMediaSourceFactory(
+                        DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http))
+                    )
+                    .build()
+            }
+
+            AndroidBackend.VLC -> VlcPlayer(ctx)
+        }
     }
     override val eventMap = EventMap(player)
 
@@ -206,6 +220,8 @@ class OmniPlayer : HybridOmniPlayerSpec() {
                 }
                 return
             }
+
+            httpDataSourceFactory?.setDefaultRequestProperties(firstSrc.headers)
 
             val currentItem = buildMediaItem(firstSrc, value.metadata, value.subtitles)
             val mediaItems = mutableListOf<MediaItem>()

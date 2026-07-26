@@ -8,7 +8,7 @@ import {
 	useRef,
 } from "react";
 import { WebOmniPlayer } from "./player.web";
-import type { OmniPlayer } from "./types/player";
+import type { OmniPlayer, PlayerBackend } from "./types/player";
 import type { CastOptions, Source } from "./types/source";
 import { useLazyRef } from "./utils/lazy-ref";
 
@@ -20,10 +20,13 @@ export const OmniProvider = ({
 	children,
 	source,
 	cast,
+	// Web always uses video.js; accepted for API parity with native.
+	backend: _backend,
 	showNotification = false,
 }: {
 	source?: Source;
 	cast?: CastOptions;
+	backend?: PlayerBackend;
 	children: ReactNode;
 	showNotification?: boolean;
 }) => {
