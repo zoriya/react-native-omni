@@ -185,8 +185,7 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
-        val omniPlayer = boundPlayer ?: return
-        if (!omniPlayer.isPlaying) {
+        if (boundPlayer == null || boundPlayer?.localPlayer?.isPlaying != true) {
             return
         }
 
@@ -220,7 +219,7 @@ class OmniView(val context: ThemedReactContext) :
         val autoEnterEnabled =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             autoPip == true &&
-            boundPlayer?.isPlaying == true
+            boundPlayer?.localPlayer?.isPlaying == true
         activity.setPictureInPictureParams(buildPipParams(autoEnterEnabled))
     }
 
@@ -270,7 +269,7 @@ class OmniView(val context: ThemedReactContext) :
         if (context.currentActivity !== activity || autoPip != true || boundPlayer == null) {
             return
         }
-        if (!afterEnteredPip && boundPlayer?.isPlaying != true) return
+        if (!afterEnteredPip && boundPlayer?.localPlayer?.isPlaying != true) return
         isolateUiForPip(activity)
     }
 
@@ -337,7 +336,7 @@ class OmniView(val context: ThemedReactContext) :
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         boundPlayer?.setVideoView(surfaceView)
-        if (boundPlayer?.isPlaying == true) pendingVideoRebuild = true
+        if (boundPlayer?.localPlayer?.isPlaying == true) pendingVideoRebuild = true
         updatePictureInPictureParams()
     }
 

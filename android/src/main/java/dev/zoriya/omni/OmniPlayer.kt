@@ -540,6 +540,15 @@ class OmniPlayerService : MediaSessionService() {
         triggerNotificationUpdate()
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val current = OmniPlayer.notificationPlayer
+        if (current != null && ::mediaSession.isInitialized && mediaSession.player !== current) {
+            player = current
+            mediaSession.player = current
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     private fun createImmediateNotification(): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
