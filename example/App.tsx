@@ -69,6 +69,7 @@ function PlayerExample({
 	const muted = usePlayerState("muted");
 	const volume = usePlayerState("volume");
 	const isAutoQuality = usePlayerState("isAutoQuality");
+	const castStatus = usePlayerState("castStatus");
 	const [logs, setLogs] = useState<string[]>([]);
 	const [tracks, setTracks] = useState(() => ({
 		videos: [...player.videos],
@@ -263,6 +264,21 @@ function PlayerExample({
 				<Pressable style={styles.button} onPress={cyclePlaybackRate}>
 					<Text style={styles.buttonText}>{playbackRate.toFixed(2)}x</Text>
 				</Pressable>
+			</View>
+
+			<View style={styles.row}>
+				<Pressable
+					style={styles.button}
+					disabled={castStatus === "unsupported"}
+					onPress={() => player.toggleCastStatus()}
+				>
+					<Text style={styles.buttonText}>
+						{castStatus === "connected" || castStatus === "connecting"
+							? "Stop cast"
+							: "Cast"}
+					</Text>
+				</Pressable>
+				<Text style={styles.buttonText}>Cast: {castStatus}</Text>
 			</View>
 
 			<View style={styles.statsCard}>

@@ -118,6 +118,7 @@ class VlcPlayer(ctx: Context) :
         .add(COMMAND_SET_VOLUME)
         .add(COMMAND_SET_VIDEO_SURFACE)
         .add(COMMAND_SET_MEDIA_ITEM)
+        .add(COMMAND_CHANGE_MEDIA_ITEMS)
         .add(COMMAND_GET_CURRENT_MEDIA_ITEM)
         .add(COMMAND_GET_METADATA)
         .add(COMMAND_GET_TIMELINE)
@@ -438,8 +439,10 @@ class VlcPlayer(ctx: Context) :
 
     override fun getPlaybackState(): Int =
         when {
+            playerError != null -> STATE_IDLE
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
             player.media == null -> STATE_IDLE
+            player.playerState == IMedia.State.Opening -> STATE_BUFFERING
             player.isPlaying -> STATE_READY
             player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
             else -> STATE_READY
@@ -520,6 +523,7 @@ class VlcPlayer(ctx: Context) :
                 Format.Builder()
                     .setId(track.id)
                     .setLabel(track.name)
+                    .setLanguage(track.language)
                     .setSampleMimeType("video/x-unknown")
                     .build()
             }
@@ -535,6 +539,7 @@ class VlcPlayer(ctx: Context) :
             val format = Format.Builder()
                 .setId(track.id)
                 .setLabel(track.name)
+                .setLanguage(track.language)
                 .setSampleMimeType("audio/x-unknown")
                 .build()
             val group = TrackGroup("vlc-audio-${track.id}", format)
@@ -547,6 +552,7 @@ class VlcPlayer(ctx: Context) :
             val format = Format.Builder()
                 .setId(track.id)
                 .setLabel(track.name)
+                .setLanguage(track.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
             val group = TrackGroup("vlc-sub-${track.id}", format)

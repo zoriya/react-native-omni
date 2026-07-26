@@ -18,6 +18,7 @@ import androidx.media3.common.Player.STATE_READY
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import com.margelo.nitro.omni.BoolProperty
+import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
 import com.margelo.nitro.omni.NumberProperty
 import com.margelo.nitro.omni.PlayerStatus
@@ -25,7 +26,7 @@ import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Track
 
 @SuppressLint("UnsafeOptInUsageError")
-class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Listener {
+class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
     private val onPrevListeners = mutableSetOf<() -> Unit>()
     private val onNextListeners = mutableSetOf<() -> Unit>()
     private val onEndListeners = mutableSetOf<() -> Unit>()
@@ -38,13 +39,57 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
     private val stateListeners = mutableMapOf<NumberProperty, MutableSet<(Double) -> Unit>>()
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
+    private val castStatusListeners = mutableSetOf<(CastStatus) -> Unit>()
 
     private var lastMediaItemIndex = 0
     private var lastRendition: Rendition? = null
     private var lastIsAutoQuality: Boolean? = null
 
-    init {
-        player.addListener(this)
+    // swapped on cast start/end
+    private var _player: Player? = null
+    var player: Player
+        get() = _player!!
+        set(value) {
+            if (_player === value) return
+            _player?.removeListener(this)
+            _player = value
+            value.addListener(this)
+            lastMediaItemIndex = value.currentMediaItemIndex
+            lastRendition = null
+            lastIsAutoQuality = null
+
+            // immediatly send all the state
+            val status = when (value.playbackState) {
+                STATE_BUFFERING -> PlayerStatus.LOADING
+                STATE_READY -> PlayerStatus.READYTOPLAY
+                else -> PlayerStatus.IDLE
+            }
+            playerStatusListeners.forEach { it(status) }
+            stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(value.isPlaying) }
+            stateBoolListeners[BoolProperty.MUTED]?.forEach { it(value.volume <= 0f) }
+            stateListeners[NumberProperty.VOLUME]?.forEach { it(value.volume.toDouble()) }
+            stateListeners[NumberProperty.PLAYBACKRATE]?.forEach {
+                it(value.playbackParameters.speed.toDouble())
+            }
+            stateListeners[NumberProperty.CURRENTTIME]?.forEach {
+                it((value.currentPosition.toDouble() / 1000.0).coerceAtLeast(0.0))
+            }
+            stateListeners[NumberProperty.BUFFERED]?.forEach {
+                it((value.totalBufferedDuration.toDouble() / 1000.0).coerceAtLeast(0.0))
+            }
+            stateListeners[NumberProperty.DURATION]?.forEach {
+                val duration = value.duration
+                it(
+                    if (duration == C.TIME_UNSET) 0.0 else (duration.toDouble() / 1000.0).coerceAtLeast(
+                        0.0
+                    )
+                )
+            }
+            onTracksChanged(value.currentTracks)
+        }
+
+    fun emitCastStatus(status: CastStatus) {
+        castStatusListeners.forEach { it(status) }
     }
 
     private fun selectedTrack(trackType: Int): Track? {
@@ -83,6 +128,7 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
                     }
                 } else null
             }
+
             else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
         } ?: return null
 
@@ -121,6 +167,7 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
                 onEndListeners.forEach { it() }
                 PlayerStatus.IDLE
             }
+
             else -> PlayerStatus.IDLE
         }
         playerStatusListeners.forEach { it(state) }
@@ -213,7 +260,11 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
         }
         stateListeners[NumberProperty.DURATION]?.forEach {
             val duration = player.duration
-            it(if (duration == C.TIME_UNSET) 0.0 else (duration.toDouble() / 1000.0).coerceAtLeast(0.0))
+            it(
+                if (duration == C.TIME_UNSET) 0.0 else (duration.toDouble() / 1000.0).coerceAtLeast(
+                    0.0
+                )
+            )
         }
     }
 
@@ -239,6 +290,14 @@ class EventMap(private val player: Player) : HybridOmniEventMapSpec(), Player.Li
 
     override fun removePlayerStatusListener(cb: (value: PlayerStatus) -> Unit) {
         playerStatusListeners.remove(cb)
+    }
+
+    override fun addCastStatusListener(cb: (value: CastStatus) -> Unit) {
+        castStatusListeners.add(cb)
+    }
+
+    override fun removeCastStatusListener(cb: (value: CastStatus) -> Unit) {
+        castStatusListeners.remove(cb)
     }
 
     override fun addOnEndListener(cb: () -> Unit) {

@@ -15,7 +15,7 @@ export const OmniProvider = ({
 	source,
 	backend = { android: "vlc" },
 	showNotification = false,
-	cast: _,
+	cast,
 }: {
 	source?: Source;
 	cast?: CastOptions;
@@ -24,7 +24,7 @@ export const OmniProvider = ({
 	showNotification?: boolean;
 }) => {
 	const player = useLazyRef(() =>
-		ProviderFactory.createPlayer(source, backend),
+		ProviderFactory.createPlayer(source, backend, cast),
 	);
 
 	useEffect(() => {

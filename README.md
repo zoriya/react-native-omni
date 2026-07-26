@@ -12,6 +12,7 @@ videojs v10 on the web (ios not implemented yet, PR welcome)
   tracks at runtime.
 - **Rich subtitle support**: vtt, srt, ass (via [jassub](https://github.com/ThaUnknown/jassub)) and pgs (via [libpgs](https://github.com/Arcus92/libpgs-js))
 - **Picture-in-Picture**: enter PiP automatically or on demand on Android.
+- **Chromecast**: cast to a receiver on both web and Android .
 - **and basic player stuff**: media sessions, playlists, hook based api...
 
 
@@ -41,6 +42,7 @@ The plugin will:
 - Enable Picture-in-Picture on your `MainActivity` (declares
   `supportsPictureInPicture`, adds the required `configChanges`, and hooks the
   pip lifecycle callbacks).
+- Register omni's Chromecast `OptionsProvider` 
 
 If you are not using Expo, replicate those manifest/activity changes manually.
 

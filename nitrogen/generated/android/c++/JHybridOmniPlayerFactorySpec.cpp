@@ -23,6 +23,8 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 namespace margelo::nitro::omni { struct PlayerBackend; }
 // Forward declaration of `AndroidBackend` to properly resolve imports.
 namespace margelo::nitro::omni { enum class AndroidBackend; }
+// Forward declaration of `CastOptions` to properly resolve imports.
+namespace margelo::nitro::omni { struct CastOptions; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
@@ -45,6 +47,8 @@ namespace margelo::nitro::omni { enum class AndroidBackend; }
 #include "JPlayerBackend.hpp"
 #include "AndroidBackend.hpp"
 #include "JAndroidBackend.hpp"
+#include "CastOptions.hpp"
+#include "JCastOptions.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -79,9 +83,9 @@ namespace margelo::nitro::omni {
   
 
   // Methods
-  std::shared_ptr<HybridOmniPlayerSpec> JHybridOmniPlayerFactorySpec::createPlayer(const std::optional<Source>& props, const std::optional<PlayerBackend>& backend) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>(jni::alias_ref<JSource> /* props */, jni::alias_ref<JPlayerBackend> /* backend */)>("createPlayer");
-    auto __result = method(_javaPart, props.has_value() ? JSource::fromCpp(props.value()) : nullptr, backend.has_value() ? JPlayerBackend::fromCpp(backend.value()) : nullptr);
+  std::shared_ptr<HybridOmniPlayerSpec> JHybridOmniPlayerFactorySpec::createPlayer(const std::optional<Source>& props, const std::optional<PlayerBackend>& backend, const std::optional<CastOptions>& cast) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>(jni::alias_ref<JSource> /* props */, jni::alias_ref<JPlayerBackend> /* backend */, jni::alias_ref<JCastOptions> /* cast */)>("createPlayer");
+    auto __result = method(_javaPart, props.has_value() ? JSource::fromCpp(props.value()) : nullptr, backend.has_value() ? JPlayerBackend::fromCpp(backend.value()) : nullptr, cast.has_value() ? JCastOptions::fromCpp(cast.value()) : nullptr);
     return __result->getJHybridOmniPlayerSpec();
   }
 

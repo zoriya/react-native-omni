@@ -138,10 +138,10 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
-        boundPlayer?.player?.removeListener(this)
+        boundPlayer?.localPlayer?.removeListener(this)
         boundPlayer?.setSurface(null)
         boundPlayer = omniPlayer
-        omniPlayer.player.addListener(this)
+        omniPlayer.localPlayer.addListener(this)
 
         if (surfaceReady) {
             omniPlayer.setSurface(surfaceView.holder)
@@ -163,7 +163,7 @@ class OmniView(val context: ThemedReactContext) :
         if (!::player.isInitialized) return
 
         val omniPlayer = player as? OmniPlayer ?: return
-        boundPlayer?.player?.removeListener(this)
+        boundPlayer?.localPlayer?.removeListener(this)
         omniPlayer.setSurface(null)
         boundPlayer = null
     }

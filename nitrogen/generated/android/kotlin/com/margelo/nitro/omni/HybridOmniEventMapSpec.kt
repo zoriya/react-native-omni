@@ -82,6 +82,24 @@ abstract class HybridOmniEventMapSpec: HybridObject() {
     return __result
   }
   
+  abstract fun addCastStatusListener(cb: (value: CastStatus) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addCastStatusListener_cxx(cb: Func_void_CastStatus): Unit {
+    val __result = addCastStatusListener(cb)
+    return __result
+  }
+  
+  abstract fun removeCastStatusListener(cb: (value: CastStatus) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun removeCastStatusListener_cxx(cb: Func_void_CastStatus): Unit {
+    val __result = removeCastStatusListener(cb)
+    return __result
+  }
+  
   abstract fun addOnEndListener(cb: () -> Unit): Unit
   
   @DoNotStrip

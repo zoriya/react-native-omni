@@ -19,6 +19,8 @@ namespace margelo::nitro::omni { enum class NumberProperty; }
 namespace margelo::nitro::omni { enum class BoolProperty; }
 // Forward declaration of `PlayerStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class PlayerStatus; }
+// Forward declaration of `CastStatus` to properly resolve imports.
+namespace margelo::nitro::omni { enum class CastStatus; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -28,6 +30,7 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include <functional>
 #include "BoolProperty.hpp"
 #include "PlayerStatus.hpp"
+#include "CastStatus.hpp"
 #include <string>
 #include "Track.hpp"
 #include <optional>
@@ -70,6 +73,8 @@ namespace margelo::nitro::omni {
       virtual void removeStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) = 0;
       virtual void addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
       virtual void removePlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
+      virtual void addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
+      virtual void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
       virtual void addOnEndListener(const std::function<void()>& cb) = 0;
       virtual void removeOnEndListener(const std::function<void()>& cb) = 0;
       virtual void addOnPrevListener(const std::function<void()>& cb) = 0;

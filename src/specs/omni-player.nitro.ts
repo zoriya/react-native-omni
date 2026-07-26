@@ -1,12 +1,13 @@
 import type { HybridObject } from "react-native-nitro-modules";
 import type { OmniEvents } from "../types/events";
 import type {
+	CastStatus,
 	OmniPlayerState,
 	OmniPlayer as OmniPlayerT,
 	PlayerBackend,
 	PlayerStatus,
 } from "../types/player";
-import type { Source } from "../types/source";
+import type { CastOptions, Source } from "../types/source";
 
 export type NumberProperty = Exclude<
 	keyof OmniPlayerState,
@@ -24,6 +25,9 @@ export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 	): void;
 	addPlayerStatusListener(cb: (value: PlayerStatus) => void): void;
 	removePlayerStatusListener(cb: (value: PlayerStatus) => void): void;
+
+	addCastStatusListener(cb: (value: CastStatus) => void): void;
+	removeCastStatusListener(cb: (value: CastStatus) => void): void;
 
 	addOnEndListener(cb: OmniEvents["end"]): void;
 	removeOnEndListener(cb: OmniEvents["end"]): void;
@@ -60,5 +64,9 @@ export interface OmniPlayer
 }
 
 export interface OmniPlayerFactory extends HybridObject<{ android: "kotlin" }> {
-	createPlayer(props?: Source, backend?: PlayerBackend): OmniPlayer;
+	createPlayer(
+		props?: Source,
+		backend?: PlayerBackend,
+		cast?: CastOptions,
+	): OmniPlayer;
 }

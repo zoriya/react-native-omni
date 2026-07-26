@@ -32,21 +32,32 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem.RequestMetadata
 import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.cast.CastPlayer
+import androidx.media3.cast.RemoteCastPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.mediarouter.app.MediaRouteChooserDialog
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastState
+import com.google.android.gms.cast.framework.CastStateListener
+import com.margelo.nitro.omni.CastOptions
 import dev.zoriya.omni.utils.ThreadHelper.mainThreadProperty
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
+import org.json.JSONObject
 
 @SuppressLint("UnsafeOptInUsageError")
-class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : HybridOmniPlayerSpec() {
+class OmniPlayer(
+    private val backend: AndroidBackend = AndroidBackend.VLC,
+    castOptions: CastOptions? = null,
+) : HybridOmniPlayerSpec() {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
 
     // exoplayer only, used to specify request headers.
     private var httpDataSourceFactory: DefaultHttpDataSource.Factory? = null
 
-    val player: Player = runOnMainThreadSync {
+    val localPlayer: Player = runOnMainThreadSync {
         when (backend) {
             AndroidBackend.EXOPLAYER -> {
                 val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
@@ -61,7 +72,37 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
             AndroidBackend.VLC -> VlcPlayer(ctx)
         }
     }
-    override val eventMap = EventMap(player)
+    override val eventMap = EventMap()
+
+    private var castContext: CastContext? = null
+    private val castStateListener =
+        CastStateListener { eventMap.emitCastStatus(computeCastStatus()) }
+
+    val player: Player = runOnMainThreadSync {
+        castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
+        val cc = try {
+            CastContext.getSharedInstance(ctx)
+        } catch (_: Throwable) {
+            // No Google Play Services / Cast SDK -> casting unsupported.
+            null
+        }
+        castContext = cc
+        val active = if (cc == null) {
+            localPlayer
+        } else {
+            cc.addCastStateListener(castStateListener)
+            val remote = RemoteCastPlayer.Builder(ctx)
+                .setMediaItemConverter(OmniMediaItemConverter())
+                .setTrackSelector(OmniCastTrackSelector())
+                .build()
+            CastPlayer.Builder(ctx)
+                .setLocalPlayer(localPlayer)
+                .setRemotePlayer(remote)
+                .build()
+        }
+        eventMap.player = active
+        active
+    }
 
     override var showNotification: Boolean? = false
         set(value) {
@@ -69,20 +110,41 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
                 if (notificationPlayer != null && notificationPlayer?.isPlaying == true) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
-                notificationPlayer = player
+                notificationPlayer = localPlayer
                 ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
-            } else if (field == true && notificationPlayer == player) {
+            } else if (field == true && notificationPlayer == localPlayer) {
                 ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
                 notificationPlayer = null
             }
             field = value
         }
 
-    // TODO: cast is not implemented on the native (Android) side yet.
-    override val castStatus: CastStatus get() = CastStatus.UNSUPPORTED
+    override val castStatus: CastStatus
+        get() = runOnMainThreadSync { computeCastStatus() }
+
+    private fun computeCastStatus(): CastStatus {
+        val cc = castContext ?: return CastStatus.UNSUPPORTED
+        return when (cc.castState) {
+            CastState.NO_DEVICES_AVAILABLE -> CastStatus.UNAVAILABLE
+            CastState.NOT_CONNECTED -> CastStatus.AVAILABLE
+            CastState.CONNECTING -> CastStatus.CONNECTING
+            CastState.CONNECTED -> CastStatus.CONNECTED
+            else -> CastStatus.UNAVAILABLE
+        }
+    }
 
     override fun toggleCastStatus() {
-        // TODO: implement casting on Android.
+        runOnMainThread {
+            val cc = castContext ?: return@runOnMainThread
+            val session = cc.sessionManager.currentCastSession
+            if (session != null && session.isConnected) {
+                cc.sessionManager.endCurrentSession(true)
+                return@runOnMainThread
+            }
+            val activity = ctx.currentActivity ?: return@runOnMainThread
+            val selector = cc.mergedSelector ?: return@runOnMainThread
+            MediaRouteChooserDialog(activity).apply { routeSelector = selector }.show()
+        }
     }
 
     override fun dispose() {
@@ -90,18 +152,20 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
         super.dispose()
 
         eventMap.dispose()
-        runOnMainThread { player.release() }
+        runOnMainThread {
+            castContext?.removeCastStateListener(castStateListener)
+            // release both cast and local players.
+            player.release()
+        }
     }
 
     private fun buildMediaItem(
         src: com.margelo.nitro.omni.VideoSrc,
         metadata: com.margelo.nitro.omni.Metadata?,
-        subtitles: Array<com.margelo.nitro.omni.Subtitle>
+        subtitles: Array<com.margelo.nitro.omni.Subtitle>,
+        castId: String? = null,
+        castData: Map<String, String>? = null,
     ): MediaItem {
-        // vlc only path (and it only supports a few headers :c)
-        val extras = if (src.headers.isEmpty()) null else Bundle(src.headers.size).apply {
-            for ((name, value) in src.headers) putString(name, value)
-        }
         return MediaItem.Builder()
             .setUri(src.uri)
             .setMimeType(src.mimeType)
@@ -126,7 +190,16 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
             .setRequestMetadata(
                 RequestMetadata.Builder()
                     .setMediaUri(src.uri.toUri())
-                    .apply { extras?.let { setExtras(it) } }
+                    .setExtras(
+                        Bundle().apply {
+                            castId?.let { putString(CAST_ID_EXTRA, it) }
+                            castData?.let { data ->
+                                putString(CAST_DATA_EXTRA, JSONObject(data as Map<*, *>).toString())
+                            }
+                            // vlc only path (and it only supports a few headers :c).
+                            for ((name, value) in src.headers) putString(name, value)
+                        }
+                    )
                     .build()
             )
             .build()
@@ -135,9 +208,9 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
     fun setSurface(holder: SurfaceHolder?) {
         runOnMainThread {
             if (holder == null) {
-                player.clearVideoSurface()
+                localPlayer.clearVideoSurface()
             } else {
-                player.setVideoSurfaceHolder(holder)
+                localPlayer.setVideoSurfaceHolder(holder)
             }
         }
     }
@@ -211,7 +284,9 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                 .build()
-            runOnMainThread { player.setAudioAttributes(audioAttributes, handleAudioFocus) }
+            // audio focus only makes sense locally. not in a cast session
+            runOnMainThread { localPlayer.setAudioAttributes(audioAttributes, handleAudioFocus) }
+
             val firstSrc = value.src.firstOrNull()
             if (firstSrc == null) {
                 runOnMainThreadSync {
@@ -220,25 +295,23 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
                 }
                 return
             }
-
             httpDataSourceFactory?.setDefaultRequestProperties(firstSrc.headers)
 
-            val currentItem = buildMediaItem(firstSrc, value.metadata, value.subtitles)
+            val currentItem = buildMediaItem(
+                firstSrc,
+                value.metadata,
+                value.subtitles,
+                value.castId,
+                value.castData,
+            )
             val mediaItems = mutableListOf<MediaItem>()
-
-            if (value.metadata?.hasPrev == true) {
-                mediaItems.add(currentItem)
-            }
-
+            if (value.metadata?.hasPrev == true) mediaItems.add(currentItem)
             mediaItems.add(currentItem)
-
-            if (value.metadata?.hasNext == true) {
-                mediaItems.add(currentItem)
-            }
+            if (value.metadata?.hasNext == true) mediaItems.add(currentItem)
 
             runOnMainThreadSync {
                 val startIndex = if (value.metadata?.hasPrev == true) 1 else 0
-                val startPositionMs = (value.startTime?.coerceAtLeast(0.0) ?: 0.0) * 1000.0
+                val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
                 player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
                 player.prepare()
             }
@@ -288,8 +361,23 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
     }
 
     override fun selectSubtitle(subtitle: Track?) {
+        // Custom (ASS/PGS) subtitles can't be rendered by the cast receiver's
+        // native pipeline, so while casting they are forwarded over omni's
+        // message channel (the receiver draws them as an overlay). This mirrors
+        // the web behavior.
+        val custom = subtitle?.let { track ->
+            source?.subtitles?.firstOrNull { it.id == track.id }?.let { sub ->
+                val mime = sub.mimeType?.lowercase() ?: ""
+                val ext = sub.link.substringBefore('?').substringBefore('#')
+                    .substringAfterLast('.', "").lowercase()
+                mime.contains("ass") || mime.contains("ssa") || mime.contains("pgs") ||
+                        ext == "ass" || ext == "ssa" || ext == "sup"
+            }
+        } ?: false
         runOnMainThreadSync {
-            if (subtitle == null) {
+            val session = castContext?.sessionManager?.currentCastSession
+            val casting = session?.isConnected == true
+            if (subtitle == null || (custom && casting)) {
                 player.trackSelectionParameters = player.trackSelectionParameters
                     .buildUpon()
                     .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
@@ -301,6 +389,15 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
                     .setPreferredTextLanguage(subtitle.language)
                     .setPreferredTextLabels(*(subtitle.label?.let { arrayOf(it) } ?: emptyArray()))
                     .build()
+            }
+            if (casting) {
+                val id = if (custom) subtitle?.id else null
+                val payload = JSONObject().apply { put("subtitle", id ?: JSONObject.NULL) }
+                try {
+                    session?.sendMessage(CAST_MESSAGE_NAMESPACE, payload.toString())
+                } catch (_: Throwable) {
+                    // best effort; receiver may not support the namespace.
+                }
             }
         }
     }
@@ -383,6 +480,18 @@ class OmniPlayer(private val backend: AndroidBackend = AndroidBackend.VLC) : Hyb
 
     companion object {
         var notificationPlayer: Player? = null
+
+        // Cast custom-message channel (shared with the web receiver) used to
+        // forward overlay (ASS/PGS) subtitle selection to the receiver.
+        const val CAST_MESSAGE_NAMESPACE = "urn:x-cast:dev.zoriya.omni"
+
+        // MediaItem RequestMetadata extras keys carrying cast-only data.
+        const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
+        const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
+
+        // Receiver application id passed at runtime via OmniProvider's `cast`
+        // prop; read by OmniCastOptionsProvider when the Cast SDK initializes.
+        var receiverApplicationId: String? = null
     }
 }
 

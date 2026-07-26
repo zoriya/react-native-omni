@@ -53,8 +53,8 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 				em.addPlayerStatusListener(setState);
 				return () => em.removePlayerStatusListener(setState);
 			case "castStatus":
-				// TODO: implement this
-				return;
+				em.addCastStatusListener(setState);
+				return () => em.removeCastStatusListener(setState);
 		}
 	}, [player, key]);
 

@@ -30,7 +30,7 @@ abstract class HybridOmniPlayerFactorySpec: HybridObject() {
   // Methods
   @DoNotStrip
   @Keep
-  abstract fun createPlayer(props: Source?, backend: PlayerBackend?): HybridOmniPlayerSpec
+  abstract fun createPlayer(props: Source?, backend: PlayerBackend?, cast: CastOptions?): HybridOmniPlayerSpec
 
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {
