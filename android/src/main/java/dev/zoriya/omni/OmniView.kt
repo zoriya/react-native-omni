@@ -185,7 +185,10 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
-        if (boundPlayer == null || boundPlayer?.localPlayer?.isPlaying != true) {
+        if (boundPlayer == null ||
+            boundPlayer?.localPlayer?.isPlaying != true ||
+            boundPlayer?.isCasting == true
+        ) {
             return
         }
 
@@ -219,7 +222,8 @@ class OmniView(val context: ThemedReactContext) :
         val autoEnterEnabled =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             autoPip == true &&
-            boundPlayer?.localPlayer?.isPlaying == true
+            boundPlayer?.localPlayer?.isPlaying == true &&
+            boundPlayer?.isCasting != true
         activity.setPictureInPictureParams(buildPipParams(autoEnterEnabled))
     }
 

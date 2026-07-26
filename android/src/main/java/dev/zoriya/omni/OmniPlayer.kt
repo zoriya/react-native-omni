@@ -124,6 +124,9 @@ class OmniPlayer(
     override val castStatus: CastStatus
         get() = runOnMainThreadSync { computeCastStatus() }
 
+    val isCasting: Boolean
+        get() = castContext?.sessionManager?.currentCastSession?.isConnected == true
+
     private fun computeCastStatus(): CastStatus {
         val cc = castContext ?: return CastStatus.UNSUPPORTED
         return when (cc.castState) {
