@@ -110,7 +110,7 @@ function Player() {
 
 export default function App() {
   const source = {
-    src: [{ uri: "https://example.com/stream.m3u8", headers: {} }],
+    src: { uri: "https://example.com/stream.m3u8", headers: {} },
     subtitles: [],
     metadata: { title: "My video", hasPrev: false, hasNext: true },
   };

@@ -42,8 +42,8 @@ namespace margelo::nitro::omni {
     [[nodiscard]]
     Source toCpp() const {
       static const auto clazz = javaClassStatic();
-      static const auto fieldSrc = clazz->getField<jni::JArrayClass<JVideoSrc>>("src");
-      jni::local_ref<jni::JArrayClass<JVideoSrc>> src = this->getFieldValue(fieldSrc);
+      static const auto fieldSrc = clazz->getField<JVideoSrc>("src");
+      jni::local_ref<JVideoSrc> src = this->getFieldValue(fieldSrc);
       static const auto fieldStartTime = clazz->getField<jni::JDouble>("startTime");
       jni::local_ref<jni::JDouble> startTime = this->getFieldValue(fieldStartTime);
       static const auto fieldSubtitles = clazz->getField<jni::JArrayClass<JSubtitle>>("subtitles");
@@ -59,16 +59,7 @@ namespace margelo::nitro::omni {
       static const auto fieldCastData = clazz->getField<jni::JMap<jni::JString, jni::JString>>("castData");
       jni::local_ref<jni::JMap<jni::JString, jni::JString>> castData = this->getFieldValue(fieldCastData);
       return Source(
-        [&](auto&& __input) {
-          size_t __size = __input->size();
-          std::vector<VideoSrc> __vector;
-          __vector.reserve(__size);
-          for (size_t __i = 0; __i < __size; __i++) {
-            auto __element = __input->getElement(__i);
-            __vector.push_back(__element->toCpp());
-          }
-          return __vector;
-        }(src),
+        src->toCpp(),
         startTime != nullptr ? std::make_optional(startTime->value()) : std::nullopt,
         [&](auto&& __input) {
           size_t __size = __input->size();
@@ -110,21 +101,12 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JSource::javaobject> fromCpp(const Source& value) {
-      using JSignature = JSource(jni::alias_ref<jni::JArrayClass<JVideoSrc>>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>);
+      using JSignature = JSource(jni::alias_ref<JVideoSrc>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JSubtitle>>, jni::alias_ref<jni::JArrayClass<jni::JString>>, jni::alias_ref<JMetadata>, jni::alias_ref<JMixAudioMode>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
-        [&](auto&& __input) {
-          size_t __size = __input.size();
-          jni::local_ref<jni::JArrayClass<JVideoSrc>> __array = jni::JArrayClass<JVideoSrc>::newArray(__size);
-          for (size_t __i = 0; __i < __size; __i++) {
-            const auto& __element = __input[__i];
-            auto __elementJni = JVideoSrc::fromCpp(__element);
-            __array->setElement(__i, *__elementJni);
-          }
-          return __array;
-        }(value.src),
+        JVideoSrc::fromCpp(value.src),
         value.startTime.has_value() ? jni::JDouble::valueOf(value.startTime.value()) : nullptr,
         [&](auto&& __input) {
           size_t __size = __input.size();

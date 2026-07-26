@@ -38,9 +38,9 @@ namespace margelo::nitro::omni { struct Metadata; }
 namespace margelo::nitro::omni { enum class MixAudioMode; }
 
 #include "VideoSrc.hpp"
-#include <vector>
 #include <optional>
 #include "Subtitle.hpp"
+#include <vector>
 #include <string>
 #include "Metadata.hpp"
 #include "MixAudioMode.hpp"
@@ -53,7 +53,7 @@ namespace margelo::nitro::omni {
    */
   struct Source final {
   public:
-    std::vector<VideoSrc> src     SWIFT_PRIVATE;
+    VideoSrc src     SWIFT_PRIVATE;
     std::optional<double> startTime     SWIFT_PRIVATE;
     std::vector<Subtitle> subtitles     SWIFT_PRIVATE;
     std::optional<std::vector<std::string>> fonts     SWIFT_PRIVATE;
@@ -64,7 +64,7 @@ namespace margelo::nitro::omni {
 
   public:
     Source() = default;
-    explicit Source(std::vector<VideoSrc> src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<std::vector<std::string>> fonts, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio, std::optional<std::string> castId, std::optional<std::unordered_map<std::string, std::string>> castData): src(src), startTime(startTime), subtitles(subtitles), fonts(fonts), metadata(metadata), mixAudio(mixAudio), castId(castId), castData(castData) {}
+    explicit Source(VideoSrc src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<std::vector<std::string>> fonts, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio, std::optional<std::string> castId, std::optional<std::unordered_map<std::string, std::string>> castData): src(src), startTime(startTime), subtitles(subtitles), fonts(fonts), metadata(metadata), mixAudio(mixAudio), castId(castId), castData(castData) {}
 
   public:
     friend bool operator==(const Source& lhs, const Source& rhs) = default;
@@ -80,7 +80,7 @@ namespace margelo::nitro {
     static inline margelo::nitro::omni::Source fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::omni::Source(
-        JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src"))),
+        JSIConverter<margelo::nitro::omni::VideoSrc>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime"))),
         JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles"))),
         JSIConverter<std::optional<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "fonts"))),
@@ -92,7 +92,7 @@ namespace margelo::nitro {
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Source& arg) {
       jsi::Object obj(runtime);
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "src"), JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::toJSI(runtime, arg.src));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "src"), JSIConverter<margelo::nitro::omni::VideoSrc>::toJSI(runtime, arg.src));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "startTime"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.startTime));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "subtitles"), JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::toJSI(runtime, arg.subtitles));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "fonts"), JSIConverter<std::optional<std::vector<std::string>>>::toJSI(runtime, arg.fonts));
@@ -110,7 +110,7 @@ namespace margelo::nitro {
       if (!nitro::isPlainObject(runtime, obj)) {
         return false;
       }
-      if (!JSIConverter<std::vector<margelo::nitro::omni::VideoSrc>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src")))) return false;
+      if (!JSIConverter<margelo::nitro::omni::VideoSrc>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "src")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::omni::Subtitle>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subtitles")))) return false;
       if (!JSIConverter<std::optional<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "fonts")))) return false;

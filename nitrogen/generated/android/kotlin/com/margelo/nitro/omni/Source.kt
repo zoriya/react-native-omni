@@ -20,7 +20,7 @@ import java.util.Objects
 data class Source(
   @DoNotStrip
   @Keep
-  val src: Array<VideoSrc>,
+  val src: VideoSrc,
   @DoNotStrip
   @Keep
   val startTime: Double?,
@@ -79,7 +79,7 @@ data class Source(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(src: Array<VideoSrc>, startTime: Double?, subtitles: Array<Subtitle>, fonts: Array<String>?, metadata: Metadata?, mixAudio: MixAudioMode?, castId: String?, castData: Map<String, String>?): Source {
+    private fun fromCpp(src: VideoSrc, startTime: Double?, subtitles: Array<Subtitle>, fonts: Array<String>?, metadata: Metadata?, mixAudio: MixAudioMode?, castId: String?, castData: Map<String, String>?): Source {
       return Source(src, startTime, subtitles, fonts, metadata, mixAudio, castId, castData)
     }
   }

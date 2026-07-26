@@ -290,18 +290,11 @@ class OmniPlayer(
             // audio focus only makes sense locally. not in a cast session
             runOnMainThread { localPlayer.setAudioAttributes(audioAttributes, handleAudioFocus) }
 
-            val firstSrc = value.src.firstOrNull()
-            if (firstSrc == null) {
-                runOnMainThreadSync {
-                    player.setMediaItem(MediaItem.EMPTY)
-                    player.prepare()
-                }
-                return
-            }
-            httpDataSourceFactory?.setDefaultRequestProperties(firstSrc.headers)
+            val src = value.src
+            httpDataSourceFactory?.setDefaultRequestProperties(src.headers)
 
             val currentItem = buildMediaItem(
-                firstSrc,
+                src,
                 value.metadata,
                 value.subtitles,
                 value.castId,

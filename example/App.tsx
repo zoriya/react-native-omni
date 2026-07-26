@@ -528,12 +528,10 @@ function App(): React.JSX.Element {
 
 	const source = useMemo(
 		() => ({
-			src: [
-				{
-					uri: PLAYLIST[currentIndex].uri,
-					headers: {},
-				},
-			],
+			src: {
+				uri: PLAYLIST[currentIndex].uri,
+				headers: {},
+			},
 			subtitles: [
 				{
 					id: "kusu",

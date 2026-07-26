@@ -114,7 +114,7 @@ export const OmniView = ({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const ref = useRef<HTMLVideoElement>(undefined!);
 
-	const src = player.source?.src[0];
+	const src = player.source?.src;
 	const isHls =
 		src?.mimeType?.toLowerCase().includes("mpegurl") ||
 		src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||

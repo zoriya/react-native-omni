@@ -60,7 +60,7 @@ const PlayerInitializer = ({
 
 	useEffect(() => {
 		player.source = source;
-		const uri = source?.src[0]?.uri;
+		const uri = source?.src?.uri;
 		if (uri !== seekedForSrc.current) {
 			seekedForSrc.current = uri;
 			if (source?.startTime) store.seek(source.startTime);

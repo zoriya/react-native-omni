@@ -35,11 +35,11 @@ namespace margelo::nitro::omni { enum class CastStatus; }
 #include "Source.hpp"
 #include "JSource.hpp"
 #include "VideoSrc.hpp"
-#include <vector>
 #include "JVideoSrc.hpp"
 #include <string>
 #include <unordered_map>
 #include "Subtitle.hpp"
+#include <vector>
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"
