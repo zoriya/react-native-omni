@@ -125,6 +125,7 @@ class OmniView(val context: ThemedReactContext) :
 
             autoPip == false && curPip == this -> {
                 activeView = WeakReference(null)
+                clearPictureInPictureParams()
             }
         }
 
@@ -156,6 +157,7 @@ class OmniView(val context: ThemedReactContext) :
         restoreUiAfterPip()
         if (activeView.get() == this) {
             activeView = WeakReference(null)
+            clearPictureInPictureParams()
         }
         surfaceView.removeOnLayoutChangeListener(this)
         context.removeLifecycleEventListener(this)
@@ -220,6 +222,21 @@ class OmniView(val context: ThemedReactContext) :
             autoPip == true &&
             boundPlayer?.isPlaying == true
         activity.setPictureInPictureParams(buildPipParams(autoEnterEnabled))
+    }
+
+    private fun clearPictureInPictureParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return
+        }
+        val activity = context.currentActivity ?: return
+        if (activity.isFinishing || activity.isDestroyed) {
+            return
+        }
+        activity.setPictureInPictureParams(
+            PictureInPictureParams.Builder()
+                .setAutoEnterEnabled(false)
+                .build()
+        )
     }
 
     private fun buildPipParams(autoEnterEnabled: Boolean): PictureInPictureParams {
