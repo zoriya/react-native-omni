@@ -56,6 +56,12 @@ class OmniCastTrackSelector : CastTrackSelector() {
         indices.forEach { selections.remove(groups[it]) }
         if (disabled) return
 
+        // An explicit override selects an exact track by identity; this wins over
+        // language/label matching, which can't disambiguate same-language tracks.
+        val overrides = request.trackSelectionParameters.overrides
+        val overrideMatch = indices.firstOrNull { i ->
+            overrides.keys.any { it.id == groups[i].id }
+        }
         val match = indices.firstOrNull { i ->
             val name: String? = tracks[i].name
             val language: String? = tracks[i].language
@@ -64,6 +70,7 @@ class OmniCastTrackSelector : CastTrackSelector() {
                     Util.normalizeLanguageCode(language) in languages)
         }
         val chosen = when {
+            overrideMatch != null -> overrideMatch
             match != null -> match
             previous.isNotEmpty() -> previous.first()
             selectDefault -> indices.first()

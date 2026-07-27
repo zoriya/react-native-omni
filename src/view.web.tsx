@@ -10,11 +10,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { usePlayerState } from "./events";
-import {
-	getSubtitleFormat,
-	isCustomSubtitle,
-	type WebOmniPlayer,
-} from "./player.web";
+import { getSubtitleFormat, type WebOmniPlayer } from "./player.web";
 import { usePlayer, VideoPlayer } from "./provider.web";
 import type { SubtitleAssets } from "./types/subtitles";
 import type { OmniViewProps } from "./types/view";
@@ -165,18 +161,16 @@ export const OmniView = ({
 					crossOrigin="anonymous"
 					style={{ width: "100%", height: "100%", objectFit: "contain" }}
 				>
-					{(player.source?.subtitles ?? [])
-						.filter((subtitle) => !isCustomSubtitle(subtitle))
-						.map((subtitle) => (
-							<track
-								key={subtitle.id}
-								id={subtitle.id}
-								kind="subtitles"
-								src={subtitle.link}
-								srcLang={subtitle.language}
-								label={subtitle.label ?? subtitle.language ?? subtitle.id}
-							/>
-						))}
+					{(player.source?.subtitles ?? []).map((subtitle) => (
+						<track
+							key={subtitle.id}
+							id={subtitle.id}
+							kind="subtitles"
+							src={subtitle.link}
+							srcLang={subtitle.language}
+							label={subtitle.label ?? subtitle.language ?? subtitle.id}
+						/>
+					))}
 				</Tech>
 			)}
 			{castStatus !== "connected" && castStatus !== "connecting" && (

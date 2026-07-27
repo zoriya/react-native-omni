@@ -37,6 +37,9 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
+import androidx.mediarouter.media.MediaRouteSelector
+import androidx.mediarouter.media.MediaRouter
+import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.cast.framework.CastStateListener
@@ -77,6 +80,14 @@ class OmniPlayer(
     private val castStateListener =
         CastStateListener { eventMap.emitCastStatus(computeCastStatus()) }
 
+    // Without a MediaRouteButton the Cast SDK never actively scans, so
+    // CastContext.castState stays NO_DEVICES_AVAILABLE (reported as
+    // "unavailable") even when receivers are on the network. Hold an active
+    // discovery request so castState reflects real availability. MediaRouter
+    // must only be touched on the main thread.
+    private var mediaRouter: MediaRouter? = null
+    private val mediaRouterCallback = object : MediaRouter.Callback() {}
+
     val player: Player = runOnMainThreadSync {
         castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
         val cc = try {
@@ -90,6 +101,21 @@ class OmniPlayer(
             localPlayer
         } else {
             cc.addCastStateListener(castStateListener)
+            // Build the discovery selector from the receiver app id directly
+            // (cc.mergedSelector can be null this early), then keep an active
+            // discovery request so castState reflects real availability.
+            val appId = receiverApplicationId
+                ?: CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
+            val selector = cc.mergedSelector ?: MediaRouteSelector.Builder()
+                .addControlCategory(CastMediaControlIntent.categoryForCast(appId))
+                .build()
+            val router = MediaRouter.getInstance(ctx)
+            router.addCallback(
+                selector,
+                mediaRouterCallback,
+                MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY,
+            )
+            mediaRouter = router
             val remote = RemoteCastPlayer.Builder(ctx)
                 .setMediaItemConverter(OmniMediaItemConverter())
                 .setTrackSelector(OmniCastTrackSelector())
@@ -159,6 +185,7 @@ class OmniPlayer(
         eventMap.dispose()
         runOnMainThread {
             castContext?.removeCastStateListener(castStateListener)
+            mediaRouter?.removeCallback(mediaRouterCallback)
             // release both cast and local players.
             player.release()
         }
@@ -361,57 +388,45 @@ class OmniPlayer(
         }
     }
 
-    override fun selectAudio(audio: Track) {
+    override fun selectAudio(audio: Track) = selectTrack(C.TRACK_TYPE_AUDIO, audio)
+
+    // Select the exact track by its group id (stable identity) rather than by
+    // preferred language/label: two same-language tracks, or tracks whose labels
+    // don't survive the cast round-trip, can't be told apart by preference. Falls
+    // back to language/label only when the group can't be found yet.
+    private fun selectTrack(type: Int, track: Track?) {
         runOnMainThreadSync {
-            player.trackSelectionParameters = player.trackSelectionParameters
-                .buildUpon()
-                .setPreferredAudioLanguage(audio.language)
-                .setPreferredAudioLabels(*(audio.label?.let { arrayOf(it) } ?: emptyArray()))
-                .build()
+            val params = player.trackSelectionParameters.buildUpon()
+                .clearOverridesOfType(type)
+            if (track == null) {
+                params.setTrackTypeDisabled(type, true)
+            } else {
+                params.setTrackTypeDisabled(type, false)
+                val group = player.currentTracks.groups.firstOrNull {
+                    it.type == type && it.mediaTrackGroup.id == track.id
+                }?.mediaTrackGroup
+                if (group != null) {
+                    params.setOverrideForType(TrackSelectionOverride(group, 0))
+                } else {
+                    val labels = track.label?.let { arrayOf(it) } ?: emptyArray()
+                    if (type == C.TRACK_TYPE_AUDIO) {
+                        params.setPreferredAudioLanguage(track.language)
+                            .setPreferredAudioLabels(*labels)
+                    } else {
+                        params.setPreferredTextLanguage(track.language)
+                            .setPreferredTextLabels(*labels)
+                    }
+                }
+            }
+            player.trackSelectionParameters = params.build()
         }
     }
 
-    override fun selectSubtitle(subtitle: Track?) {
-        // Custom (ASS/PGS) subtitles can't be rendered by the cast receiver's
-        // native pipeline, so while casting they are forwarded over omni's
-        // message channel (the receiver draws them as an overlay). This mirrors
-        // the web behavior.
-        val custom = subtitle?.let { track ->
-            source?.subtitles?.firstOrNull { it.id == track.id }?.let { sub ->
-                val mime = sub.mimeType?.lowercase() ?: ""
-                val ext = sub.link.substringBefore('?').substringBefore('#')
-                    .substringAfterLast('.', "").lowercase()
-                mime.contains("ass") || mime.contains("ssa") || mime.contains("pgs") ||
-                        ext == "ass" || ext == "ssa" || ext == "sup"
-            }
-        } ?: false
-        runOnMainThreadSync {
-            val session = castContext?.sessionManager?.currentCastSession
-            val casting = session?.isConnected == true
-            if (subtitle == null || (custom && casting)) {
-                player.trackSelectionParameters = player.trackSelectionParameters
-                    .buildUpon()
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-                    .build()
-            } else {
-                player.trackSelectionParameters = player.trackSelectionParameters
-                    .buildUpon()
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-                    .setPreferredTextLanguage(subtitle.language)
-                    .setPreferredTextLabels(*(subtitle.label?.let { arrayOf(it) } ?: emptyArray()))
-                    .build()
-            }
-            if (casting) {
-                val id = if (custom) subtitle?.id else null
-                val payload = JSONObject().apply { put("subtitle", id ?: JSONObject.NULL) }
-                try {
-                    session?.sendMessage(CAST_MESSAGE_NAMESPACE, payload.toString())
-                } catch (_: Throwable) {
-                    // best effort; receiver may not support the namespace.
-                }
-            }
-        }
-    }
+    // ASS/PGS subtitles are declared as regular cast tracks; the receiver draws
+    // the ones it can't render natively, keyed off the active track id. Selection
+    // is uniform (see selectTrack): pick the exact track, which maps to
+    // activeTrackIds while casting and to native tracks locally.
+    override fun selectSubtitle(subtitle: Track?) = selectTrack(C.TRACK_TYPE_TEXT, subtitle)
 
     private fun tracksByType(trackType: Int): Array<Track> {
         val groups = player.currentTracks.groups.filter { it.type == trackType }
@@ -491,10 +506,6 @@ class OmniPlayer(
 
     companion object {
         var notificationPlayer: Player? = null
-
-        // Cast custom-message channel (shared with the web receiver) used to
-        // forward overlay (ASS/PGS) subtitle selection to the receiver.
-        const val CAST_MESSAGE_NAMESPACE = "urn:x-cast:dev.zoriya.omni"
 
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"

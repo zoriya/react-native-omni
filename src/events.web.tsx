@@ -126,27 +126,6 @@ export const useEvent = <Event extends keyof OmniEvents>(
 		}
 		return undefined;
 	}, [event, player]);
-
-	// ASS/PGS (overlay) subtitle selection is not a videojs text-track change, so
-	// re-fire subtitleChange when the overlay subtitle changes too — consumers
-	// only need useEvent("subtitleChange").
-	useEffect(() => {
-		if (event !== "subtitleChange") return;
-		return player.subscribeOverlaySubtitle(() => {
-			const sel = player.subtitles.find((s) => s.selected);
-			const cb = callbackRef.current as (s: unknown) => void;
-			cb(
-				sel
-					? {
-							id: sel.id,
-							label: sel.label,
-							language: sel.language,
-							selected: true,
-						}
-					: undefined,
-			);
-		});
-	}, [event, player]);
 };
 
 function createMapper<Key extends keyof OmniPlayerState, State, Result>(

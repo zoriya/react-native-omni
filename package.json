@@ -98,8 +98,5 @@
 				}
 			]
 		]
-	},
-	"patchedDependencies": {
-		"jassub@2.5.7": "patches/jassub@2.5.7.patch"
 	}
 }

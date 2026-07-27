@@ -216,8 +216,11 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get subtitles(): Track[] {
+		// Every subtitle (incl. ass/pgs) is a real text track now; the cast
+		// receiver draws the ones it can't render natively, keyed off the active
+		// track. So the text-track list already contains all of them.
 		const textTracks = selectTextTrack(this._store.state)?.textTrackList ?? [];
-		const native = textTracks
+		return textTracks
 			.filter((x) => x.kind === "subtitles" || x.kind === "captions")
 			.map((track) => ({
 				id: track.id!,
@@ -225,39 +228,19 @@ export class WebOmniPlayer implements OmniPlayer {
 				language: track.language,
 				selected: track.mode === "showing",
 			}));
-		const overlay = this.overlaySubtitles.map((sub) => ({
-			id: sub.id,
-			label: sub.label,
-			language: sub.language,
-			selected: this.overlaySubtitle?.id === sub.id,
-		}));
-		return [...native, ...overlay];
 	}
 
 	selectSubtitle(subtitle?: Track): void {
+		// Selecting a text track drives local playback and, while casting,
+		// video.js forwards it to the receiver as an active cast track. ass/pgs
+		// additionally need our local overlay since the browser can't render them.
+		const tracks = selectTextTrack(this._store.state);
+		tracks?.selectSubtitlesTrack(subtitle ? subtitle.id : "off");
+
 		const overlay = subtitle
 			? this.overlaySubtitles.find((s) => s.id === subtitle.id)
 			: undefined;
-
-		const tracks = selectTextTrack(this._store.state);
-		tracks?.selectSubtitlesTrack(overlay || !subtitle ? "off" : subtitle.id);
 		this.setOverlaySubtitle(overlay ?? null);
-
-		if (this.castStatus === "connected") {
-			window.cast.framework.CastContext.getInstance()
-				.getCurrentSession()
-				?.sendMessage("urn:x-cast:dev.zoriya.omni", {
-					subtitle: overlay?.id ?? null,
-				})
-				.catch(() => {});
-		}
-	}
-
-	// To be used on a callback of a chromecast session, it only changes the local state
-	applyRemoteSubtitle(id: string | null): void {
-		this.setOverlaySubtitle(
-			id ? (this.overlaySubtitles.find((s) => s.id === id) ?? null) : null,
-		);
 	}
 
 	private setOverlaySubtitle(sub: Subtitle | null): void {
