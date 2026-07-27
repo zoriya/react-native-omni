@@ -1,0 +1,64 @@
+import type { VideoPlayerStore } from "@videojs/core/dom";
+import type { CastStatus, OmniPlayer, PlayerStatus, Rendition, Track } from "./types/player";
+import type { CastOptions, Source, Subtitle } from "./types/source";
+export type SubtitleFormat = "vtt" | "ass" | "pgs" | "native";
+export declare const getSubtitleFormat: (subtitle: {
+    mimeType?: string;
+    link: string;
+}) => SubtitleFormat;
+export declare const isCustomSubtitle: (subtitle: {
+    mimeType?: string;
+    link: string;
+}) => boolean;
+export declare class WebOmniPlayer implements OmniPlayer {
+    _store: VideoPlayerStore;
+    onPrev: Set<() => void>;
+    onNext: Set<() => void>;
+    constructor(store: VideoPlayerStore);
+    get castStatus(): CastStatus;
+    toggleCastStatus(): void;
+    castOptions: CastOptions | null;
+    _source: Source | undefined;
+    private _showNotification;
+    private overlaySubtitle;
+    private overlayListeners;
+    get source(): Source | undefined;
+    set source(source: Source | undefined);
+    get showNotification(): boolean;
+    set showNotification(value: boolean);
+    get status(): PlayerStatus;
+    get isPlaying(): boolean;
+    get currentTime(): number;
+    set currentTime(time: number);
+    get buffered(): number;
+    get duration(): number;
+    get playbackRate(): number;
+    set playbackRate(rate: number);
+    get volume(): number;
+    set volume(vol: number);
+    get muted(): boolean;
+    set muted(value: boolean);
+    get isAutoQuality(): boolean;
+    play(): void;
+    pause(): void;
+    seekBy(offset: number): void;
+    playPrev(): void;
+    playNext(): void;
+    get hasPrev(): boolean;
+    get hasNext(): boolean;
+    get videos(): Track[];
+    selectVideo(_video: Track): void;
+    get audios(): Track[];
+    selectAudio(audio: Track): void;
+    private get overlaySubtitles();
+    get subtitles(): Track[];
+    selectSubtitle(subtitle?: Track): void;
+    private setOverlaySubtitle;
+    subscribeOverlaySubtitle: (callback: () => void) => (() => void);
+    getOverlaySubtitle: () => Subtitle | null;
+    get rendition(): Rendition[];
+    selectRendition(rendition?: Rendition): void;
+    private setPlaybackState;
+    private updateMediaSession;
+}
+//# sourceMappingURL=player.web.d.ts.map

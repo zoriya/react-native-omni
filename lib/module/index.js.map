@@ -1,0 +1,1 @@
+{"version":3,"names":["useEvent","usePlayerState","OmniProvider","usePlayer","OmniView"],"sourceRoot":"../../src","sources":["index.ts"],"mappings":";;AAAA,SAASA,QAAQ,EAAEC,cAAc,QAAQ,UAAU;AACnD,SAASC,YAAY,EAAEC,SAAS,QAAQ,YAAY;AAqBpD,SAASC,QAAQ,QAAQ,QAAQ","ignoreList":[]}
