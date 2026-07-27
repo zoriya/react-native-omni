@@ -12,9 +12,8 @@
 		"android": " cd example && bunx react-native run-android --no-packager --port 8082",
 		"web": "cd example && bun web",
 		"typecheck": "tsc --noEmit && tsc -p plugin/tsconfig.json --noEmit",
-		"build:plugin": "tsc -p plugin/tsconfig.json",
-		"build": "bun run typecheck && bob build && bun run build:plugin",
-		"prepare": "bun run build",
+		"build": "bun run typecheck && bob build",
+		"prepare": "bob build",
 		"codegen": "nitrogen --logLevel=\"debug\" && node post-script.js",
 		"release": "semantic-release"
 	},
@@ -41,8 +40,8 @@
 		"ios/**/*.mm",
 		"ios/**/*.cpp",
 		"ios/**/*.swift",
-		"app.plugin.js",
-		"plugin/build",
+		"app.plugin.ts",
+		"plugin/src",
 		"*.podspec",
 		"README.md"
 	],
