@@ -28,5 +28,8 @@
       <meta-data
         android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
         android:value="dev.zoriya.omni.OmniCastOptionsProvider" />
+      <receiver
+        android:name="androidx.mediarouter.media.MediaTransferReceiver"
+        android:exported="true" />
     </application>
 </manifest>

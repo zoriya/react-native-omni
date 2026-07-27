@@ -13,6 +13,7 @@ class OmniCastOptionsProvider : OptionsProvider {
 
         return CastOptions.Builder()
             .setReceiverApplicationId(appId)
+            .setShowSystemOutputSwitcherOnCastIconClick(true)
             .build()
     }
 

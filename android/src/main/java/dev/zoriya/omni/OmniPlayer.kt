@@ -37,6 +37,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
+import androidx.mediarouter.app.SystemOutputSwitcherDialogController
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.cast.framework.CastStateListener
@@ -147,6 +148,9 @@ class OmniPlayer(
                 return@runOnMainThread
             }
             val activity = ctx.currentActivity ?: return@runOnMainThread
+            if (SystemOutputSwitcherDialogController.showDialog(activity)) {
+                return@runOnMainThread
+            }
             val selector = cc.mergedSelector ?: return@runOnMainThread
             MediaRouteChooserDialog(activity).apply { routeSelector = selector }.show()
         }

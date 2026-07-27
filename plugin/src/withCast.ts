@@ -7,6 +7,8 @@ import {
 const OPTIONS_PROVIDER_NAME =
 	"com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME";
 const OPTIONS_PROVIDER_VALUE = "dev.zoriya.omni.OmniCastOptionsProvider";
+const MEDIA_TRANSFER_RECEIVER_NAME =
+	"androidx.mediarouter.media.MediaTransferReceiver";
 
 function patchManifestForCast(
 	androidManifest: AndroidConfig.Manifest.AndroidManifest,
@@ -35,6 +37,21 @@ function patchManifestForCast(
 		});
 	}
 	mainApplication["meta-data"] = metaData;
+
+	const receivers = mainApplication.receiver ?? [];
+	if (
+		!receivers.some(
+			(item) => item.$["android:name"] === MEDIA_TRANSFER_RECEIVER_NAME,
+		)
+	) {
+		receivers.push({
+			$: {
+				"android:name": MEDIA_TRANSFER_RECEIVER_NAME,
+				"android:exported": "true",
+			},
+		});
+	}
+	mainApplication.receiver = receivers;
 
 	return androidManifest;
 }
