@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
 	type AndroidBackend,
@@ -75,7 +75,8 @@ function PlayerExample({
 	const volume = usePlayerState("volume");
 	const isAutoQuality = usePlayerState("isAutoQuality");
 	const castStatus = usePlayerState("castStatus");
-	const [logs, setLogs] = useState<string[]>([]);
+	const [logs, setLogs] = useState<{ id: number; message: string }[]>([]);
+	const logId = useRef(0);
 	const [tracks, setTracks] = useState(() => ({
 		videos: [...player.videos],
 		audios: [...player.audios],
@@ -98,7 +99,7 @@ function PlayerExample({
 
 	const pushLog = useCallback((message: string) => {
 		setLogs((prev) => {
-			const next = [message, ...prev];
+			const next = [{ id: logId.current++, message }, ...prev];
 			return next.slice(0, 8);
 		});
 	}, []);
@@ -484,8 +485,8 @@ function PlayerExample({
 					<Text style={styles.logText}>Event log will appear here.</Text>
 				) : (
 					logs.map((entry) => (
-						<Text key={`${entry}`} style={styles.logText}>
-							{entry}
+						<Text key={entry.id} style={styles.logText}>
+							{entry.message}
 						</Text>
 					))
 				)}
@@ -575,6 +576,7 @@ function App(): React.JSX.Element {
 			key={backend}
 			source={source}
 			backend={{ android: backend }}
+			cast={{receiverApplicationId: "D8FB0FC1"}}
 			showNotification
 		>
 			<PlayerExample

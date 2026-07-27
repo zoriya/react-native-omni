@@ -43,8 +43,14 @@ class OmniMediaItemConverter : MediaItemConverter {
         val meta = mediaItem.mediaMetadata
         val castMetadata = CastMediaMetadata(CastMediaMetadata.MEDIA_TYPE_MOVIE).apply {
             meta.title?.let { putString(CastMediaMetadata.KEY_TITLE, it.toString()) }
-            meta.artist?.let { putString(CastMediaMetadata.KEY_ARTIST, it.toString()) }
-            meta.albumTitle?.let { putString(CastMediaMetadata.KEY_ALBUM_TITLE, it.toString()) }
+            meta.artist?.let {
+                putString(CastMediaMetadata.KEY_ARTIST, it.toString())
+                putString(CastMediaMetadata.KEY_SUBTITLE, it.toString())
+            }
+            meta.albumTitle?.let {
+                putString(CastMediaMetadata.KEY_ALBUM_TITLE, it.toString())
+                putString(CastMediaMetadata.KEY_STUDIO, it.toString())
+            }
             meta.artworkUri?.let { addImage(WebImage(it)) }
         }
 
