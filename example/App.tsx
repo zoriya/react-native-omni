@@ -536,6 +536,8 @@ function App(): React.JSX.Element {
 				{
 					id: "kusu",
 					link: "https://jassub.pages.dev/subtitles/Kusriya%20S2%20OP1v3.ass",
+					label: "ass test",
+					language: "jp",
 				},
 				{
 					id: "pgs",

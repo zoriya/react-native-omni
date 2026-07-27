@@ -57,7 +57,8 @@ class OmniMediaItemConverter : MediaItemConverter {
         }
 
         val tracks = local.subtitleConfigurations.mapIndexed { index, subtitle ->
-            MediaTrack.Builder(index.toLong(), MediaTrack.TYPE_TEXT)
+            // caf tracks are 1 based instead of 0 based. videojs does the same
+            MediaTrack.Builder((index + 1).toLong(), MediaTrack.TYPE_TEXT)
                 .setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
                 .setContentId(subtitle.uri.toString())
                 .setContentType(subtitle.mimeType ?: "text/vtt")

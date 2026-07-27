@@ -361,55 +361,35 @@ class OmniPlayer(
         }
     }
 
-    override fun selectAudio(audio: Track) {
-        runOnMainThreadSync {
-            player.trackSelectionParameters = player.trackSelectionParameters
-                .buildUpon()
-                .setPreferredAudioLanguage(audio.language)
-                .setPreferredAudioLabels(*(audio.label?.let { arrayOf(it) } ?: emptyArray()))
-                .build()
-        }
-    }
+    override fun selectAudio(audio: Track) = selectTrack(C.TRACK_TYPE_AUDIO, audio)
 
-    override fun selectSubtitle(subtitle: Track?) {
-        // Custom (ASS/PGS) subtitles can't be rendered by the cast receiver's
-        // native pipeline, so while casting they are forwarded over omni's
-        // message channel (the receiver draws them as an overlay). This mirrors
-        // the web behavior.
-        val custom = subtitle?.let { track ->
-            source?.subtitles?.firstOrNull { it.id == track.id }?.let { sub ->
-                val mime = sub.mimeType?.lowercase() ?: ""
-                val ext = sub.link.substringBefore('?').substringBefore('#')
-                    .substringAfterLast('.', "").lowercase()
-                mime.contains("ass") || mime.contains("ssa") || mime.contains("pgs") ||
-                        ext == "ass" || ext == "ssa" || ext == "sup"
-            }
-        } ?: false
+    override fun selectSubtitle(subtitle: Track?) = selectTrack(C.TRACK_TYPE_TEXT, subtitle)
+
+    private fun selectTrack(type: Int, track: Track?) {
         runOnMainThreadSync {
-            val session = castContext?.sessionManager?.currentCastSession
-            val casting = session?.isConnected == true
-            if (subtitle == null || (custom && casting)) {
-                player.trackSelectionParameters = player.trackSelectionParameters
-                    .buildUpon()
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-                    .build()
+            val params = player.trackSelectionParameters.buildUpon()
+                .clearOverridesOfType(type)
+            if (track == null) {
+                params.setTrackTypeDisabled(type, true)
             } else {
-                player.trackSelectionParameters = player.trackSelectionParameters
-                    .buildUpon()
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-                    .setPreferredTextLanguage(subtitle.language)
-                    .setPreferredTextLabels(*(subtitle.label?.let { arrayOf(it) } ?: emptyArray()))
-                    .build()
-            }
-            if (casting) {
-                val id = if (custom) subtitle?.id else null
-                val payload = JSONObject().apply { put("subtitle", id ?: JSONObject.NULL) }
-                try {
-                    session?.sendMessage(CAST_MESSAGE_NAMESPACE, payload.toString())
-                } catch (_: Throwable) {
-                    // best effort; receiver may not support the namespace.
+                params.setTrackTypeDisabled(type, false)
+                val group = player.currentTracks.groups.firstOrNull {
+                    it.type == type && it.mediaTrackGroup.id == track.id
+                }?.mediaTrackGroup
+                if (group != null) {
+                    params.setOverrideForType(TrackSelectionOverride(group, 0))
+                } else {
+                    val labels = track.label?.let { arrayOf(it) } ?: emptyArray()
+                    if (type == C.TRACK_TYPE_AUDIO) {
+                        params.setPreferredAudioLanguage(track.language)
+                            .setPreferredAudioLabels(*labels)
+                    } else {
+                        params.setPreferredTextLanguage(track.language)
+                            .setPreferredTextLabels(*labels)
+                    }
                 }
             }
+            player.trackSelectionParameters = params.build()
         }
     }
 
@@ -417,16 +397,28 @@ class OmniPlayer(
         val groups = player.currentTracks.groups.filter { it.type == trackType }
         if (groups.isEmpty()) return emptyArray()
 
-        return groups.map {
-            it.getTrackFormat(0).run {
-                Track(
-                    id = it.mediaTrackGroup.id,
-                    label = this.label,
-                    language = this.language,
-                    selected = it.isSelected
-                )
-            }
+        // when casting tracks are stripped of some metadata, recover it
+        val castTracks = castMediaTracksById()
+
+        return groups.map { group ->
+            val format = group.getTrackFormat(0)
+
+            val castTrackId = group.mediaTrackGroup.id.substringAfterLast("track=", "").toLongOrNull()
+            val cast = castTracks[castTrackId]
+            Track(
+                id = group.mediaTrackGroup.id,
+                label = cast?.name ?: format.label,
+                language = cast?.language ?: format.language,
+                selected = group.isSelected
+            )
         }.toTypedArray()
+    }
+
+    private fun castMediaTracksById(): Map<Long, com.google.android.gms.cast.MediaTrack> {
+        if (!isCasting) return emptyMap()
+        val tracks = castContext?.sessionManager?.currentCastSession
+            ?.remoteMediaClient?.mediaInfo?.mediaTracks ?: return emptyMap()
+        return tracks.associateBy { it.id }
     }
 
     private fun getRenditions(): Array<Rendition> {
@@ -491,10 +483,6 @@ class OmniPlayer(
 
     companion object {
         var notificationPlayer: Player? = null
-
-        // Cast custom-message channel (shared with the web receiver) used to
-        // forward overlay (ASS/PGS) subtitle selection to the receiver.
-        const val CAST_MESSAGE_NAMESPACE = "urn:x-cast:dev.zoriya.omni"
 
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"

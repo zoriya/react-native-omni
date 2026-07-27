@@ -75,36 +75,6 @@ const PlayerInitializer = ({
 		player.showNotification = showNotification;
 	}, [showNotification]);
 
-	useEffect(() => {
-		let media: chrome.cast.media.Media | null = null;
-
-		const onMediaUpdate = () => {
-			const data = media?.customData as { subtitle?: unknown } | undefined;
-			player.applyRemoteSubtitle(
-				typeof data?.subtitle === "string" ? data.subtitle : null,
-			);
-		};
-
-		const syncMedia = () => {
-			const next =
-				window.cast.framework.CastContext.getInstance()
-					.getCurrentSession()
-					?.getMediaSession() ?? null;
-			if (next === media) return;
-			media?.removeUpdateListener(onMediaUpdate);
-			media = next;
-			media?.addUpdateListener(onMediaUpdate);
-			onMediaUpdate();
-		};
-
-		const unsubscribe = store.subscribe(syncMedia);
-		syncMedia();
-		return () => {
-			unsubscribe();
-			media?.removeUpdateListener(onMediaUpdate);
-		};
-	}, [store]);
-
 	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
 };
 

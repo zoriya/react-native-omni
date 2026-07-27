@@ -217,47 +217,31 @@ export class WebOmniPlayer implements OmniPlayer {
 
 	get subtitles(): Track[] {
 		const textTracks = selectTextTrack(this._store.state)?.textTrackList ?? [];
-		const native = textTracks
+		return textTracks
 			.filter((x) => x.kind === "subtitles" || x.kind === "captions")
 			.map((track) => ({
 				id: track.id!,
 				label: track.label,
 				language: track.language,
-				selected: track.mode === "showing",
+				selected:
+					track.mode === "showing" || this.overlaySubtitle?.id === track.id,
 			}));
-		const overlay = this.overlaySubtitles.map((sub) => ({
-			id: sub.id,
-			label: sub.label,
-			language: sub.language,
-			selected: this.overlaySubtitle?.id === sub.id,
-		}));
-		return [...native, ...overlay];
 	}
 
 	selectSubtitle(subtitle?: Track): void {
+		const tracks = selectTextTrack(this._store.state);
 		const overlay = subtitle
 			? this.overlaySubtitles.find((s) => s.id === subtitle.id)
 			: undefined;
 
-		const tracks = selectTextTrack(this._store.state);
+		if (this.castStatus === "connected") {
+			tracks?.selectSubtitlesTrack(subtitle ? subtitle.id : "off");
+			this.setOverlaySubtitle(null);
+			return;
+		}
+
 		tracks?.selectSubtitlesTrack(overlay || !subtitle ? "off" : subtitle.id);
 		this.setOverlaySubtitle(overlay ?? null);
-
-		if (this.castStatus === "connected") {
-			window.cast.framework.CastContext.getInstance()
-				.getCurrentSession()
-				?.sendMessage("urn:x-cast:dev.zoriya.omni", {
-					subtitle: overlay?.id ?? null,
-				})
-				.catch(() => {});
-		}
-	}
-
-	// To be used on a callback of a chromecast session, it only changes the local state
-	applyRemoteSubtitle(id: string | null): void {
-		this.setOverlaySubtitle(
-			id ? (this.overlaySubtitles.find((s) => s.id === id) ?? null) : null,
-		);
 	}
 
 	private setOverlaySubtitle(sub: Subtitle | null): void {
