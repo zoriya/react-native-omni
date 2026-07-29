@@ -295,8 +295,7 @@ class OmniPlayer(
             field = value
             if (value == null) {
                 runOnMainThreadSync {
-                    player.setMediaItem(MediaItem.EMPTY)
-                    player.prepare()
+                    player.clearMediaItems()
                 }
                 return
             }

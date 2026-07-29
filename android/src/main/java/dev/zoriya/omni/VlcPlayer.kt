@@ -689,25 +689,27 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getCurrentTimeline(): Timeline {
-        if (mediaItems.isEmpty()) return Timeline.EMPTY
+        // snapshot the current playlist for the returned timeline.
+        // timelines are immutable
+        val items = mediaItems
+        val currentIndex = currentMediaItemIndex
+        val currentDurationUs = duration.takeIf { it != TIME_UNSET }?.let { it * 1000L } ?: TIME_UNSET
+        if (items.isEmpty()) return Timeline.EMPTY
         return object : Timeline() {
-            private fun durationUsForIndex(index: Int): Long {
-                if (index != currentMediaItemIndex) return TIME_UNSET
-                val dur = duration
-                return if (dur == TIME_UNSET) TIME_UNSET else dur * 1000L
-            }
+            private fun durationUsForIndex(index: Int): Long =
+                if (index == currentIndex) currentDurationUs else TIME_UNSET
 
-            override fun getWindowCount(): Int = mediaItems.size
+            override fun getWindowCount(): Int = items.size
 
             override fun getWindow(
                 windowIndex: Int,
                 window: Window,
                 defaultPositionProjectionUs: Long
             ): Window {
-                check(windowIndex in mediaItems.indices)
+                val index = windowIndex.coerceIn(items.indices)
                 return window.set(
-                    windowIndex,
-                    mediaItems[windowIndex],
+                    index,
+                    items[index],
                     null,
                     TIME_UNSET,
                     TIME_UNSET,
@@ -716,27 +718,26 @@ class VlcPlayer(ctx: Context) :
                     false,
                     null,
                     0L,
-                    durationUsForIndex(windowIndex),
-                    0,
-                    mediaItems.size - 1,
+                    durationUsForIndex(index),
+                    index,
+                    index,
                     0L
                 )
             }
 
-            override fun getPeriodCount(): Int = mediaItems.size
+            override fun getPeriodCount(): Int = items.size
 
             override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
-                check(periodIndex in mediaItems.indices)
-                return period.set(periodIndex, periodIndex, 0, durationUsForIndex(periodIndex), 0L)
+                val index = periodIndex.coerceIn(items.indices)
+                return period.set(index, index, index, durationUsForIndex(index), 0L)
             }
 
             override fun getIndexOfPeriod(uid: Any): Int {
-                return if (uid is Int && uid in mediaItems.indices) uid else INDEX_UNSET
+                return if (uid is Int && uid in items.indices) uid else INDEX_UNSET
             }
 
             override fun getUidOfPeriod(periodIndex: Int): Any {
-                check(periodIndex in mediaItems.indices)
-                return periodIndex
+                return periodIndex.coerceIn(items.indices)
             }
         }
     }
