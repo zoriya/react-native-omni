@@ -57,12 +57,16 @@ function PlayerExample({
 	trackLabel,
 	backend,
 	onSwitchBackend,
+	hasSource,
+	onLoad,
 }: {
 	onPrev: () => void;
 	onNext: () => void;
 	trackLabel: string;
 	backend: AndroidBackend;
 	onSwitchBackend: (backend: AndroidBackend) => void;
+	hasSource: boolean;
+	onLoad: () => void;
 }): React.JSX.Element {
 	const player = usePlayer();
 	const status = usePlayerState("status");
@@ -233,7 +237,20 @@ function PlayerExample({
 	return (
 		<ScrollView style={styles.container}>
 			<Text style={styles.heading}>react-native-omni</Text>
-			<Text style={styles.subheading}>{trackLabel}</Text>
+			<Text style={styles.subheading}>
+				{hasSource ? trackLabel : "No media loaded"}
+			</Text>
+
+			<View style={styles.row}>
+				<Pressable
+					style={[styles.button, hasSource && styles.selectedTrackButton]}
+					onPress={onLoad}
+				>
+					<Text style={styles.buttonText}>
+						{hasSource ? "Unload media" : "Load media"}
+					</Text>
+				</Pressable>
+			</View>
 
 			<View style={styles.row}>
 				<Pressable
@@ -497,6 +514,9 @@ function PlayerExample({
 
 function App(): React.JSX.Element {
 	const [currentIndex, setCurrentIndex] = useState(0);
+	// Start with no media loaded so we can verify the app boots (and the media
+	// notification stays hidden) before any source is set.
+	const [hasSource, setHasSource] = useState(false);
 	const [backend, setBackend] = useState<AndroidBackend>("vlc");
 	const [pendingBackend, setPendingBackend] = useState<AndroidBackend | null>(
 		null,
@@ -574,7 +594,7 @@ function App(): React.JSX.Element {
 	return (
 		<OmniProvider
 			key={backend}
-			source={source}
+			source={hasSource ? source : undefined}
 			backend={{ android: backend }}
 			cast={{receiverApplicationId: "D8FB0FC1"}}
 			showNotification
@@ -585,6 +605,8 @@ function App(): React.JSX.Element {
 				trackLabel={PLAYLIST[currentIndex].title}
 				backend={backend}
 				onSwitchBackend={handleSwitchBackend}
+				hasSource={hasSource}
+				onLoad={() => setHasSource((v) => !v)}
 			/>
 		</OmniProvider>
 	);

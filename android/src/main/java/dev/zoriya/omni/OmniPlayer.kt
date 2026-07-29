@@ -106,21 +106,34 @@ class OmniPlayer(
 
     override var showNotification: Boolean? = false
         set(value) {
-            if (value == true) {
+            field = value
+            syncNotificationService()
+        }
+
+    private var serviceRunning = false
+
+    private fun syncNotificationService() {
+        val shouldShow = showNotification == true && source != null
+        when {
+            shouldShow && !serviceRunning -> {
                 val otherIsPlaying = notificationPlayer?.let { other ->
-                    runOnMainThreadSync { other.isPlaying }
+                    other !== localPlayer && runOnMainThreadSync { other.isPlaying }
                 } == true
                 if (otherIsPlaying) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
                 notificationPlayer = localPlayer
                 ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
-            } else if (field == true && notificationPlayer == localPlayer) {
-                ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
-                notificationPlayer = null
+                serviceRunning = true
             }
-            field = value
+
+            !shouldShow && serviceRunning -> {
+                ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
+                if (notificationPlayer == localPlayer) notificationPlayer = null
+                serviceRunning = false
+            }
         }
+    }
 
     override val castStatus: CastStatus
         get() = runOnMainThreadSync { computeCastStatus() }
@@ -297,6 +310,7 @@ class OmniPlayer(
                 runOnMainThreadSync {
                     player.clearMediaItems()
                 }
+                syncNotificationService()
                 return
             }
             val handleAudioFocus =
@@ -329,6 +343,7 @@ class OmniPlayer(
                 player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
                 player.prepare()
             }
+            syncNotificationService()
         }
 
     override fun play() {
@@ -504,7 +519,13 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        player = OmniPlayer.notificationPlayer ?: throw Error("No player available")
+        val available = OmniPlayer.notificationPlayer
+        if (available == null) {
+            startForeground(1, createImmediateNotification())
+            stopSelf()
+            return
+        }
+        player = available
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
@@ -540,7 +561,8 @@ class OmniPlayerService : MediaSessionService() {
             player = current
             mediaSession.player = current
         }
-        return super.onStartCommand(intent, flags, startId)
+        super.onStartCommand(intent, flags, startId)
+        return START_NOT_STICKY
     }
 
     private fun createImmediateNotification(): Notification {
@@ -581,7 +603,7 @@ class OmniPlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        mediaSession.release()
+        if (::mediaSession.isInitialized) mediaSession.release()
         super.onDestroy()
     }
 }

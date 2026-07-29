@@ -742,9 +742,9 @@ class VlcPlayer(ctx: Context) :
         }
     }
 
-    override fun getCurrentPeriodIndex() = currentMediaItemIndex
+    override fun getCurrentPeriodIndex() = currentMediaItemIndex.coerceAtLeast(0)
 
-    override fun getCurrentMediaItemIndex() = currentMediaItemIndex
+    override fun getCurrentMediaItemIndex() = currentMediaItemIndex.coerceAtLeast(0)
 
     override fun getDuration(): Long = player.length.takeIf { it > 0 } ?: TIME_UNSET
 
