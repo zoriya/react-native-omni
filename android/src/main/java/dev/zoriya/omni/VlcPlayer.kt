@@ -525,36 +525,43 @@ class VlcPlayer(ctx: Context) :
         val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
         val selectedSubtitle = player.getSelectedTrack(IMedia.Track.Type.Text)
 
-        val videoTracks = player.getTracks(IMedia.Track.Type.Video)
-        if (!videoTracks.isNullOrEmpty()) {
-            val videoFormats = videoTracks.map { track ->
-                Format.Builder()
-                    .setId(track.id)
-                    .setLabel(track.name)
-                    .setLanguage(track.language)
-                    .setSampleMimeType("video/x-unknown")
-                    .build()
+        player.getTracks(IMedia.Track.Type.Video).orEmpty()
+            .groupBy { listOf(it.language, it.name, it.description) }
+            .values.forEach { videoTracks ->
+                val videoFormats = videoTracks.map { track ->
+                    Format.Builder()
+                        .setId(track.id)
+                        .setLabel(track.name)
+                        .setLanguage(track.language)
+                        .setSampleMimeType("video/x-unknown")
+                        .build()
+                }
+                val group = TrackGroup("vlc-video-${videoTracks.minOf { it.id }}", *videoFormats.toTypedArray())
+                val selected = BooleanArray(videoFormats.size) { idx ->
+                    selectedVideo != null && selectedVideo.id == videoTracks[idx].id
+                }
+                val support = IntArray(videoFormats.size) { FORMAT_HANDLED }
+                result.add(Group(group, videoFormats.size > 1, support, selected))
             }
-            val group = TrackGroup("vlc-video", *videoFormats.toTypedArray())
-            val selected = BooleanArray(videoFormats.size) { idx ->
-                selectedVideo != null && selectedVideo.id == videoTracks[idx].id
-            }
-            val support = IntArray(videoFormats.size) { FORMAT_HANDLED }
-            result.add(Group(group, videoFormats.size > 1, support, selected))
-        }
 
-        player.getTracks(IMedia.Track.Type.Audio)?.forEach { track ->
-            val format = Format.Builder()
-                .setId(track.id)
-                .setLabel(track.name)
-                .setLanguage(track.language)
-                .setSampleMimeType("audio/x-unknown")
-                .build()
-            val group = TrackGroup("vlc-audio-${track.id}", format)
-            val selected = booleanArrayOf(selectedAudio != null && selectedAudio.id == track.id)
-            val support = intArrayOf(FORMAT_HANDLED)
-            result.add(Group(group, false, support, selected))
-        }
+        player.getTracks(IMedia.Track.Type.Audio).orEmpty()
+            .groupBy { listOf(it.language, it.name, it.description) }
+            .values.forEach { audioTracks ->
+                val audioFormats = audioTracks.map { track ->
+                    Format.Builder()
+                        .setId(track.id)
+                        .setLabel(track.name)
+                        .setLanguage(track.language)
+                        .setSampleMimeType("audio/x-unknown")
+                        .build()
+                }
+                val group = TrackGroup("vlc-audio-${audioTracks.minOf { it.id }}", *audioFormats.toTypedArray())
+                val selected = BooleanArray(audioFormats.size) { idx ->
+                    selectedAudio != null && selectedAudio.id == audioTracks[idx].id
+                }
+                val support = IntArray(audioFormats.size) { FORMAT_HANDLED }
+                result.add(Group(group, audioFormats.size > 1, support, selected))
+            }
 
         player.getTracks(IMedia.Track.Type.Text)?.forEach { track ->
             val format = Format.Builder()

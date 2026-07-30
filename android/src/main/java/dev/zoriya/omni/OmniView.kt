@@ -4,6 +4,7 @@ import android.app.PictureInPictureParams
 import android.graphics.Rect
 import android.os.Build
 import android.util.Rational
+import android.view.Gravity
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -11,6 +12,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.common.text.CueGroup
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.SubtitleView
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -68,6 +73,16 @@ class OmniView(val context: ThemedReactContext) :
         }
     }
 
+    private val contentFrame = AspectRatioFrameLayout(context).apply {
+        setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT)
+        layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER
+        )
+        view.addView(this)
+    }
+
     private val surfaceView = SurfaceView(context).apply {
         layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -75,8 +90,19 @@ class OmniView(val context: ThemedReactContext) :
         )
         holder.addCallback(this@OmniView)
         addOnLayoutChangeListener(this@OmniView)
+        contentFrame.addView(this)
+    }
+
+    private val subtitleView = SubtitleView(context).apply {
+        layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        setUserDefaultStyle()
+        setUserDefaultTextSize()
         view.addView(this)
     }
+
     private var surfaceReady = false
     private var boundPlayer: OmniPlayer? = null
     private var rootContent: ViewGroup? = null
@@ -92,6 +118,20 @@ class OmniView(val context: ThemedReactContext) :
 
     init {
         context.addLifecycleEventListener(this)
+    }
+
+    override fun onVideoSizeChanged(videoSize: VideoSize) {
+        contentFrame.setAspectRatio(
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+            } else {
+                0f
+            }
+        )
+    }
+
+    override fun onCues(cueGroup: CueGroup) {
+        subtitleView.setCues(cueGroup.cues)
     }
 
     override fun onLayoutChange(
@@ -307,7 +347,7 @@ class OmniView(val context: ThemedReactContext) :
             child.visibility = View.GONE
         }
 
-        view.removeView(surfaceView)
+        contentFrame.removeView(surfaceView)
         root.addView(
             surfaceView,
             FrameLayout.LayoutParams(
@@ -331,7 +371,7 @@ class OmniView(val context: ThemedReactContext) :
         }
         rootContentViews = emptyList()
 
-        view.addView(surfaceView, FrameLayout.LayoutParams(
+        contentFrame.addView(surfaceView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
         ))
