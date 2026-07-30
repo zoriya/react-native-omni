@@ -279,7 +279,7 @@ class OmniPlayer(
 
     override var playbackRate by mainThreadProperty(
         get = { player.playbackParameters.speed.toDouble() },
-        set = { value -> player.setPlaybackSpeed(value.toFloat().coerceAtLeast(0f)) }
+        set = { value -> player.setPlaybackSpeed(value.toFloat().coerceAtLeast(0.01f)) }
     )
 
     override var muted by mainThreadProperty(

@@ -97,9 +97,11 @@ class VlcPlayer(ctx: Context) :
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
+    @Volatile
     private var playerError: PlaybackException? = null
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
     private var userInitiatedTransition: Boolean = false
+    @Volatile
     private var cachedBufferedPosition: Long = 0L
     private var boundSurfaceView: SurfaceView? = null
 
@@ -467,7 +469,11 @@ class VlcPlayer(ctx: Context) :
 
     override fun getShuffleModeEnabled(): Boolean = false
 
-    override fun isLoading() = player.playerState == IMedia.State.Opening
+    override fun isLoading(): Boolean {
+        val state = playbackState
+        if (state == STATE_IDLE || state == STATE_ENDED) return false
+        return player.playerState == IMedia.State.Opening
+    }
 
     override fun seekTo(
         mediaItemIndex: Int,
@@ -493,11 +499,11 @@ class VlcPlayer(ctx: Context) :
     override fun getSeekForwardIncrement(): Long = 15_000L
 
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
-        player.rate = playbackParameters.speed.coerceAtLeast(0f)
+        player.rate = playbackParameters.speed.coerceAtLeast(0.01f)
     }
 
     override fun getPlaybackParameters(): PlaybackParameters =
-        PlaybackParameters(player.rate.coerceAtLeast(0f))
+        PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
 
     override fun stop() {
         player.stop()
@@ -505,6 +511,7 @@ class VlcPlayer(ctx: Context) :
 
     override fun release() {
         player.setEventListener(null)
+        listeners.release()
         abandonAudioFocus()
         player.stop()
         clearVideoSurface()

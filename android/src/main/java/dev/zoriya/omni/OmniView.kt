@@ -219,6 +219,11 @@ class OmniView(val context: ThemedReactContext) :
             return
         }
 
+        if (boundPlayer?.isCasting == true) {
+            clearPictureInPictureParams()
+            return
+        }
+
         val autoEnterEnabled =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             autoPip == true &&
@@ -242,9 +247,18 @@ class OmniView(val context: ThemedReactContext) :
         )
     }
 
+    private fun clampedAspectRatio(width: Int, height: Int): Rational {
+        val minRatio = 0.42
+        val maxRatio = 2.38
+        val ratio = width.toDouble() / height.toDouble()
+        if (ratio in minRatio..maxRatio) return Rational(width, height)
+        val clamped = ratio.coerceIn(minRatio, maxRatio)
+        return Rational((clamped * 1000).toInt(), 1000)
+    }
+
     private fun buildPipParams(autoEnterEnabled: Boolean): PictureInPictureParams {
         val aspectRatio = if (surfaceView.width > 0 && surfaceView.height > 0) {
-            Rational(surfaceView.width, surfaceView.height)
+            clampedAspectRatio(surfaceView.width, surfaceView.height)
         } else {
             Rational(16, 9)
         }
