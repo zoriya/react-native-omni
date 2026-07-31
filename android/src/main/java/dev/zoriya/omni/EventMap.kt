@@ -210,6 +210,16 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
         }
     }
 
+    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+        stateListeners[NumberProperty.DURATION]?.forEach {
+            val duration = player.duration
+            it(
+                if (duration == C.TIME_UNSET) 0.0
+                else (duration.toDouble() / 1000.0).coerceAtLeast(0.0)
+            )
+        }
+    }
+
     override fun onTracksChanged(tracks: Tracks) {
         selectedTrack(TRACK_TYPE_VIDEO)?.let { track ->
             onVideoTrackChangeListeners.forEach { it(track) }

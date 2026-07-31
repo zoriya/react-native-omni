@@ -207,23 +207,9 @@ class VlcPlayer(ctx: Context) :
                 }
             }
 
-            MediaPlayer.Event.TimeChanged -> {
-                notifyListeners(EVENT_POSITION_DISCONTINUITY) {
-                    val positionMs = getCurrentPosition()
-                    val position = Player.PositionInfo(
-                        currentMediaItemIndex,
-                        currentMediaItemIndex,
-                        getCurrentMediaItem(),
-                        currentMediaItemIndex,
-                        currentMediaItemIndex,
-                        positionMs,
-                        positionMs,
-                        INDEX_UNSET,
-                        INDEX_UNSET
-                    )
-                    it.onPositionDiscontinuity(position, position, DISCONTINUITY_REASON_INTERNAL)
-                }
-            }
+            // progress is polled instead of pushed dozens of times per seconds.
+            // this improves perf & battery life (native -> js bridge is expensive)
+            MediaPlayer.Event.TimeChanged -> Unit
 
             MediaPlayer.Event.ESAdded,
             MediaPlayer.Event.ESDeleted,
@@ -491,8 +477,31 @@ class VlcPlayer(ctx: Context) :
             return
         }
 
-        player.time = positionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
+        val from = getCurrentPosition()
+        val target = positionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
+        player.time = target
+        // since vlc reports progress events every few ms they don't have a seek finished event.
+        notifyListeners(EVENT_POSITION_DISCONTINUITY) {
+            it.onPositionDiscontinuity(
+                positionInfo(from),
+                positionInfo(target),
+                DISCONTINUITY_REASON_SEEK
+            )
+        }
     }
+
+    private fun positionInfo(positionMs: Long): Player.PositionInfo =
+        Player.PositionInfo(
+            currentMediaItemIndex,
+            currentMediaItemIndex,
+            getCurrentMediaItem(),
+            currentMediaItemIndex,
+            currentMediaItemIndex,
+            positionMs,
+            positionMs,
+            INDEX_UNSET,
+            INDEX_UNSET
+        )
 
     override fun getSeekBackIncrement(): Long = 5_000L
 
@@ -529,11 +538,20 @@ class VlcPlayer(ctx: Context) :
             .groupBy { listOf(it.language, it.name, it.description) }
             .values.forEach { videoTracks ->
                 val videoFormats = videoTracks.map { track ->
+                    val videoTrack = track as? VideoTrack
                     Format.Builder()
                         .setId(track.id)
                         .setLabel(track.name)
                         .setLanguage(track.language)
                         .setSampleMimeType("video/x-unknown")
+                        .setWidth(videoTrack?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                        .setHeight(videoTrack?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                        .setFrameRate(
+                            videoTrack?.takeIf { it.frameRateDen > 0 }
+                                ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
+                                ?: Format.NO_VALUE.toFloat()
+                        )
+                        .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
                         .build()
                 }
                 val group = TrackGroup("vlc-video-${videoTracks.minOf { it.id }}", *videoFormats.toTypedArray())
