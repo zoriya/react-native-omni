@@ -109,18 +109,18 @@ export const OmniView = ({
 	const player = usePlayer() as WebOmniPlayer;
 	const containerRef = useRef<HTMLDivElement>(null);
 	const ref = useRef<HTMLVideoElement>(undefined!);
+	const source = usePlayerState("source");
 
-	const src = player.source?.src;
 	const isHls =
-		src?.mimeType?.toLowerCase().includes("mpegurl") ||
-		src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||
+		source?.src?.mimeType?.toLowerCase().includes("mpegurl") ||
+		source?.src?.uri.split(/[?#]/)[0]?.toLowerCase().endsWith(".m3u8") ||
 		false;
 	const Tech = isHls ? HlsJsVideo : Video;
 
-	const headersRef = useRef(src?.headers);
-	headersRef.current = src?.headers;
-	const castId = player.source?.castId;
-	const castData = player.source?.castData;
+	const headersRef = useRef(source?.src?.headers);
+	headersRef.current = source?.src?.headers;
+	const castId = source?.castId;
+	const castData = source?.castData;
 
 	const config = useMemo<HlsMediaConfig>(
 		() => ({
@@ -151,17 +151,17 @@ export const OmniView = ({
 			ref={containerRef}
 			style={{ position: "relative", ...style }}
 		>
-			{src && (
+			{source?.src && (
 				<Tech
 					ref={ref}
-					src={src.uri}
+					src={source?.src.uri}
 					config={config}
 					autoPlay={autoplay}
 					playsInline
 					crossOrigin="anonymous"
 					style={{ width: "100%", height: "100%", objectFit: "contain" }}
 				>
-					{(player.source?.subtitles ?? []).map((subtitle) => (
+					{(source?.subtitles ?? []).map((subtitle) => (
 						<track
 							key={subtitle.id}
 							id={subtitle.id}
@@ -177,7 +177,7 @@ export const OmniView = ({
 				<SubtitleOverlay
 					video={ref}
 					assets={subtitleAssets}
-					fonts={player.source?.fonts}
+					fonts={source?.fonts}
 				/>
 			)}
 		</VideoPlayer.Container>

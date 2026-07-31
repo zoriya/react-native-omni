@@ -3,8 +3,6 @@ import type { Source } from "./source";
 export interface OmniPlayer extends OmniPlayerState {
 	showNotification?: boolean;
 
-	source?: Source;
-
 	play(): void;
 	pause(): void;
 	seekBy(offset: number): void;
@@ -28,6 +26,7 @@ export interface OmniPlayer extends OmniPlayerState {
 }
 
 export interface OmniPlayerState {
+	source?: Source;
 	readonly status: PlayerStatus;
 	readonly isPlaying: boolean;
 	currentTime: number;

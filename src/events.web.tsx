@@ -12,7 +12,7 @@ import {
 	selectVolume,
 	usePlayer as useStoreSelector,
 } from "@videojs/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { WebOmniPlayer } from "./player.web";
 import { usePlayer } from "./provider.web";
 import type { OmniEvents } from "./types/events";
@@ -204,6 +204,7 @@ export const stateMapper = {
 	}),
 };
 
+// biome-ignore-start lint/correctness/useHookAtTopLevel: key must be const
 export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
 ): OmniPlayerState[Key];
@@ -215,8 +216,18 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
 	_refresh?: number,
 ): OmniPlayerState[Key] {
-	const config = stateMapper[key];
+	if (key === "source") {
+		const player = usePlayer() as WebOmniPlayer;
+		const source = useSyncExternalStore(
+			player.subscribeSource,
+			() => player.source,
+			() => player.source,
+		);
+		return source as OmniPlayerState[Key];
+	}
+	const config = stateMapper[key as keyof Omit<OmniPlayerState, "source">];
+	const ret = useStoreSelector(config?.selector as Selector<any, any>);
 	if (!config) throw new Error(`No mapper for ${key}`);
-	const ret = useStoreSelector(config.selector as Selector<any, any>);
 	return config.mapper(ret) as OmniPlayerState[Key];
 }
+// biome-ignore-end lint/correctness/useHookAtTopLevel: key must be const

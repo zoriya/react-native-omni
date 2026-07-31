@@ -15,6 +15,16 @@ namespace margelo::nitro::omni { enum class BoolProperty; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `Source` to properly resolve imports.
+namespace margelo::nitro::omni { struct Source; }
+// Forward declaration of `VideoSrc` to properly resolve imports.
+namespace margelo::nitro::omni { struct VideoSrc; }
+// Forward declaration of `Subtitle` to properly resolve imports.
+namespace margelo::nitro::omni { struct Subtitle; }
+// Forward declaration of `Metadata` to properly resolve imports.
+namespace margelo::nitro::omni { struct Metadata; }
+// Forward declaration of `MixAudioMode` to properly resolve imports.
+namespace margelo::nitro::omni { enum class MixAudioMode; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -34,14 +44,27 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "CastStatus.hpp"
 #include "JFunc_void_CastStatus.hpp"
 #include "JCastStatus.hpp"
-#include "JFunc_void.hpp"
+#include "Source.hpp"
+#include <optional>
+#include "JFunc_void_std__optional_Source_.hpp"
+#include "JSource.hpp"
+#include "VideoSrc.hpp"
+#include "JVideoSrc.hpp"
 #include <string>
+#include <unordered_map>
+#include "Subtitle.hpp"
+#include <vector>
+#include "JSubtitle.hpp"
+#include "Metadata.hpp"
+#include "JMetadata.hpp"
+#include "MixAudioMode.hpp"
+#include "JMixAudioMode.hpp"
+#include "JFunc_void.hpp"
 #include "JFunc_void_std__string_std__string.hpp"
 #include "JFunc_void_std__string.hpp"
 #include "Track.hpp"
 #include "JFunc_void_Track.hpp"
 #include "JTrack.hpp"
-#include <optional>
 #include "JFunc_void_std__optional_Track_.hpp"
 #include "Rendition.hpp"
 #include "JFunc_void_Rendition.hpp"
@@ -111,6 +134,14 @@ namespace margelo::nitro::omni {
   void JHybridOmniEventMapSpec::removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_CastStatus::javaobject> /* cb */)>("removeCastStatusListener_cxx");
     method(_javaPart, JFunc_void_CastStatus_cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("addSourceListener_cxx");
+    method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("removeSourceListener_cxx");
+    method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
   }
   void JHybridOmniEventMapSpec::addOnEndListener(const std::function<void()>& cb) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnEndListener_cxx");

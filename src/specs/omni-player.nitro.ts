@@ -11,7 +11,7 @@ import type { CastOptions, Source } from "../types/source";
 
 export type NumberProperty = Exclude<
 	keyof OmniPlayerState,
-	"status" | "isPlaying" | "muted"
+	"status" | "isPlaying" | "muted" | "source"
 >;
 export type BoolProperty = "isPlaying" | "muted" | "isAutoQuality";
 
@@ -28,6 +28,9 @@ export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 
 	addCastStatusListener(cb: (value: CastStatus) => void): void;
 	removeCastStatusListener(cb: (value: CastStatus) => void): void;
+
+	addSourceListener(cb: (value?: Source) => void): void;
+	removeSourceListener(cb: (value?: Source) => void): void;
 
 	addOnEndListener(cb: OmniEvents["end"]): void;
 	removeOnEndListener(cb: OmniEvents["end"]): void;

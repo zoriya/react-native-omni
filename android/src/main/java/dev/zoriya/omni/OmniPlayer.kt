@@ -306,6 +306,7 @@ class OmniPlayer(
     override var source: Source? = null
         set(value) {
             field = value
+            eventMap.emitSource(value)
             if (value == null) {
                 runOnMainThreadSync {
                     player.clearMediaItems()

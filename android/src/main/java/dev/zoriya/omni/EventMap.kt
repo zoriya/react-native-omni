@@ -15,6 +15,7 @@ import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Player.STATE_READY
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import com.margelo.nitro.omni.BoolProperty
@@ -23,6 +24,7 @@ import com.margelo.nitro.omni.HybridOmniEventMapSpec
 import com.margelo.nitro.omni.NumberProperty
 import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
+import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -40,6 +42,7 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
     private val castStatusListeners = mutableSetOf<(CastStatus) -> Unit>()
+    private val sourceListeners = mutableSetOf<(Source?) -> Unit>()
 
     private var lastMediaItemIndex = 0
     private var lastRendition: Rendition? = null
@@ -90,6 +93,10 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
 
     fun emitCastStatus(status: CastStatus) {
         castStatusListeners.forEach { it(status) }
+    }
+
+    fun emitSource(source: Source?) {
+        sourceListeners.forEach { it(source) }
     }
 
     private fun selectedTrack(trackType: Int): Track? {
@@ -298,6 +305,14 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
 
     override fun removeCastStatusListener(cb: (value: CastStatus) -> Unit) {
         castStatusListeners.remove(cb)
+    }
+
+    override fun addSourceListener(cb: (value: Source?) -> Unit) {
+        sourceListeners.add(cb)
+    }
+
+    override fun removeSourceListener(cb: (value: Source?) -> Unit) {
+        sourceListeners.remove(cb)
     }
 
     override fun addOnEndListener(cb: () -> Unit) {

@@ -70,6 +70,13 @@ export class WebOmniPlayer implements OmniPlayer {
 	private overlaySubtitle: Subtitle | null = null;
 	private overlayListeners = new Set<() => void>();
 
+	private sourceListeners = new Set<() => void>();
+	subscribeSource = (callback: () => void): (() => void) => {
+		this.sourceListeners.add(callback);
+		return () => this.sourceListeners.delete(callback);
+	};
+
+
 	get source(): Source | undefined {
 		return this._source;
 	}
@@ -84,6 +91,7 @@ export class WebOmniPlayer implements OmniPlayer {
 			this.setOverlaySubtitle(null);
 		}
 		this.updateMediaSession();
+		for (const listener of this.sourceListeners) listener();
 	}
 
 	get showNotification(): boolean {

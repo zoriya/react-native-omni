@@ -62,6 +62,8 @@ namespace margelo::nitro::omni {
     void removePlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) override;
     void addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
     void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
+    void addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
+    void removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
     void addOnEndListener(const std::function<void()>& cb) override;
     void removeOnEndListener(const std::function<void()>& cb) override;
     void addOnPrevListener(const std::function<void()>& cb) override;

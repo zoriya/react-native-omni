@@ -53,14 +53,14 @@ namespace margelo::nitro::omni {
     std::shared_ptr<HybridOmniEventMapSpec> getEventMap() override;
     std::optional<bool> getShowNotification() override;
     void setShowNotification(std::optional<bool> showNotification) override;
-    std::optional<Source> getSource() override;
-    void setSource(const std::optional<Source>& source) override;
     bool getHasPrev() override;
     bool getHasNext() override;
     std::vector<Track> getVideos() override;
     std::vector<Track> getAudios() override;
     std::vector<Track> getSubtitles() override;
     std::vector<Rendition> getRendition() override;
+    std::optional<Source> getSource() override;
+    void setSource(const std::optional<Source>& source) override;
     PlayerStatus getStatus() override;
     bool getIsPlaying() override;
     double getCurrentTime() override;

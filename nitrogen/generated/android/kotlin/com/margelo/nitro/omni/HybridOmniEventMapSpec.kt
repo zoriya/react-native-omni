@@ -100,6 +100,24 @@ abstract class HybridOmniEventMapSpec: HybridObject() {
     return __result
   }
   
+  abstract fun addSourceListener(cb: (value: Source?) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addSourceListener_cxx(cb: Func_void_std__optional_Source_): Unit {
+    val __result = addSourceListener(cb)
+    return __result
+  }
+  
+  abstract fun removeSourceListener(cb: (value: Source?) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun removeSourceListener_cxx(cb: Func_void_std__optional_Source_): Unit {
+    val __result = removeSourceListener(cb)
+    return __result
+  }
+  
   abstract fun addOnEndListener(cb: () -> Unit): Unit
   
   @DoNotStrip

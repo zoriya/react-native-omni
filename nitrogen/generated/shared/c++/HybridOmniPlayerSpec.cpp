@@ -17,14 +17,14 @@ namespace margelo::nitro::omni {
       prototype.registerHybridGetter("eventMap", &HybridOmniPlayerSpec::getEventMap);
       prototype.registerHybridGetter("showNotification", &HybridOmniPlayerSpec::getShowNotification);
       prototype.registerHybridSetter("showNotification", &HybridOmniPlayerSpec::setShowNotification);
-      prototype.registerHybridGetter("source", &HybridOmniPlayerSpec::getSource);
-      prototype.registerHybridSetter("source", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridGetter("hasPrev", &HybridOmniPlayerSpec::getHasPrev);
       prototype.registerHybridGetter("hasNext", &HybridOmniPlayerSpec::getHasNext);
       prototype.registerHybridGetter("videos", &HybridOmniPlayerSpec::getVideos);
       prototype.registerHybridGetter("audios", &HybridOmniPlayerSpec::getAudios);
       prototype.registerHybridGetter("subtitles", &HybridOmniPlayerSpec::getSubtitles);
       prototype.registerHybridGetter("rendition", &HybridOmniPlayerSpec::getRendition);
+      prototype.registerHybridGetter("source", &HybridOmniPlayerSpec::getSource);
+      prototype.registerHybridSetter("source", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridGetter("status", &HybridOmniPlayerSpec::getStatus);
       prototype.registerHybridGetter("isPlaying", &HybridOmniPlayerSpec::getIsPlaying);
       prototype.registerHybridGetter("currentTime", &HybridOmniPlayerSpec::getCurrentTime);
