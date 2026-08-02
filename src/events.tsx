@@ -32,7 +32,9 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 	refresh?: number,
 ): OmniPlayerState[Key] {
 	const player = usePlayer() as OmniPlayer;
-	const [ret, setState] = useState<any>(player[key]);
+	// don't call `player[key]` (native call on main thread) every re-render
+	// only do it when needed (init)
+	const [ret, setState] = useState<any>(() => player[key]);
 
 	useEffect(() => {
 		const em = player.eventMap;
