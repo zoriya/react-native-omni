@@ -117,21 +117,13 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     }
 
     private fun selectedTrack(trackType: Int): Track? {
-        val groups = player.currentTracks.groups.filter { it.type == trackType }
-        for (group in groups) {
-            val mediaGroup = group.mediaTrackGroup
-            for (i in 0 until group.length) {
-                if (!group.isTrackSelected(i)) continue
-                val format = group.getTrackFormat(i)
-                return Track(
-                    id = format.id ?: mediaGroup.id,
-                    label = format.label,
-                    language = format.language,
-                    selected = true
-                )
-            }
+        val list = when (trackType) {
+            TRACK_TYPE_VIDEO -> tracks.videos
+            TRACK_TYPE_AUDIO -> tracks.audios
+            TRACK_TYPE_TEXT -> tracks.subtitles
+            else -> return null
         }
-        return null
+        return list.firstOrNull { it.selected }
     }
 
     private fun getCurrentRendition(): Rendition? {
@@ -265,9 +257,8 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
         selectedTrack(TRACK_TYPE_AUDIO)?.let { track ->
             onAudioTrackChangeListeners.forEach { it(track) }
         }
-        selectedTrack(TRACK_TYPE_TEXT)?.let { track ->
-            onSubtitleChangeListeners.forEach { it(track) }
-        }
+        val subtitle = selectedTrack(TRACK_TYPE_TEXT)
+        onSubtitleChangeListeners.forEach { it(subtitle) }
         emitTracks()
         emitIsAutoQualityChange()
         emitRenditionChange()

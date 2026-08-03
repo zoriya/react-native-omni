@@ -23,6 +23,9 @@ data class Track(
   val id: String,
   @DoNotStrip
   @Keep
+  val index: Double,
+  @DoNotStrip
+  @Keep
   val label: String?,
   @DoNotStrip
   @Keep
@@ -37,6 +40,7 @@ data class Track(
     if (this === other) return true
     if (other !is Track) return false
     return Objects.deepEquals(this.id, other.id)
+      && Objects.deepEquals(this.index, other.index)
       && Objects.deepEquals(this.label, other.label)
       && Objects.deepEquals(this.language, other.language)
       && Objects.deepEquals(this.selected, other.selected)
@@ -45,6 +49,7 @@ data class Track(
   override fun hashCode(): Int {
     return arrayOf<Any?>(
       id,
+      index,
       label,
       language,
       selected
@@ -59,8 +64,8 @@ data class Track(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(id: String, label: String?, language: String?, selected: Boolean): Track {
-      return Track(id, label, language, selected)
+    private fun fromCpp(id: String, index: Double, label: String?, language: String?, selected: Boolean): Track {
+      return Track(id, index, label, language, selected)
     }
   }
 }

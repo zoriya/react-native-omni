@@ -49,32 +49,30 @@ const eventMapper: EventMapperConfig = {
 			);
 		}
 	}),
-	...createEventMapper("subtitleChange", selectTextTrack, (cb, value, prev) => {
-		if (value === prev) return;
-		const tracks = value?.textTrackList;
-		if (tracks?.length) {
-			for (let i = 0; i < tracks.length; i++) {
-				const track = tracks[i];
-				if (track?.mode === "showing") {
-					cb({
-						id: `text-${i}`,
-						label: track.label,
-						language: track.language,
-						selected: true,
-					});
-					return;
-				}
-			}
+	...createEventMapper("subtitleChange", selectTextTrack, (cb, value) => {
+		if (!value) return;
+		const track = value.textTrackList.find((x) => x.mode === "showing");
+		if (!track) {
+			cb(undefined);
+			return;
 		}
-		cb(undefined);
+		const idx = value.textTrackList.indexOf(track);
+		cb({
+			id: track.id ?? `text-${idx}`,
+			index: idx,
+			label: track.label,
+			language: track.language,
+			selected: true,
+		});
 	}),
 	...createEventMapper("audioTrackChange", selectAudioTrack, (cb, value) => {
 		if (!value) return;
 		const track = value.audioTrackList.find((t) => t.enabled);
 		if (!track) return;
-
+		const idx = value.audioTrackList.indexOf(track);
 		cb({
-			id: track.id!,
+			id: track.id ?? `audio-${idx}`,
+			index: idx,
 			label: track.label,
 			language: track.language,
 			selected: true,
@@ -206,6 +204,7 @@ export const stateMapper = {
 		if (!audio) return [];
 		return audio.audioTrackList.map((track, i) => ({
 			id: track.id ?? i.toString(),
+			index: i,
 			label: track.label,
 			language: track.language,
 			selected: track.enabled,
@@ -267,7 +266,7 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			return player.subtitles as OmniPlayerState[Key];
 		}
 		default: {
-			const config = stateMapper[key];
+			const config = stateMapper[key as keyof typeof stateMapper];
 			const ret = useStoreSelector(config?.selector as Selector<any, any>);
 			if (!config) throw new Error(`No mapper for ${key}`);
 			return config.mapper(ret) as OmniPlayerState[Key];

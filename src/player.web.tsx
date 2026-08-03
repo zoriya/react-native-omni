@@ -218,8 +218,9 @@ export class WebOmniPlayer implements OmniPlayer {
 		const textTracks = selectTextTrack(this._store.state)?.textTrackList ?? [];
 		return textTracks
 			.filter((x) => x.kind === "subtitles" || x.kind === "captions")
-			.map((track) => ({
+			.map((track, i) => ({
 				id: track.id!,
+				index: i,
 				label: track.label,
 				language: track.language,
 				selected:

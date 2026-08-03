@@ -41,13 +41,14 @@ namespace margelo::nitro::omni {
   struct Track final {
   public:
     std::string id     SWIFT_PRIVATE;
+    double index     SWIFT_PRIVATE;
     std::optional<std::string> label     SWIFT_PRIVATE;
     std::optional<std::string> language     SWIFT_PRIVATE;
     bool selected     SWIFT_PRIVATE;
 
   public:
     Track() = default;
-    explicit Track(std::string id, std::optional<std::string> label, std::optional<std::string> language, bool selected): id(id), label(label), language(language), selected(selected) {}
+    explicit Track(std::string id, double index, std::optional<std::string> label, std::optional<std::string> language, bool selected): id(id), index(index), label(label), language(language), selected(selected) {}
 
   public:
     friend bool operator==(const Track& lhs, const Track& rhs) = default;
@@ -64,6 +65,7 @@ namespace margelo::nitro {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::omni::Track(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "id"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "index"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "label"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "language"))),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "selected")))
@@ -72,6 +74,7 @@ namespace margelo::nitro {
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Track& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "id"), JSIConverter<std::string>::toJSI(runtime, arg.id));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "index"), JSIConverter<double>::toJSI(runtime, arg.index));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "label"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.label));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "language"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.language));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "selected"), JSIConverter<bool>::toJSI(runtime, arg.selected));
@@ -86,6 +89,7 @@ namespace margelo::nitro {
         return false;
       }
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "id")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "index")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "label")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "language")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "selected")))) return false;

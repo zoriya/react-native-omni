@@ -52,6 +52,8 @@ export type CastStatus =
 
 export interface Track {
 	readonly id: string;
+	// -1 for external tracks
+	readonly index: number;
 	readonly label?: string;
 	readonly language?: string;
 	readonly selected: boolean;

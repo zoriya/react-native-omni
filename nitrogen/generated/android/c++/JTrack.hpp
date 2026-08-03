@@ -34,6 +34,8 @@ namespace margelo::nitro::omni {
       static const auto clazz = javaClassStatic();
       static const auto fieldId = clazz->getField<jni::JString>("id");
       jni::local_ref<jni::JString> id = this->getFieldValue(fieldId);
+      static const auto fieldIndex = clazz->getField<double>("index");
+      double index = this->getFieldValue(fieldIndex);
       static const auto fieldLabel = clazz->getField<jni::JString>("label");
       jni::local_ref<jni::JString> label = this->getFieldValue(fieldLabel);
       static const auto fieldLanguage = clazz->getField<jni::JString>("language");
@@ -42,6 +44,7 @@ namespace margelo::nitro::omni {
       jboolean selected = this->getFieldValue(fieldSelected);
       return Track(
         id->toStdString(),
+        index,
         label != nullptr ? std::make_optional(label->toStdString()) : std::nullopt,
         language != nullptr ? std::make_optional(language->toStdString()) : std::nullopt,
         static_cast<bool>(selected)
@@ -54,12 +57,13 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JTrack::javaobject> fromCpp(const Track& value) {
-      using JSignature = JTrack(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean);
+      using JSignature = JTrack(jni::alias_ref<jni::JString>, double, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jboolean);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
         jni::make_jstring(value.id),
+        value.index,
         value.label.has_value() ? jni::make_jstring(value.label.value()) : nullptr,
         value.language.has_value() ? jni::make_jstring(value.language.value()) : nullptr,
         value.selected

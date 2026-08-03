@@ -451,13 +451,19 @@ class OmniPlayer(
         // when casting tracks are stripped of some metadata, recover it
         val castTracks = castMediaTracksById()
 
+        // external (sideloaded) subs aren't in the container, so their index is -1
+        val sideloadedIds = source?.subtitles?.map { it.id }?.toHashSet().orEmpty()
+        var index = 0
+
         return groups.map { group ->
             val format = group.getTrackFormat(0)
-
-            val castTrackId = group.mediaTrackGroup.id.substringAfterLast("track=", "").toLongOrNull()
+            val id = group.mediaTrackGroup.id
+            val castTrackId = id.substringAfterLast("track=", "").toLongOrNull()
             val cast = castTracks[castTrackId]
+            val sideloaded = trackType == C.TRACK_TYPE_TEXT && id in sideloadedIds
             Track(
-                id = group.mediaTrackGroup.id,
+                id = id,
+                index = if (sideloaded) -1.0 else (index++).toDouble(),
                 label = cast?.name ?: format.label,
                 language = cast?.language ?: format.language,
                 selected = group.isSelected
