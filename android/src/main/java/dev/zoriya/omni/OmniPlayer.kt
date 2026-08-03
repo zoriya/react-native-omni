@@ -298,7 +298,7 @@ class OmniPlayer(
     override val renditions by mainThreadProperty {
         val group =
             player.currentTracks.groups.firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_VIDEO }
-                ?: return emptyArray()
+                ?: return@mainThreadProperty emptyArray<Rendition>()
 
         val currentIndex = when {
             isAutoQuality -> {
@@ -326,7 +326,7 @@ class OmniPlayer(
                 )
             )
         }
-        return result.toTypedArray()
+        return@mainThreadProperty result.toTypedArray()
     }
 
     override var isAutoQuality by mainThreadProperty {
@@ -476,9 +476,6 @@ class OmniPlayer(
         val tracks = castContext?.sessionManager?.currentCastSession
             ?.remoteMediaClient?.mediaInfo?.mediaTracks ?: return emptyMap()
         return tracks.associateBy { it.id }
-    }
-
-    private fun getRenditions(): Array<Rendition> {
     }
 
     override fun selectRendition(rendition: Rendition?) {
