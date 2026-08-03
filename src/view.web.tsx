@@ -151,28 +151,26 @@ export const OmniView = ({
 			ref={containerRef}
 			style={{ position: "relative", ...style }}
 		>
-			{source?.src && (
-				<Tech
-					ref={ref}
-					src={source?.src.uri}
-					config={config}
-					autoPlay={autoplay}
-					playsInline
-					crossOrigin="anonymous"
-					style={{ width: "100%", height: "100%", objectFit: "contain" }}
-				>
-					{(source?.subtitles ?? []).map((subtitle) => (
-						<track
-							key={subtitle.id}
-							id={subtitle.id}
-							kind="subtitles"
-							src={subtitle.link}
-							srcLang={subtitle.language}
-							label={subtitle.label ?? subtitle.language ?? subtitle.id}
-						/>
-					))}
-				</Tech>
-			)}
+			<Tech
+				ref={ref}
+				src={source?.src.uri}
+				config={config}
+				autoPlay={autoplay}
+				playsInline
+				crossOrigin="anonymous"
+				style={{ width: "100%", height: "100%", objectFit: "contain" }}
+			>
+				{(source?.subtitles ?? []).map((subtitle) => (
+					<track
+						key={subtitle.id}
+						id={subtitle.id}
+						kind="subtitles"
+						src={subtitle.link}
+						srcLang={subtitle.language}
+						label={subtitle.label ?? subtitle.language ?? subtitle.id}
+					/>
+				))}
+			</Tech>
 			{castStatus !== "connected" && castStatus !== "connecting" && (
 				<SubtitleOverlay
 					video={ref}
