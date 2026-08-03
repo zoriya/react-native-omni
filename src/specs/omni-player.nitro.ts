@@ -6,14 +6,24 @@ import type {
 	OmniPlayer as OmniPlayerT,
 	PlayerBackend,
 	PlayerStatus,
+	Rendition,
+	Track,
 } from "../types/player";
 import type { CastOptions, Source } from "../types/source";
 
 export type NumberProperty = Exclude<
 	keyof OmniPlayerState,
-	"status" | "isPlaying" | "muted" | "source"
+	| "status"
+	| "isPlaying"
+	| "muted"
+	| "source"
+	| "videos"
+	| "audios"
+	| "subtitles"
+	| "renditions"
 >;
 export type BoolProperty = "isPlaying" | "muted" | "isAutoQuality";
+export type TrackProperty = "videos" | "audios" | "subtitles";
 
 export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 	addStateListener(key: NumberProperty, cb: (value: number) => void): void;
@@ -31,6 +41,12 @@ export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 
 	addSourceListener(cb: (value?: Source) => void): void;
 	removeSourceListener(cb: (value?: Source) => void): void;
+
+	addTracksListener(key: TrackProperty, cb: (value: Track[]) => void): void;
+	removeTracksListener(key: TrackProperty, cb: (value: Track[]) => void): void;
+
+	addRenditionsListener(cb: (value: Rendition[]) => void): void;
+	removeRenditionsListener(cb: (value: Rendition[]) => void): void;
 
 	addOnEndListener(cb: OmniEvents["end"]): void;
 	removeOnEndListener(cb: OmniEvents["end"]): void;

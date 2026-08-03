@@ -64,6 +64,10 @@ namespace margelo::nitro::omni {
     void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
     void addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
     void removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
+    void addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
+    void removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
+    void addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;
+    void removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;
     void addOnEndListener(const std::function<void()>& cb) override;
     void removeOnEndListener(const std::function<void()>& cb) override;
     void addOnPrevListener(const std::function<void()>& cb) override;

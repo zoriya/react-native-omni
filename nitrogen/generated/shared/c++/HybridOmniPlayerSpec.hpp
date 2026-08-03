@@ -15,26 +15,26 @@
 
 // Forward declaration of `HybridOmniEventMapSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniEventMapSpec; }
-// Forward declaration of `Track` to properly resolve imports.
-namespace margelo::nitro::omni { struct Track; }
-// Forward declaration of `Rendition` to properly resolve imports.
-namespace margelo::nitro::omni { struct Rendition; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `PlayerStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `Track` to properly resolve imports.
+namespace margelo::nitro::omni { struct Track; }
+// Forward declaration of `Rendition` to properly resolve imports.
+namespace margelo::nitro::omni { struct Rendition; }
 
 #include <memory>
 #include "HybridOmniEventMapSpec.hpp"
 #include <optional>
-#include "Track.hpp"
-#include <vector>
-#include "Rendition.hpp"
 #include "Source.hpp"
 #include "PlayerStatus.hpp"
 #include "CastStatus.hpp"
+#include "Track.hpp"
+#include <vector>
+#include "Rendition.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -68,10 +68,6 @@ namespace margelo::nitro::omni {
       virtual void setShowNotification(std::optional<bool> showNotification) = 0;
       virtual bool getHasPrev() = 0;
       virtual bool getHasNext() = 0;
-      virtual std::vector<Track> getVideos() = 0;
-      virtual std::vector<Track> getAudios() = 0;
-      virtual std::vector<Track> getSubtitles() = 0;
-      virtual std::vector<Rendition> getRendition() = 0;
       virtual std::optional<Source> getSource() = 0;
       virtual void setSource(const std::optional<Source>& source) = 0;
       virtual PlayerStatus getStatus() = 0;
@@ -88,6 +84,10 @@ namespace margelo::nitro::omni {
       virtual void setMuted(bool muted) = 0;
       virtual bool getIsAutoQuality() = 0;
       virtual CastStatus getCastStatus() = 0;
+      virtual std::vector<Track> getVideos() = 0;
+      virtual std::vector<Track> getAudios() = 0;
+      virtual std::vector<Track> getSubtitles() = 0;
+      virtual std::vector<Rendition> getRenditions() = 0;
 
     public:
       // Methods

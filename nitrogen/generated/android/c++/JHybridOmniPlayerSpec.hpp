@@ -55,10 +55,6 @@ namespace margelo::nitro::omni {
     void setShowNotification(std::optional<bool> showNotification) override;
     bool getHasPrev() override;
     bool getHasNext() override;
-    std::vector<Track> getVideos() override;
-    std::vector<Track> getAudios() override;
-    std::vector<Track> getSubtitles() override;
-    std::vector<Rendition> getRendition() override;
     std::optional<Source> getSource() override;
     void setSource(const std::optional<Source>& source) override;
     PlayerStatus getStatus() override;
@@ -75,6 +71,10 @@ namespace margelo::nitro::omni {
     void setMuted(bool muted) override;
     bool getIsAutoQuality() override;
     CastStatus getCastStatus() override;
+    std::vector<Track> getVideos() override;
+    std::vector<Track> getAudios() override;
+    std::vector<Track> getSubtitles() override;
+    std::vector<Rendition> getRenditions() override;
 
   public:
     // Methods

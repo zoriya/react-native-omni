@@ -60,6 +60,14 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			case "source":
 				em.addSourceListener(setState);
 				return () => em.removeSourceListener(setState);
+			case "videos":
+			case "audios":
+			case "subtitles":
+				em.addTracksListener(key, setState);
+				return () => em.removeTracksListener(key, setState);
+			case "renditions":
+				em.addRenditionsListener(setState);
+				return () => em.removeRenditionsListener(setState);
 		}
 	}, [player, key]);
 

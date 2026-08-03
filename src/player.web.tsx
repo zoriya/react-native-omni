@@ -1,4 +1,3 @@
-import type { MediaVideoRendition } from "@videojs/core";
 import type { VideoPlayerStore } from "@videojs/core/dom";
 import {
 	selectAudioTrack,
@@ -75,7 +74,6 @@ export class WebOmniPlayer implements OmniPlayer {
 		this.sourceListeners.add(callback);
 		return () => this.sourceListeners.delete(callback);
 	};
-
 
 	get source(): Source | undefined {
 		return this._source;
@@ -203,14 +201,7 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get audios(): Track[] {
-		const audio = selectAudioTrack(this._store.state);
-		if (!audio) return [];
-		return audio.audioTrackList.map((track, i) => ({
-			id: track.id ?? i.toString(),
-			label: track.label,
-			language: track.language,
-			selected: track.enabled,
-		}));
+		return stateMapper.audios.mapper(selectAudioTrack(this._store.state));
 	}
 
 	selectAudio(audio: Track): void {
@@ -266,30 +257,8 @@ export class WebOmniPlayer implements OmniPlayer {
 
 	getOverlaySubtitle = (): Subtitle | null => this.overlaySubtitle;
 
-	get rendition(): Rendition[] {
-		function isSameRendition(
-			a: MediaVideoRendition,
-			b: MediaVideoRendition | null,
-		): boolean {
-			return (
-				b != null &&
-				a.id === b.id &&
-				a.width === b.width &&
-				a.height === b.height &&
-				a.bitrate === b.bitrate
-			);
-		}
-
-		const quality = selectQuality(this._store.state);
-		if (!quality) return [];
-		const active = quality.activeVideoRendition;
-		return quality.videoRenditionList.map((rendition, i) => ({
-			id: rendition.id ?? i.toString(),
-			width: rendition.width ?? 0,
-			height: rendition.height ?? 0,
-			bitrate: rendition.bitrate ?? 0,
-			selected: rendition.selected || isSameRendition(rendition, active),
-		}));
+	get renditions(): Rendition[] {
+		return stateMapper.renditions.mapper(selectQuality(this._store.state));
 	}
 
 	selectRendition(rendition?: Rendition): void {

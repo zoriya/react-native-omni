@@ -202,6 +202,32 @@ export const stateMapper = {
 		if (r.remotePlaybackState === "connected") return "connected";
 		return r.remotePlaybackAvailability;
 	}),
+	...createMapper("audios", selectAudioTrack, (audio) => {
+		if (!audio) return [];
+		return audio.audioTrackList.map((track, i) => ({
+			id: track.id ?? i.toString(),
+			label: track.label,
+			language: track.language,
+			selected: track.enabled,
+		}));
+	}),
+	...createMapper("renditions", selectQuality, (quality) => {
+		if (!quality) return [];
+		const active = quality.activeVideoRendition;
+		return quality.videoRenditionList.map((rendition, i) => ({
+			id: rendition.id ?? i.toString(),
+			width: rendition.width ?? 0,
+			height: rendition.height ?? 0,
+			bitrate: rendition.bitrate ?? 0,
+			selected:
+				rendition.selected ||
+				(active != null &&
+					rendition.id === active.id &&
+					rendition.width === active.width &&
+					rendition.height === active.height &&
+					rendition.bitrate === active.bitrate),
+		}));
+	}),
 };
 
 // biome-ignore-start lint/correctness/useHookAtTopLevel: key must be const
@@ -216,18 +242,36 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 	key: Key,
 	_refresh?: number,
 ): OmniPlayerState[Key] {
-	if (key === "source") {
-		const player = usePlayer() as WebOmniPlayer;
-		const source = useSyncExternalStore(
-			player.subscribeSource,
-			() => player.source,
-			() => player.source,
-		);
-		return source as OmniPlayerState[Key];
+	switch (key as keyof OmniPlayerState) {
+		case "source": {
+			const player = usePlayer() as WebOmniPlayer;
+			const source = useSyncExternalStore(
+				player.subscribeSource,
+				() => player.source,
+				() => player.source,
+			);
+			return source as OmniPlayerState[Key];
+		}
+		case "videos": {
+			const player = usePlayer();
+			return player.videos as OmniPlayerState[Key];
+		}
+		case "subtitles": {
+			const player = usePlayer() as WebOmniPlayer;
+			useStoreSelector(selectTextTrack);
+			useSyncExternalStore(
+				player.subscribeOverlaySubtitle,
+				player.getOverlaySubtitle,
+				() => null,
+			);
+			return player.subtitles as OmniPlayerState[Key];
+		}
+		default: {
+			const config = stateMapper[key];
+			const ret = useStoreSelector(config?.selector as Selector<any, any>);
+			if (!config) throw new Error(`No mapper for ${key}`);
+			return config.mapper(ret) as OmniPlayerState[Key];
+		}
 	}
-	const config = stateMapper[key as keyof Omit<OmniPlayerState, "source">];
-	const ret = useStoreSelector(config?.selector as Selector<any, any>);
-	if (!config) throw new Error(`No mapper for ${key}`);
-	return config.mapper(ret) as OmniPlayerState[Key];
 }
 // biome-ignore-end lint/correctness/useHookAtTopLevel: key must be const

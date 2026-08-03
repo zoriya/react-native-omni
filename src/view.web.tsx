@@ -52,7 +52,7 @@ const SubtitleOverlay = ({
 			// jassub uses this as libass' storage size so subtitles stay sharp
 			// even while a low-bitrate rendition is playing — otherwise the
 			// raster tracks the currently-decoded (possibly tiny) frame size.
-			const renditions = player.rendition;
+			const renditions = player.renditions;
 			const videoWidth = Math.max(0, ...renditions.map((r) => r.width));
 			const videoHeight = Math.max(0, ...renditions.map((r) => r.height));
 			import("jassub")

@@ -26,9 +26,22 @@ import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
+import com.margelo.nitro.omni.TrackProperty
+
+/**
+ * Source of the current track/rendition lists. Implemented by [OmniPlayer] so
+ * state emissions reuse the same computation (incl. cast metadata recovery) as
+ * its readonly getters.
+ */
+interface TrackProvider {
+    val videos: Array<Track>
+    val audios: Array<Track>
+    val subtitles: Array<Track>
+    val renditions: Array<Rendition>
+}
 
 @SuppressLint("UnsafeOptInUsageError")
-class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
+class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Player.Listener {
     private val onPrevListeners = mutableSetOf<() -> Unit>()
     private val onNextListeners = mutableSetOf<() -> Unit>()
     private val onEndListeners = mutableSetOf<() -> Unit>()
@@ -38,6 +51,8 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
     private val onAudioTrackChangeListeners = mutableSetOf<(track: Track) -> Unit>()
     private val onSubtitleChangeListeners = mutableSetOf<(track: Track?) -> Unit>()
     private val onRenditionChangeListeners = mutableSetOf<(rendition: Rendition) -> Unit>()
+    private val tracksListeners = mutableMapOf<TrackProperty, MutableSet<(Array<Track>) -> Unit>>()
+    private val renditionsListeners = mutableSetOf<(Array<Rendition>) -> Unit>()
     private val stateListeners = mutableMapOf<NumberProperty, MutableSet<(Double) -> Unit>>()
     private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
     private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
@@ -46,6 +61,7 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
 
     private var lastMediaItemIndex = 0
     private var lastRendition: Rendition? = null
+    private var lastRenditions: Array<Rendition>? = null
     private var lastIsAutoQuality: Boolean? = null
 
     // swapped on cast start/end
@@ -59,6 +75,7 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
             value.addListener(this)
             lastMediaItemIndex = value.currentMediaItemIndex
             lastRendition = null
+            lastRenditions = null
             lastIsAutoQuality = null
 
             // immediatly send all the state
@@ -158,11 +175,32 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
         stateBoolListeners[BoolProperty.ISAUTOQUALITY]?.forEach { it(isAuto) }
     }
 
+    private fun emitTracks() {
+        tracksListeners[TrackProperty.VIDEOS]?.let { cbs ->
+            val videos = tracks.videos
+            cbs.forEach { it(videos) }
+        }
+        tracksListeners[TrackProperty.AUDIOS]?.let { cbs ->
+            val audios = tracks.audios
+            cbs.forEach { it(audios) }
+        }
+        tracksListeners[TrackProperty.SUBTITLES]?.let { cbs ->
+            val subtitles = tracks.subtitles
+            cbs.forEach { it(subtitles) }
+        }
+    }
+
     private fun emitRenditionChange() {
         val rendition = getCurrentRendition() ?: return
         if (rendition == lastRendition) return
         lastRendition = rendition
         onRenditionChangeListeners.forEach { it(rendition) }
+    }
+
+    private fun emitRenditions() {
+        if (renditionsListeners.isEmpty()) return
+        val renditions = tracks.renditions
+        renditionsListeners.forEach { it(renditions) }
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -227,20 +265,19 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
         selectedTrack(TRACK_TYPE_AUDIO)?.let { track ->
             onAudioTrackChangeListeners.forEach { it(track) }
         }
-        onSubtitleChangeListeners.forEach {
-            it(
-                selectedTrack(
-                    TRACK_TYPE_TEXT
-                )
-            )
+        selectedTrack(TRACK_TYPE_TEXT)?.let { track ->
+            onSubtitleChangeListeners.forEach { it(track) }
         }
+        emitTracks()
         emitIsAutoQualityChange()
         emitRenditionChange()
+        emitRenditions()
     }
 
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         emitIsAutoQualityChange()
         emitRenditionChange()
+        emitRenditions()
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -395,6 +432,22 @@ class EventMap() : HybridOmniEventMapSpec(), Player.Listener {
 
     override fun removeOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit) {
         onRenditionChangeListeners.remove(cb)
+    }
+
+    override fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit) {
+        tracksListeners.getOrPut(key) { mutableSetOf() }.add(cb)
+    }
+
+    override fun removeTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit) {
+        tracksListeners[key]?.remove(cb)
+    }
+
+    override fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit) {
+        renditionsListeners.add(cb)
+    }
+
+    override fun removeRenditionsListener(cb: (value: Array<Rendition>) -> Unit) {
+        renditionsListeners.remove(cb)
     }
 
     override fun dispose() {

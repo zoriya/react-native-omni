@@ -23,6 +23,8 @@ namespace margelo::nitro::omni { enum class PlayerStatus; }
 namespace margelo::nitro::omni { enum class CastStatus; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
+// Forward declaration of `TrackProperty` to properly resolve imports.
+namespace margelo::nitro::omni { enum class TrackProperty; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -35,9 +37,11 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "CastStatus.hpp"
 #include "Source.hpp"
 #include <optional>
-#include <string>
+#include "TrackProperty.hpp"
 #include "Track.hpp"
+#include <vector>
 #include "Rendition.hpp"
+#include <string>
 
 namespace margelo::nitro::omni {
 
@@ -80,6 +84,10 @@ namespace margelo::nitro::omni {
       virtual void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
       virtual void addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
       virtual void removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
+      virtual void addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
+      virtual void removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
+      virtual void addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;
+      virtual void removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;
       virtual void addOnEndListener(const std::function<void()>& cb) = 0;
       virtual void removeOnEndListener(const std::function<void()>& cb) = 0;
       virtual void addOnPrevListener(const std::function<void()>& cb) = 0;

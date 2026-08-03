@@ -15,13 +15,9 @@ export interface OmniPlayer extends OmniPlayerState {
 	readonly hasPrev: boolean;
 	readonly hasNext: boolean;
 
-	readonly videos: Track[];
 	selectVideo(video: Track): void;
-	readonly audios: Track[];
 	selectAudio(audio: Track): void;
-	readonly subtitles: Track[];
 	selectSubtitle(subtitle?: Track): void;
-	readonly rendition: Rendition[];
 	selectRendition(rendition?: Rendition): void;
 }
 
@@ -38,6 +34,11 @@ export interface OmniPlayerState {
 	muted: boolean;
 	readonly isAutoQuality: boolean;
 	readonly castStatus: CastStatus;
+
+	readonly videos: Track[];
+	readonly audios: Track[];
+	readonly subtitles: Track[];
+	readonly renditions: Rendition[];
 }
 
 export type PlayerStatus = "idle" | "loading" | "readyToPlay" | "error";

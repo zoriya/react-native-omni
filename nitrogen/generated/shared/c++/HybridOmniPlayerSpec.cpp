@@ -19,10 +19,6 @@ namespace margelo::nitro::omni {
       prototype.registerHybridSetter("showNotification", &HybridOmniPlayerSpec::setShowNotification);
       prototype.registerHybridGetter("hasPrev", &HybridOmniPlayerSpec::getHasPrev);
       prototype.registerHybridGetter("hasNext", &HybridOmniPlayerSpec::getHasNext);
-      prototype.registerHybridGetter("videos", &HybridOmniPlayerSpec::getVideos);
-      prototype.registerHybridGetter("audios", &HybridOmniPlayerSpec::getAudios);
-      prototype.registerHybridGetter("subtitles", &HybridOmniPlayerSpec::getSubtitles);
-      prototype.registerHybridGetter("rendition", &HybridOmniPlayerSpec::getRendition);
       prototype.registerHybridGetter("source", &HybridOmniPlayerSpec::getSource);
       prototype.registerHybridSetter("source", &HybridOmniPlayerSpec::setSource);
       prototype.registerHybridGetter("status", &HybridOmniPlayerSpec::getStatus);
@@ -39,6 +35,10 @@ namespace margelo::nitro::omni {
       prototype.registerHybridSetter("muted", &HybridOmniPlayerSpec::setMuted);
       prototype.registerHybridGetter("isAutoQuality", &HybridOmniPlayerSpec::getIsAutoQuality);
       prototype.registerHybridGetter("castStatus", &HybridOmniPlayerSpec::getCastStatus);
+      prototype.registerHybridGetter("videos", &HybridOmniPlayerSpec::getVideos);
+      prototype.registerHybridGetter("audios", &HybridOmniPlayerSpec::getAudios);
+      prototype.registerHybridGetter("subtitles", &HybridOmniPlayerSpec::getSubtitles);
+      prototype.registerHybridGetter("renditions", &HybridOmniPlayerSpec::getRenditions);
       prototype.registerHybridMethod("play", &HybridOmniPlayerSpec::play);
       prototype.registerHybridMethod("pause", &HybridOmniPlayerSpec::pause);
       prototype.registerHybridMethod("seekBy", &HybridOmniPlayerSpec::seekBy);

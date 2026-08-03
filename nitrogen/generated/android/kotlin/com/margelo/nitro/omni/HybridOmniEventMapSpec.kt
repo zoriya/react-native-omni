@@ -118,6 +118,42 @@ abstract class HybridOmniEventMapSpec: HybridObject() {
     return __result
   }
   
+  abstract fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addTracksListener_cxx(key: TrackProperty, cb: Func_void_std__vector_Track_): Unit {
+    val __result = addTracksListener(key, cb)
+    return __result
+  }
+  
+  abstract fun removeTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun removeTracksListener_cxx(key: TrackProperty, cb: Func_void_std__vector_Track_): Unit {
+    val __result = removeTracksListener(key, cb)
+    return __result
+  }
+  
+  abstract fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addRenditionsListener_cxx(cb: Func_void_std__vector_Rendition_): Unit {
+    val __result = addRenditionsListener(cb)
+    return __result
+  }
+  
+  abstract fun removeRenditionsListener(cb: (value: Array<Rendition>) -> Unit): Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun removeRenditionsListener_cxx(cb: Func_void_std__vector_Rendition_): Unit {
+    val __result = removeRenditionsListener(cb)
+    return __result
+  }
+  
   abstract fun addOnEndListener(cb: () -> Unit): Unit
   
   @DoNotStrip

@@ -24,6 +24,10 @@ namespace margelo::nitro::omni {
       prototype.registerHybridMethod("removeCastStatusListener", &HybridOmniEventMapSpec::removeCastStatusListener);
       prototype.registerHybridMethod("addSourceListener", &HybridOmniEventMapSpec::addSourceListener);
       prototype.registerHybridMethod("removeSourceListener", &HybridOmniEventMapSpec::removeSourceListener);
+      prototype.registerHybridMethod("addTracksListener", &HybridOmniEventMapSpec::addTracksListener);
+      prototype.registerHybridMethod("removeTracksListener", &HybridOmniEventMapSpec::removeTracksListener);
+      prototype.registerHybridMethod("addRenditionsListener", &HybridOmniEventMapSpec::addRenditionsListener);
+      prototype.registerHybridMethod("removeRenditionsListener", &HybridOmniEventMapSpec::removeRenditionsListener);
       prototype.registerHybridMethod("addOnEndListener", &HybridOmniEventMapSpec::addOnEndListener);
       prototype.registerHybridMethod("removeOnEndListener", &HybridOmniEventMapSpec::removeOnEndListener);
       prototype.registerHybridMethod("addOnPrevListener", &HybridOmniEventMapSpec::addOnPrevListener);

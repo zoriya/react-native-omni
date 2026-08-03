@@ -9,10 +9,6 @@
 
 // Forward declaration of `HybridOmniEventMapSpec` to properly resolve imports.
 namespace margelo::nitro::omni { class HybridOmniEventMapSpec; }
-// Forward declaration of `Track` to properly resolve imports.
-namespace margelo::nitro::omni { struct Track; }
-// Forward declaration of `Rendition` to properly resolve imports.
-namespace margelo::nitro::omni { struct Rendition; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
@@ -27,23 +23,23 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `Track` to properly resolve imports.
+namespace margelo::nitro::omni { struct Track; }
+// Forward declaration of `Rendition` to properly resolve imports.
+namespace margelo::nitro::omni { struct Rendition; }
 
 #include <memory>
 #include "HybridOmniEventMapSpec.hpp"
 #include "JHybridOmniEventMapSpec.hpp"
 #include <optional>
-#include "Track.hpp"
-#include <vector>
-#include "JTrack.hpp"
-#include <string>
-#include "Rendition.hpp"
-#include "JRendition.hpp"
 #include "Source.hpp"
 #include "JSource.hpp"
 #include "VideoSrc.hpp"
 #include "JVideoSrc.hpp"
+#include <string>
 #include <unordered_map>
 #include "Subtitle.hpp"
+#include <vector>
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"
@@ -53,6 +49,10 @@ namespace margelo::nitro::omni { enum class CastStatus; }
 #include "JPlayerStatus.hpp"
 #include "CastStatus.hpp"
 #include "JCastStatus.hpp"
+#include "Track.hpp"
+#include "JTrack.hpp"
+#include "Rendition.hpp"
+#include "JRendition.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -107,62 +107,6 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jboolean()>("getHasNext");
     auto __result = method(_javaPart);
     return static_cast<bool>(__result);
-  }
-  std::vector<Track> JHybridOmniPlayerSpec::getVideos() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getVideos");
-    auto __result = method(_javaPart);
-    return [&](auto&& __input) {
-      size_t __size = __input->size();
-      std::vector<Track> __vector;
-      __vector.reserve(__size);
-      for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __input->getElement(__i);
-        __vector.push_back(__element->toCpp());
-      }
-      return __vector;
-    }(__result);
-  }
-  std::vector<Track> JHybridOmniPlayerSpec::getAudios() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getAudios");
-    auto __result = method(_javaPart);
-    return [&](auto&& __input) {
-      size_t __size = __input->size();
-      std::vector<Track> __vector;
-      __vector.reserve(__size);
-      for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __input->getElement(__i);
-        __vector.push_back(__element->toCpp());
-      }
-      return __vector;
-    }(__result);
-  }
-  std::vector<Track> JHybridOmniPlayerSpec::getSubtitles() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getSubtitles");
-    auto __result = method(_javaPart);
-    return [&](auto&& __input) {
-      size_t __size = __input->size();
-      std::vector<Track> __vector;
-      __vector.reserve(__size);
-      for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __input->getElement(__i);
-        __vector.push_back(__element->toCpp());
-      }
-      return __vector;
-    }(__result);
-  }
-  std::vector<Rendition> JHybridOmniPlayerSpec::getRendition() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JRendition>>()>("getRendition");
-    auto __result = method(_javaPart);
-    return [&](auto&& __input) {
-      size_t __size = __input->size();
-      std::vector<Rendition> __vector;
-      __vector.reserve(__size);
-      for (size_t __i = 0; __i < __size; __i++) {
-        auto __element = __input->getElement(__i);
-        __vector.push_back(__element->toCpp());
-      }
-      return __vector;
-    }(__result);
   }
   std::optional<Source> JHybridOmniPlayerSpec::getSource() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JSource>()>("getSource");
@@ -238,6 +182,62 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JCastStatus>()>("getCastStatus");
     auto __result = method(_javaPart);
     return __result->toCpp();
+  }
+  std::vector<Track> JHybridOmniPlayerSpec::getVideos() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getVideos");
+    auto __result = method(_javaPart);
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
+      std::vector<Track> __vector;
+      __vector.reserve(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        auto __element = __input->getElement(__i);
+        __vector.push_back(__element->toCpp());
+      }
+      return __vector;
+    }(__result);
+  }
+  std::vector<Track> JHybridOmniPlayerSpec::getAudios() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getAudios");
+    auto __result = method(_javaPart);
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
+      std::vector<Track> __vector;
+      __vector.reserve(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        auto __element = __input->getElement(__i);
+        __vector.push_back(__element->toCpp());
+      }
+      return __vector;
+    }(__result);
+  }
+  std::vector<Track> JHybridOmniPlayerSpec::getSubtitles() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JTrack>>()>("getSubtitles");
+    auto __result = method(_javaPart);
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
+      std::vector<Track> __vector;
+      __vector.reserve(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        auto __element = __input->getElement(__i);
+        __vector.push_back(__element->toCpp());
+      }
+      return __vector;
+    }(__result);
+  }
+  std::vector<Rendition> JHybridOmniPlayerSpec::getRenditions() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JRendition>>()>("getRenditions");
+    auto __result = method(_javaPart);
+    return [&](auto&& __input) {
+      size_t __size = __input->size();
+      std::vector<Rendition> __vector;
+      __vector.reserve(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        auto __element = __input->getElement(__i);
+        __vector.push_back(__element->toCpp());
+      }
+      return __vector;
+    }(__result);
   }
 
   // Methods

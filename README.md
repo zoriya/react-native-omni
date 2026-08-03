@@ -132,9 +132,9 @@ component that uses `<OmniView>`, `usePlayer`, `usePlayerState`, or `useEvent`.
 
 | Prop               | Type      | Default | Description                                          |
 | ------------------ | --------- | ------- | ---------------------------------------------------- |
-| `source`           | `Source`  | —       | The media to play.                                   |
+| `source`           | `Source`  | x       | The media to play.                                   |
 | `showNotification` | `boolean` | `false` | Create a media session (OS controls/notification).   |
-| `children`         | `ReactNode` | —     | Your player UI.                                      |
+| `children`         | `ReactNode` | x     | Your player UI.                                      |
 
 Updating `source` swaps the media in place (and seeks to `source.startTime` if
 set) without recreating the player.
@@ -152,7 +152,7 @@ plus:
 
 ### `usePlayer()`
 
-Returns the `OmniPlayer` instance — an imperative handle for controlling
+Returns the `OmniPlayer` instance: an imperative handle for controlling
 playback and reading/writing state.
 
 **Playback controls**
@@ -199,11 +199,11 @@ player.selectAudio(track);
 player.subtitles; // Track[]
 player.selectSubtitle(track); // pass undefined to turn subtitles off
 
-player.rendition; // Rendition[]
+player.renditions; // Rendition[]
 player.selectRendition(rendition); // pass undefined for automatic quality
 ```
 
-> Prefer `usePlayerState`/`useEvent` for values that change over time — reading
+> Prefer `usePlayerState` for values that change over time. Reading
 > them directly off `player` gives you a one-time snapshot and won't re-render.
 
 ### `usePlayerState(key, refresh?)`
@@ -216,6 +216,10 @@ const status = usePlayerState("status");
 const isPlaying = usePlayerState("isPlaying");
 const duration = usePlayerState("duration");
 const currentTime = usePlayerState("currentTime", 1); // poll every 1s
+
+const audios = usePlayerState("audios"); // Track[]
+const subtitles = usePlayerState("subtitles"); // Track[]
+const renditions = usePlayerState("renditions"); // Rendition[]
 ```
 
 The optional `refresh` argument (seconds) sets a polling interval.
@@ -249,6 +253,10 @@ useEvent("renditionChange", (rendition) => {/* … */});
 | `audioTrackChange` | `(track) => void`                      | The active audio track changed.               |
 | `subtitleChange`   | `(track?) => void`                     | The active subtitle changed (`undefined` = off). |
 | `renditionChange`  | `(rendition) => void`                  | The active quality/rendition changed.         |
+
+The track/rendition change events fire when the _active_ selection changes;
+`usePlayerState("audios" | "subtitles" | "renditions" | "videos")` exposes the
+full lists as reactive state. Use whichever fits.
 
 ## Example app
 

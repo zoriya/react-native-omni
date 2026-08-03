@@ -81,25 +81,12 @@ function PlayerExample({
 	const castStatus = usePlayerState("castStatus");
 	const [logs, setLogs] = useState<{ id: number; message: string }[]>([]);
 	const logId = useRef(0);
-	const [tracks, setTracks] = useState(() => ({
-		videos: [...player.videos],
-		audios: [...player.audios],
-		subtitles: [...player.subtitles],
-		renditions: [...player.rendition],
-	}));
-
-	const refreshTracks = useCallback(() => {
-		setTracks({
-			videos: [...player.videos],
-			audios: [...player.audios],
-			subtitles: [...player.subtitles],
-			renditions: [...player.rendition],
-		});
-	}, [player]);
-
-	useEffect(() => {
-		refreshTracks();
-	}, [refreshTracks]);
+	const tracks = {
+		videos: usePlayerState("videos"),
+		audios: usePlayerState("audios"),
+		subtitles: usePlayerState("subtitles"),
+		renditions: usePlayerState("renditions"),
+	};
 
 	const pushLog = useCallback((message: string) => {
 		setLogs((prev) => {
@@ -145,47 +132,6 @@ function PlayerExample({
 			handleNext();
 		}, [handleNext, pushLog]),
 	);
-	useEvent(
-		"videoTrackChange",
-		useCallback(
-			(track) => {
-				pushLog(`Video track: ${track.label ?? track.id}`);
-				refreshTracks();
-			},
-			[pushLog, refreshTracks],
-		),
-	);
-	useEvent(
-		"audioTrackChange",
-		useCallback(
-			(track) => {
-				pushLog(`Audio track: ${track.label ?? track.id}`);
-				refreshTracks();
-			},
-			[pushLog, refreshTracks],
-		),
-	);
-	useEvent(
-		"subtitleChange",
-		useCallback(
-			(track) => {
-				pushLog(`Subtitle: ${track?.label ?? track?.id ?? "off"}`);
-				refreshTracks();
-			},
-			[pushLog, refreshTracks],
-		),
-	);
-	useEvent(
-		"renditionChange",
-		useCallback(
-			(rendition) => {
-				pushLog(`Rendition: ${rendition.width}x${rendition.height}`);
-				refreshTracks();
-			},
-			[pushLog, refreshTracks],
-		),
-	);
-
 	const switchBackend = (target: AndroidBackend) => {
 		if (target === backend) return;
 		// Pause before tearing down: the native media-session guard refuses a
@@ -221,17 +167,14 @@ function PlayerExample({
 
 	const selectVideo = (video: (typeof tracks.videos)[number]) => {
 		player.selectVideo(video);
-		refreshTracks();
 	};
 
 	const selectAudio = (audio: (typeof tracks.audios)[number]) => {
 		player.selectAudio(audio);
-		refreshTracks();
 	};
 
 	const selectSubtitle = (subtitle?: (typeof tracks.subtitles)[number]) => {
 		player.selectSubtitle(subtitle);
-		refreshTracks();
 	};
 
 	return (
@@ -596,7 +539,7 @@ function App(): React.JSX.Element {
 			key={backend}
 			source={hasSource ? source : undefined}
 			backend={{ android: backend }}
-			cast={{receiverApplicationId: "D8FB0FC1"}}
+			cast={{ receiverApplicationId: "D8FB0FC1" }}
 			showNotification
 		>
 			<PlayerExample

@@ -51,7 +51,7 @@ import org.json.JSONObject
 class OmniPlayer(
     private val backend: AndroidBackend = AndroidBackend.VLC,
     castOptions: CastOptions? = null,
-) : HybridOmniPlayerSpec() {
+) : HybridOmniPlayerSpec(), TrackProvider {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
 
     // exoplayer only, used to specify request headers.
@@ -72,7 +72,7 @@ class OmniPlayer(
             AndroidBackend.VLC -> VlcPlayer(ctx)
         }
     }
-    override val eventMap = EventMap()
+    override val eventMap = EventMap(this)
 
     private var castContext: CastContext? = null
     private val castStateListener =
@@ -295,7 +295,39 @@ class OmniPlayer(
     override val videos by mainThreadProperty { tracksByType(C.TRACK_TYPE_VIDEO) }
     override val audios by mainThreadProperty { tracksByType(C.TRACK_TYPE_AUDIO) }
     override val subtitles by mainThreadProperty { tracksByType(C.TRACK_TYPE_TEXT) }
-    override val rendition by mainThreadProperty { getRenditions() }
+    override val renditions by mainThreadProperty {
+        val group =
+            player.currentTracks.groups.firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_VIDEO }
+                ?: return emptyArray()
+
+        val currentIndex = when {
+            isAutoQuality -> {
+                if (player.videoSize.width > 0 && player.videoSize.height > 0) {
+                    (0 until group.length).firstOrNull { i ->
+                        val format = group.getTrackFormat(i)
+                        format.width == player.videoSize.width && format.height == player.videoSize.height
+                    }
+                } else null
+            }
+
+            else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
+        }
+
+        val result = ArrayList<Rendition>()
+        for (i in 0 until group.length) {
+            val format = group.getTrackFormat(i)
+            result.add(
+                Rendition(
+                    id = i.toString(),
+                    width = format.width.toDouble().coerceAtLeast(0.0),
+                    height = format.height.toDouble().coerceAtLeast(0.0),
+                    bitrate = format.bitrate.toDouble().coerceAtLeast(0.0),
+                    selected = i == currentIndex
+                )
+            )
+        }
+        return result.toTypedArray()
+    }
 
     override var isAutoQuality by mainThreadProperty {
         player.trackSelectionParameters.overrides.none {
@@ -441,37 +473,6 @@ class OmniPlayer(
     }
 
     private fun getRenditions(): Array<Rendition> {
-        val group =
-            player.currentTracks.groups.firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_VIDEO }
-                ?: return emptyArray()
-
-        val currentIndex = when {
-            isAutoQuality -> {
-                if (player.videoSize.width > 0 && player.videoSize.height > 0) {
-                    (0 until group.length).firstOrNull { i ->
-                        val format = group.getTrackFormat(i)
-                        format.width == player.videoSize.width && format.height == player.videoSize.height
-                    }
-                } else null
-            }
-
-            else -> (0 until group.length).firstOrNull { group.isTrackSelected(it) }
-        }
-
-        val result = ArrayList<Rendition>()
-        for (i in 0 until group.length) {
-            val format = group.getTrackFormat(i)
-            result.add(
-                Rendition(
-                    id = i.toString(),
-                    width = format.width.toDouble().coerceAtLeast(0.0),
-                    height = format.height.toDouble().coerceAtLeast(0.0),
-                    bitrate = format.bitrate.toDouble().coerceAtLeast(0.0),
-                    selected = i == currentIndex
-                )
-            )
-        }
-        return result.toTypedArray()
     }
 
     override fun selectRendition(rendition: Rendition?) {

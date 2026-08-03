@@ -25,6 +25,8 @@ namespace margelo::nitro::omni { struct Subtitle; }
 namespace margelo::nitro::omni { struct Metadata; }
 // Forward declaration of `MixAudioMode` to properly resolve imports.
 namespace margelo::nitro::omni { enum class MixAudioMode; }
+// Forward declaration of `TrackProperty` to properly resolve imports.
+namespace margelo::nitro::omni { enum class TrackProperty; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -59,16 +61,20 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "JMetadata.hpp"
 #include "MixAudioMode.hpp"
 #include "JMixAudioMode.hpp"
+#include "TrackProperty.hpp"
+#include "JTrackProperty.hpp"
+#include "Track.hpp"
+#include "JFunc_void_std__vector_Track_.hpp"
+#include "JTrack.hpp"
+#include "Rendition.hpp"
+#include "JFunc_void_std__vector_Rendition_.hpp"
+#include "JRendition.hpp"
 #include "JFunc_void.hpp"
 #include "JFunc_void_std__string_std__string.hpp"
 #include "JFunc_void_std__string.hpp"
-#include "Track.hpp"
 #include "JFunc_void_Track.hpp"
-#include "JTrack.hpp"
 #include "JFunc_void_std__optional_Track_.hpp"
-#include "Rendition.hpp"
 #include "JFunc_void_Rendition.hpp"
-#include "JRendition.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -142,6 +148,22 @@ namespace margelo::nitro::omni {
   void JHybridOmniEventMapSpec::removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("removeSourceListener_cxx");
     method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrackProperty> /* key */, jni::alias_ref<JFunc_void_std__vector_Track_::javaobject> /* cb */)>("addTracksListener_cxx");
+    method(_javaPart, JTrackProperty::fromCpp(key), JFunc_void_std__vector_Track__cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrackProperty> /* key */, jni::alias_ref<JFunc_void_std__vector_Track_::javaobject> /* cb */)>("removeTracksListener_cxx");
+    method(_javaPart, JTrackProperty::fromCpp(key), JFunc_void_std__vector_Track__cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__vector_Rendition_::javaobject> /* cb */)>("addRenditionsListener_cxx");
+    method(_javaPart, JFunc_void_std__vector_Rendition__cxx::fromCpp(cb));
+  }
+  void JHybridOmniEventMapSpec::removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__vector_Rendition_::javaobject> /* cb */)>("removeRenditionsListener_cxx");
+    method(_javaPart, JFunc_void_std__vector_Rendition__cxx::fromCpp(cb));
   }
   void JHybridOmniEventMapSpec::addOnEndListener(const std::function<void()>& cb) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnEndListener_cxx");
