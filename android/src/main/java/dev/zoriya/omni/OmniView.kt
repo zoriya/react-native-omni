@@ -154,13 +154,9 @@ class OmniView(val context: ThemedReactContext) :
         val curPip = activeView.get()
         when {
             autoPip == true && curPip == this -> {}
-            autoPip == true && curPip == null -> {
+            autoPip == true -> {
                 activeView = WeakReference(this)
                 updatePictureInPictureParams()
-            }
-
-            autoPip == true -> {
-                throw Error("Only one OmniView can have `autoPip` set at a time.")
             }
 
             autoPip == false && curPip == this -> {
@@ -180,7 +176,7 @@ class OmniView(val context: ThemedReactContext) :
         }
 
         boundPlayer?.localPlayer?.removeListener(this)
-        boundPlayer?.setVideoView(null)
+        boundPlayer?.clearVideoView(surfaceView)
         boundPlayer = omniPlayer
         omniPlayer.localPlayer.addListener(this)
 
@@ -206,7 +202,7 @@ class OmniView(val context: ThemedReactContext) :
 
         val omniPlayer = player as? OmniPlayer ?: return
         boundPlayer?.localPlayer?.removeListener(this)
-        omniPlayer.setVideoView(null)
+        omniPlayer.clearVideoView(surfaceView)
         boundPlayer = null
     }
 
@@ -414,6 +410,6 @@ class OmniView(val context: ThemedReactContext) :
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
         surfaceView.removeCallbacks(rebuildRunnable)
-        boundPlayer?.setVideoView(null)
+        boundPlayer?.clearVideoView(surfaceView)
     }
 }

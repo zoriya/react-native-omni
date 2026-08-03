@@ -894,6 +894,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun clearVideoSurfaceView(surfaceView: SurfaceView?) {
+        if (surfaceView != null && boundSurfaceView !== surfaceView) return
         clearVideoSurface()
     }
 

@@ -227,13 +227,15 @@ class OmniPlayer(
             .build()
     }
 
-    fun setVideoView(surfaceView: android.view.SurfaceView?) {
+    fun setVideoView(surfaceView: android.view.SurfaceView) {
         runOnMainThread {
-            if (surfaceView == null) {
-                localPlayer.clearVideoSurface()
-            } else {
-                localPlayer.setVideoSurfaceView(surfaceView)
-            }
+            localPlayer.setVideoSurfaceView(surfaceView)
+        }
+    }
+
+    fun clearVideoView(surfaceView: android.view.SurfaceView) {
+        runOnMainThread {
+            localPlayer.clearVideoSurfaceView(surfaceView)
         }
     }
 
