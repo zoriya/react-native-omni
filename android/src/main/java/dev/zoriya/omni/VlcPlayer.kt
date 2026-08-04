@@ -99,6 +99,8 @@ class VlcPlayer(ctx: Context) :
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
     @Volatile
     private var playerError: PlaybackException? = null
+    @Volatile
+    private var released = false
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
     private var userInitiatedTransition: Boolean = false
     @Volatile
@@ -353,6 +355,7 @@ class VlcPlayer(ctx: Context) :
                 media.addOption(":start-time=${targetMs / 1000.0}")
 
                 player.setMedia(media)
+                media.release()
             }
         }
 
@@ -430,7 +433,7 @@ class VlcPlayer(ctx: Context) :
         when {
             playerError != null -> STATE_IDLE
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
-            player.media == null -> STATE_IDLE
+            player.media?.also { it.release() } == null -> STATE_IDLE
             player.playerState == IMedia.State.Opening -> STATE_BUFFERING
             player.isPlaying -> STATE_READY
             player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
@@ -519,13 +522,17 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun release() {
+        if (released) return
+        released = true
         player.setEventListener(null)
         listeners.release()
         abandonAudioFocus()
         player.stop()
         clearVideoSurface()
-        player.release()
-        libVLC.release()
+        applicationHandler.post {
+            player.release()
+            libVLC.release()
+        }
     }
 
     override fun getCurrentTracks(): Tracks {

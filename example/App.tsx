@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
 	type AndroidBackend,
@@ -134,10 +134,6 @@ function PlayerExample({
 	);
 	const switchBackend = (target: AndroidBackend) => {
 		if (target === backend) return;
-		// Pause before tearing down: the native media-session guard refuses a
-		// second player while the current one is still *playing*, so this keeps
-		// the transition clean (we don't preserve state across a switch anyway).
-		player.pause();
 		onSwitchBackend(target);
 	};
 
@@ -461,26 +457,12 @@ function App(): React.JSX.Element {
 	// notification stays hidden) before any source is set.
 	const [hasSource, setHasSource] = useState(false);
 	const [backend, setBackend] = useState<AndroidBackend>("vlc");
-	const [pendingBackend, setPendingBackend] = useState<AndroidBackend | null>(
-		null,
-	);
 
-	// Switching backend recreates the native player, so we fully unmount the
-	// provider first (rendering nothing) and remount it on the next tick with
-	// the new backend. This lets the old OmniView/player tear down before the
-	// new one is created, avoiding the "only one view"/"two players" guards.
+	// Switching the backend just updates the prop: OmniProvider recreates (and
+	// disposes) the native player internally, so the change applies live.
 	const handleSwitchBackend = useCallback((next: AndroidBackend) => {
-		setPendingBackend(next);
+		setBackend(next);
 	}, []);
-
-	useEffect(() => {
-		if (pendingBackend === null) return;
-		const id = setTimeout(() => {
-			setBackend(pendingBackend);
-			setPendingBackend(null);
-		}, 300);
-		return () => clearTimeout(id);
-	}, [pendingBackend]);
 
 	const handlePrev = useCallback(() => {
 		setCurrentIndex((index) => (index === 0 ? PLAYLIST.length - 1 : index - 1));
@@ -525,18 +507,8 @@ function App(): React.JSX.Element {
 		[currentIndex],
 	);
 
-	// While switching, render nothing so the current player is torn down first.
-	if (pendingBackend !== null) {
-		return (
-			<View style={styles.switching}>
-				<Text style={styles.subheading}>Switching to {pendingBackend}…</Text>
-			</View>
-		);
-	}
-
 	return (
 		<OmniProvider
-			key={backend}
 			source={hasSource ? source : undefined}
 			backend={{ android: backend }}
 			cast={{ receiverApplicationId: "D8FB0FC1" }}
@@ -564,12 +536,6 @@ const styles = StyleSheet.create({
 		paddingVertical: 12,
 		gap: 12,
 	},
-	switching: {
-		flex: 1,
-		backgroundColor: "#0b1020",
-		alignItems: "center",
-		justifyContent: "center",
-	},
 	heading: {
 		fontSize: 24,
 		fontWeight: "700",
@@ -581,7 +547,10 @@ const styles = StyleSheet.create({
 	},
 	video: {
 		width: "100%",
-		aspectRatio: 16 / 9,
+		// Intentionally wider than the 16:9 sample videos so the view's aspect
+		// ratio differs from the video's. This surfaces the PIP aspect-ratio bug
+		// where PIP would otherwise inherit the view's shape, not the video's.
+		aspectRatio: 21 / 9,
 		borderRadius: 14,
 		overflow: "hidden",
 	},

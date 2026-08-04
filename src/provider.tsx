@@ -1,9 +1,18 @@
-import { createContext, type ReactNode, useContext, useEffect } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useEffectEvent,
+	useState,
+} from "react";
 import { NitroModules } from "react-native-nitro-modules";
-import type { OmniPlayerFactory } from "./specs/omni-player.nitro";
-import type { OmniPlayer, PlayerBackend } from "./types/player";
+import type {
+	OmniPlayer as NativeOmniPlayer,
+	OmniPlayerFactory,
+} from "./specs/omni-player.nitro";
+import type { AndroidBackend, OmniPlayer, PlayerBackend } from "./types/player";
 import type { CastOptions, Source } from "./types/source";
-import { useLazyRef } from "./utils/lazy-ref";
 
 const ProviderFactory =
 	NitroModules.createHybridObject<OmniPlayerFactory>("OmniPlayerFactory");
@@ -23,18 +32,30 @@ export const OmniProvider = ({
 	children: ReactNode;
 	showNotification?: boolean;
 }) => {
-	const player = useLazyRef(() =>
-		ProviderFactory.createPlayer(source, backend, cast),
+	const [player, setPlayer] = useState<NativeOmniPlayer | null>(null);
+
+	const createPlayer = useEffectEvent((aBackend: AndroidBackend) =>
+		ProviderFactory.createPlayer(source, { android: aBackend }, cast),
 	);
 
 	useEffect(() => {
-		player.source = source;
-	}, [source]);
+		setPlayer(createPlayer(backend.android ?? "vlc"));
+	}, [backend.android]);
 
 	useEffect(() => {
-		player.showNotification = showNotification;
-	}, [showNotification]);
+		if (!player) return;
+		return () => player.release();
+	}, [player]);
 
+	useEffect(() => {
+		if (player) player.source = source;
+	}, [player, source]);
+
+	useEffect(() => {
+		if (player) player.showNotification = showNotification;
+	}, [player, showNotification]);
+
+	if (!player) return null;
 	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
 };
 

@@ -39,6 +39,7 @@ namespace margelo::nitro::omni {
       prototype.registerHybridGetter("audios", &HybridOmniPlayerSpec::getAudios);
       prototype.registerHybridGetter("subtitles", &HybridOmniPlayerSpec::getSubtitles);
       prototype.registerHybridGetter("renditions", &HybridOmniPlayerSpec::getRenditions);
+      prototype.registerHybridMethod("release", &HybridOmniPlayerSpec::release);
       prototype.registerHybridMethod("play", &HybridOmniPlayerSpec::play);
       prototype.registerHybridMethod("pause", &HybridOmniPlayerSpec::pause);
       prototype.registerHybridMethod("seekBy", &HybridOmniPlayerSpec::seekBy);

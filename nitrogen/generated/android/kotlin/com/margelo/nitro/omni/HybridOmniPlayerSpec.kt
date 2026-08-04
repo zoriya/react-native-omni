@@ -116,6 +116,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   // Methods
   @DoNotStrip
   @Keep
+  abstract fun release(): Unit
+  
+  @DoNotStrip
+  @Keep
   abstract fun play(): Unit
   
   @DoNotStrip

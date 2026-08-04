@@ -78,6 +78,7 @@ namespace margelo::nitro::omni {
 
   public:
     // Methods
+    void release() override;
     void play() override;
     void pause() override;
     void seekBy(double offset) override;

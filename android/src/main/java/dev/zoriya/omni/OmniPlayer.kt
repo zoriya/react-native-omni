@@ -168,16 +168,23 @@ class OmniPlayer(
         }
     }
 
-    override fun dispose() {
-        showNotification = false
-        super.dispose()
+    @Volatile
+    private var released = false
 
-        eventMap.dispose()
+    override fun release() {
+        if (released) return
+        released = true
+        showNotification = false
         runOnMainThread {
+            eventMap.dispose()
             castContext?.removeCastStateListener(castStateListener)
-            // release both cast and local players.
             player.release()
         }
+    }
+
+    override fun dispose() {
+        release()
+        super.dispose()
     }
 
     private fun buildMediaItem(

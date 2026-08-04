@@ -91,6 +91,7 @@ namespace margelo::nitro::omni {
 
     public:
       // Methods
+      virtual void release() = 0;
       virtual void play() = 0;
       virtual void pause() = 0;
       virtual void seekBy(double offset) = 0;

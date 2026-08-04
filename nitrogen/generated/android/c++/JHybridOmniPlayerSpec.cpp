@@ -241,6 +241,10 @@ namespace margelo::nitro::omni {
   }
 
   // Methods
+  void JHybridOmniPlayerSpec::release() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("release");
+    method(_javaPart);
+  }
   void JHybridOmniPlayerSpec::play() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("play");
     method(_javaPart);
