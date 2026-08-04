@@ -100,7 +100,6 @@ class OmniPlayer(
                 .setRemotePlayer(remote)
                 .build()
         }
-        eventMap.player = active
         active
     }
 
@@ -335,6 +334,10 @@ class OmniPlayer(
         player.trackSelectionParameters.overrides.none {
             it.key.type == C.TRACK_TYPE_VIDEO
         }
+    }
+
+    init {
+        runOnMainThreadSync { eventMap.player = player }
     }
 
     override var source: Source? = null
