@@ -1,4 +1,5 @@
 import { createPlayer } from "@videojs/react";
+import { GoogleCast } from "@videojs/react/media/google-cast";
 import { videoFeatures } from "@videojs/react/video";
 import {
 	createContext,
@@ -7,6 +8,7 @@ import {
 	useEffect,
 	useRef,
 } from "react";
+import { usePlayerState } from "./events";
 import { WebOmniPlayer } from "./player.web";
 import type { OmniPlayer, PlayerBackend } from "./types/player";
 import type { CastOptions, Source } from "./types/source";
@@ -68,14 +70,26 @@ const PlayerInitializer = ({
 	}, [source, store]);
 
 	useEffect(() => {
-		player.castOptions = cast ?? null;
-	}, [cast]);
-
-	useEffect(() => {
 		player.showNotification = showNotification;
 	}, [showNotification]);
 
-	return <PlayerCtx.Provider value={player}>{children}</PlayerCtx.Provider>;
+	return (
+		<PlayerCtx.Provider value={player}>
+			<CastBridge cast={cast} />
+			{children}
+		</PlayerCtx.Provider>
+	);
+};
+
+const CastBridge = ({ cast }: { cast?: CastOptions | null }) => {
+	const source = usePlayerState("source");
+	return (
+		<GoogleCast
+			receiver={cast?.receiverApplicationId}
+			src={source?.castId}
+			customData={source?.castData}
+		/>
+	);
 };
 
 export const usePlayer = () => useContext(PlayerCtx);

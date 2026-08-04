@@ -106,7 +106,6 @@ export const OmniView = ({
 	autoplay,
 	subtitleAssets,
 }: OmniViewProps & { style: CSSProperties }) => {
-	const player = usePlayer() as WebOmniPlayer;
 	const containerRef = useRef<HTMLDivElement>(null);
 	const ref = useRef<HTMLVideoElement>(undefined!);
 	const source = usePlayerState("source");
@@ -119,8 +118,6 @@ export const OmniView = ({
 
 	const headersRef = useRef(source?.src?.headers);
 	headersRef.current = source?.src?.headers;
-	const castId = source?.castId;
-	const castData = source?.castData;
 
 	const config = useMemo<HlsMediaConfig>(
 		() => ({
@@ -133,13 +130,8 @@ export const OmniView = ({
 					}
 				},
 			},
-			googleCast: {
-				receiver: player.castOptions?.receiverApplicationId,
-				customData: castData ?? null,
-				...(castId && { src: castId }),
-			},
 		}),
-		[player.castOptions, castData, castId],
+		[],
 	);
 
 	// While casting, the receiver renders subtitles (the player forwards the

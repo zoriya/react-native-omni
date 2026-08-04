@@ -59,7 +59,6 @@ export class WebOmniPlayer implements OmniPlayer {
 		this._store.state.toggleRemotePlayback();
 	}
 
-	castOptions: CastOptions | null = null;
 	_source: Source | undefined = undefined;
 	private _showNotification = false;
 
