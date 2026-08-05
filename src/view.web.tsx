@@ -1,4 +1,4 @@
-import type { HlsMediaConfig } from "@videojs/core/dom/media/hls-js";
+import type { HlsMediaConfig } from "@videojs/media/dom/hls-js";
 import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
 import { Video } from "@videojs/react/video";
 import {
