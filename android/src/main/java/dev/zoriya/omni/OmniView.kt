@@ -1,6 +1,7 @@
 package dev.zoriya.omni
 
 import android.app.PictureInPictureParams
+import android.graphics.Color
 import android.graphics.Rect
 import android.os.Build
 import android.util.Rational
@@ -117,6 +118,7 @@ class OmniView(val context: ThemedReactContext) :
     override var subtitleAssets: SubtitleAssets? = null
 
     init {
+        view.setBackgroundColor(Color.BLACK)
         context.addLifecycleEventListener(this)
     }
 

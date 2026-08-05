@@ -106,6 +106,7 @@ class VlcPlayer(ctx: Context) :
     @Volatile
     private var cachedBufferedPosition: Long = 0L
     private var boundSurfaceView: SurfaceView? = null
+    private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
 
     private val availableCommands: Player.Commands = Player.Commands.Builder()
         .add(COMMAND_PLAY_PAUSE)
@@ -138,6 +139,7 @@ class VlcPlayer(ctx: Context) :
     override fun onEvent(event: MediaPlayer.Event) {
         when (event.type) {
             MediaPlayer.Event.Opening -> {
+                lastVideoSize = VideoSize.UNKNOWN
                 notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_BUFFERING)
                 }
@@ -160,6 +162,7 @@ class VlcPlayer(ctx: Context) :
                     it.onIsPlayingChanged(true)
                     it.onTracksChanged(getCurrentTracks())
                 }
+                maybeNotifyVideoSizeChanged()
             }
 
             MediaPlayer.Event.Paused -> {
@@ -213,12 +216,19 @@ class VlcPlayer(ctx: Context) :
             // this improves perf & battery life (native -> js bridge is expensive)
             MediaPlayer.Event.TimeChanged -> Unit
 
+            // vlc has no video-size event, Vout event still has unknown size.
+            // This is the first callback with known size.
+            MediaPlayer.Event.PositionChanged -> {
+                if (lastVideoSize == VideoSize.UNKNOWN) maybeNotifyVideoSizeChanged()
+            }
+
             MediaPlayer.Event.ESAdded,
             MediaPlayer.Event.ESDeleted,
             MediaPlayer.Event.ESSelected -> {
                 notifyListeners(EVENT_TRACKS_CHANGED) {
                     it.onTracksChanged(getCurrentTracks())
                 }
+                maybeNotifyVideoSizeChanged()
             }
 
             MediaPlayer.Event.LengthChanged -> {
@@ -909,10 +919,30 @@ class VlcPlayer(ctx: Context) :
 
     override fun clearVideoTextureView(textureView: TextureView?) = Unit
 
+    /**
+     * VLC never pushes a video-size event, so emit our own once the selected video
+     * track (and its sample aspect ratio) is known. Listeners such as OmniView use
+     * this to size the content frame -> the PIP aspect ratio matches the video
+     * instead of the raw SurfaceView bounds (ExoPlayer does this on its own).
+     */
+    private fun maybeNotifyVideoSizeChanged() {
+        val size = getVideoSize()
+        if (size == VideoSize.UNKNOWN || size == lastVideoSize) return
+        lastVideoSize = size
+        notifyListeners(EVENT_VIDEO_SIZE_CHANGED) {
+            it.onVideoSizeChanged(size)
+        }
+    }
+
     override fun getVideoSize(): VideoSize {
         val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack ?: return VideoSize.UNKNOWN
         if (videoTrack.width <= 0 || videoTrack.height <= 0) return VideoSize.UNKNOWN
-        return VideoSize(videoTrack.width, videoTrack.height)
+        val par = if (videoTrack.sarNum > 0 && videoTrack.sarDen > 0) {
+            videoTrack.sarNum.toFloat() / videoTrack.sarDen.toFloat()
+        } else {
+            1f
+        }
+        return VideoSize(videoTrack.width, videoTrack.height, par)
     }
 
     override fun getSurfaceSize(): Size = Size.UNKNOWN
