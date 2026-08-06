@@ -13,6 +13,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -187,6 +188,19 @@ class OmniPlayer(
         super.dispose()
     }
 
+    private fun inferSubtitleMimeType(link: String): String? {
+        val ext = link.toUri().lastPathSegment?.substringAfterLast('.', "")?.lowercase()
+        return when (ext) {
+            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
+            "srt" -> MimeTypes.APPLICATION_SUBRIP
+            "ass", "ssa" -> MimeTypes.TEXT_SSA
+            "ttml", "dfxp", "xml" -> MimeTypes.APPLICATION_TTML
+            "sup" -> MimeTypes.APPLICATION_PGS
+            "sub" -> MimeTypes.APPLICATION_VOBSUB
+            else -> null
+        }
+    }
+
     private fun buildMediaItem(
         src: com.margelo.nitro.omni.VideoSrc,
         metadata: com.margelo.nitro.omni.Metadata?,
@@ -212,7 +226,10 @@ class OmniPlayer(
                     .setId(subtitle.id)
                     .setLanguage(subtitle.language)
                     .setLabel(subtitle.label)
-                    .setMimeType(subtitle.mimeType)
+                    // exoplayer requires a mime type to pick a subtitle parser.
+                    // fall back to inferring it from the link's extension so
+                    // consumers don't have to provide one.
+                    .setMimeType(subtitle.mimeType ?: inferSubtitleMimeType(subtitle.link))
                     .build()
             })
             .setRequestMetadata(

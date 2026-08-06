@@ -46,6 +46,7 @@ import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.interfaces.IMedia.VideoTrack
 import org.videolan.libvlc.interfaces.IVLCVout
+import java.security.MessageDigest
 
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
@@ -387,6 +388,20 @@ class VlcPlayer(ctx: Context) :
         }
     }
 
+    // vlc keys each slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
+    private fun subtitleSlaveForTrackId(trackId: String): MediaItem.SubtitleConfiguration? {
+        val hash = trackId.substringBefore("/spu/", "")
+        if (hash.isEmpty()) return null
+        return mediaItems.getOrNull(currentMediaItemIndex)
+            ?.localConfiguration?.subtitleConfigurations
+            ?.firstOrNull { md5(it.uri.toString()) == hash }
+    }
+
+    private fun md5(value: String): String =
+        MessageDigest.getInstance("MD5")
+            .digest(value.toByteArray())
+            .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+
     // vlc doesn't allow arbitrary headers :c
     private fun applyRequestHeaders(media: Media, extras: Bundle?) {
         if (extras == null) return
@@ -599,10 +614,12 @@ class VlcPlayer(ctx: Context) :
             }
 
         player.getTracks(IMedia.Track.Type.Text)?.forEach { track ->
+            // external subs don't have label/language, match them back to surface them
+            val slave = subtitleSlaveForTrackId(track.id)
             val format = Format.Builder()
                 .setId(track.id)
-                .setLabel(track.name)
-                .setLanguage(track.language)
+                .setLabel(slave?.label ?: track.name)
+                .setLanguage(slave?.language ?: track.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
             val group = TrackGroup("vlc-sub-${track.id}", format)
