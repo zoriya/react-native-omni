@@ -1,6 +1,8 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Looper
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -17,8 +19,12 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.text.TextOutput
+import androidx.media3.exoplayer.text.TextRenderer
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.AndroidBackend
 import com.margelo.nitro.omni.CastStatus
@@ -63,9 +69,26 @@ class OmniPlayer(
             AndroidBackend.EXOPLAYER -> {
                 val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
                 httpDataSourceFactory = http
-                ExoPlayer.Builder(ctx)
+                // karaoke subs make exoplayer crash without this...
+                val renderersFactory = object : DefaultRenderersFactory(ctx) {
+                    override fun buildTextRenderers(
+                        context: Context,
+                        output: TextOutput,
+                        outputLooper: Looper,
+                        extensionRendererMode: Int,
+                        out: ArrayList<Renderer>,
+                    ) {
+                        out.add(
+                            TextRenderer(output, outputLooper).apply {
+                                experimentalSetLegacyDecodingEnabled(true)
+                            }
+                        )
+                    }
+                }
+                ExoPlayer.Builder(ctx, renderersFactory)
                     .setMediaSourceFactory(
                         DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http))
+                            .experimentalParseSubtitlesDuringExtraction(false)
                     )
                     .build()
             }
