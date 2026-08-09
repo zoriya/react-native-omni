@@ -60,13 +60,18 @@ class OmniCastTrackSelector : CastTrackSelector() {
         val overrideMatch = indices.firstOrNull { i ->
             overrides.keys.any { it.id == groups[i].id }
         }
-        val match = indices.firstOrNull { i ->
+        val matchesLabel = { i: Int ->
             val name: String? = tracks[i].name
-            val language: String? = tracks[i].language
-            (labels.isNotEmpty() && name != null && name in labels) ||
-                (languages.isNotEmpty() && language != null &&
-                    Util.normalizeLanguageCode(language) in languages)
+            labels.isNotEmpty() && name != null && name in labels
         }
+        val matchesLanguage = { i: Int ->
+            val language: String? = tracks[i].language
+            languages.isNotEmpty() && language != null &&
+                Util.normalizeLanguageCode(language) in languages
+        }
+        val match = indices.firstOrNull { matchesLabel(it) && matchesLanguage(it) }
+            ?: indices.firstOrNull { matchesLabel(it) }
+            ?: indices.firstOrNull { matchesLanguage(it) }
         val chosen = when {
             overrideMatch != null -> overrideMatch
             match != null -> match

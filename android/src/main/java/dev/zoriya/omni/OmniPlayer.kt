@@ -481,15 +481,15 @@ class OmniPlayer(
                 }?.mediaTrackGroup
                 if (group != null) {
                     params.setOverrideForType(TrackSelectionOverride(group, 0))
+                }
+                // also set preferred flags for cast selection
+                val labels = track.label?.let { arrayOf(it) } ?: emptyArray()
+                if (type == C.TRACK_TYPE_AUDIO) {
+                    params.setPreferredAudioLanguage(track.language)
+                        .setPreferredAudioLabels(*labels)
                 } else {
-                    val labels = track.label?.let { arrayOf(it) } ?: emptyArray()
-                    if (type == C.TRACK_TYPE_AUDIO) {
-                        params.setPreferredAudioLanguage(track.language)
-                            .setPreferredAudioLabels(*labels)
-                    } else {
-                        params.setPreferredTextLanguage(track.language)
-                            .setPreferredTextLabels(*labels)
-                    }
+                    params.setPreferredTextLanguage(track.language)
+                        .setPreferredTextLabels(*labels)
                 }
             }
             player.trackSelectionParameters = params.build()
