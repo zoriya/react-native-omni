@@ -447,11 +447,11 @@ class OmniPlayer(
     }
 
     override fun playPrev() {
-        runOnMainThreadSync { player.seekToPreviousMediaItem() }
+        runOnMainThreadSync { eventMap.emitPrev() }
     }
 
     override fun playNext() {
-        runOnMainThreadSync { player.seekToNextMediaItem() }
+        runOnMainThreadSync { eventMap.emitNext() }
     }
 
     override fun selectVideo(video: Track) {

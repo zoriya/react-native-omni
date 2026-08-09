@@ -116,6 +116,14 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
         sourceListeners.forEach { it(source) }
     }
 
+    fun emitPrev() {
+        onPrevListeners.forEach { it() }
+    }
+
+    fun emitNext() {
+        onNextListeners.forEach { it() }
+    }
+
     private fun selectedTrack(trackType: Int): Track? {
         val list = when (trackType) {
             TRACK_TYPE_VIDEO -> tracks.videos

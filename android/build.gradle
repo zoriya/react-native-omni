@@ -5,7 +5,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "com.android.tools.build:gradle:8.8.0"
+    classpath "com.android.tools.build:gradle:9.2.1"
   }
 }
 
@@ -143,16 +143,15 @@ dependencies {
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
 
-  implementation("org.videolan.android:libvlc-all:4.0.0-eap24")
-  implementation("androidx.media3:media3-common:1.4.1")
-  implementation("androidx.media3:media3-session:1.4.1")
-  implementation("androidx.media3:media3-ui:1.4.1")
-  implementation 'androidx.media3:media3-exoplayer:1.10.0'
-  implementation("androidx.media3:media3-exoplayer-hls:1.10.0")
-
-  implementation("androidx.media3:media3-cast:1.10.0")
+  implementation("org.videolan.android:libvlc-all:4.0.0-eap29")
+  implementation("androidx.media3:media3-common:1.11.0")
+  implementation("androidx.media3:media3-session:1.11.0")
+  implementation("androidx.media3:media3-ui:1.11.0")
+  implementation 'androidx.media3:media3-exoplayer:1.11.0'
+  implementation("androidx.media3:media3-exoplayer-hls:1.11.0")
+  implementation("androidx.media3:media3-cast:1.11.0")
   implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
-  implementation("androidx.mediarouter:mediarouter:1.7.0")
+  implementation("androidx.mediarouter:mediarouter:1.8.1")
 }
 
 if (isNewArchitectureEnabled()) {
