@@ -48,6 +48,4 @@ class NavigationPlayer(
 
         else -> super.handleSeek(mediaItemIndex, positionMs, seekCommand)
     }
-
-    fun invalidateNavigation() = invalidateState()
 }

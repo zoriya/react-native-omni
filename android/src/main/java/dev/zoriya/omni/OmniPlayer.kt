@@ -99,8 +99,27 @@ class OmniPlayer(
     override val eventMap = EventMap(this)
 
     private var castContext: CastContext? = null
-    private val castStateListener =
-        CastStateListener { eventMap.emitCastStatus(computeCastStatus()) }
+    private val castStateListener = CastStateListener {
+        eventMap.emitCastStatus(computeCastStatus())
+        listenToReceiver()
+    }
+
+    // receivers have no queue to skip in (a queue would make them play things on
+    // their own), so they ask us to do it when something else - google home, the
+    // assistant, ... - requests a prev/next. same path as our own buttons.
+    private fun listenToReceiver() {
+        val session = castContext?.sessionManager?.currentCastSession ?: return
+        try {
+            session.setMessageReceivedCallbacks(OMNI_NAMESPACE) { _, _, message ->
+                when (JSONObject(message).optString("action")) {
+                    "prev" -> runOnMainThread { eventMap.emitPrev() }
+                    "next" -> runOnMainThread { eventMap.emitNext() }
+                }
+            }
+        } catch (e: Throwable) {
+            android.util.Log.w("OmniPlayer", "could not listen to the receiver", e)
+        }
+    }
 
     val player: Player = runOnMainThreadSync {
         castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
@@ -400,7 +419,6 @@ class OmniPlayer(
             if (value == null) {
                 runOnMainThreadSync {
                     player.clearMediaItems()
-                    player.invalidateNavigation()
                 }
                 syncNotificationService()
                 return
@@ -429,7 +447,6 @@ class OmniPlayer(
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
                 player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
                 player.prepare()
-                player.invalidateNavigation()
             }
             syncNotificationService()
         }
@@ -565,6 +582,10 @@ class OmniPlayer(
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
         const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
+
+        // channel a receiver uses to ask us to play the prev/next media.
+        // it must declare it too (`customNamespaces` in the caf options).
+        const val OMNI_NAMESPACE = "urn:x-cast:dev.zoriya.omni"
 
         // Receiver application id passed at runtime via OmniProvider's `cast`
         // prop; read by OmniCastOptionsProvider when the Cast SDK initializes.
