@@ -24,8 +24,15 @@ class OmniMediaItemConverter : MediaItemConverter {
             builder.setMediaMetadata(
                 androidx.media3.common.MediaMetadata.Builder()
                     .setTitle(md.getString(CastMediaMetadata.KEY_TITLE))
-                    .setArtist(md.getString(CastMediaMetadata.KEY_ARTIST))
-                    .setAlbumTitle(md.getString(CastMediaMetadata.KEY_ALBUM_TITLE))
+                    .setArtist(
+                        md.getString(CastMediaMetadata.KEY_ARTIST)
+                            ?: md.getString(CastMediaMetadata.KEY_SUBTITLE)
+                    )
+                    .setAlbumTitle(
+                        md.getString(CastMediaMetadata.KEY_ALBUM_TITLE)
+                            ?: md.getString(CastMediaMetadata.KEY_STUDIO)
+                    )
+                    .setArtworkUri(md.images.firstOrNull()?.url)
                     .build()
             )
         }

@@ -124,7 +124,13 @@ class OmniPlayer(
                 .setRemotePlayer(remote)
                 .build()
         }
-        active
+        NavigationPlayer(
+            active,
+            hasPrev = { source?.metadata?.hasPrev == true },
+            hasNext = { source?.metadata?.hasNext == true },
+            onPrev = { eventMap.emitPrev() },
+            onNext = { eventMap.emitNext() },
+        )
     }
 
     override var showNotification: Boolean? = false
@@ -140,19 +146,19 @@ class OmniPlayer(
         when {
             shouldShow && !serviceRunning -> {
                 val otherIsPlaying = notificationPlayer?.let { other ->
-                    other !== localPlayer && runOnMainThreadSync { other.isPlaying }
+                    other !== player && runOnMainThreadSync { other.isPlaying }
                 } == true
                 if (otherIsPlaying) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
-                notificationPlayer = localPlayer
+                notificationPlayer = player
                 ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
                 serviceRunning = true
             }
 
             !shouldShow && serviceRunning -> {
                 ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
-                if (notificationPlayer == localPlayer) notificationPlayer = null
+                if (notificationPlayer == player) notificationPlayer = null
                 serviceRunning = false
             }
         }
@@ -298,8 +304,8 @@ class OmniPlayer(
         }
     }
 
-    override val hasPrev: Boolean get() = player.hasPreviousMediaItem()
-    override val hasNext: Boolean get() = player.hasNextMediaItem()
+    override val hasPrev: Boolean get() = source?.metadata?.hasPrev == true
+    override val hasNext: Boolean get() = source?.metadata?.hasNext == true
     override val status by mainThreadProperty {
         when (player.playbackState) {
             Player.STATE_IDLE,
@@ -394,6 +400,7 @@ class OmniPlayer(
             if (value == null) {
                 runOnMainThreadSync {
                     player.clearMediaItems()
+                    player.invalidateNavigation()
                 }
                 syncNotificationService()
                 return
@@ -417,16 +424,12 @@ class OmniPlayer(
                 value.castId,
                 value.castData,
             )
-            val mediaItems = mutableListOf<MediaItem>()
-            if (value.metadata?.hasPrev == true) mediaItems.add(currentItem)
-            mediaItems.add(currentItem)
-            if (value.metadata?.hasNext == true) mediaItems.add(currentItem)
 
             runOnMainThreadSync {
-                val startIndex = if (value.metadata?.hasPrev == true) 1 else 0
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
-                player.setMediaItems(mediaItems, startIndex, startPositionMs.toLong())
+                player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
                 player.prepare()
+                player.invalidateNavigation()
             }
             syncNotificationService()
         }
