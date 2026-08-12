@@ -244,6 +244,7 @@ class OmniView(val context: ThemedReactContext) :
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) scheduleVideoRebuild()
         updatePictureInPictureParams()
     }
 
@@ -377,22 +378,16 @@ class OmniView(val context: ThemedReactContext) :
         movedSurfaceToRootForPip = false
     }
 
-    // A surface that is destroyed and recreated while playback runs (the PIP
-    // reparent) makes VLC drop its video pipeline; it won't rebuild it for the
-    // new surface on its own, so we must ask it to. The rebuild only succeeds
-    // once the (PIP) window has settled at its final size — firing it mid-resize
-    // leaves the vout stopped — so it is debounced off surfaceChanged.
-    private var pendingVideoRebuild = false
-    private val rebuildRunnable = Runnable {
-        if (!pendingVideoRebuild) return@Runnable
-        pendingVideoRebuild = false
-        boundPlayer?.rebuildVideoOutput()
+    private val rebuildRunnable = Runnable { boundPlayer?.rebuildVideoOutput() }
+
+    private fun scheduleVideoRebuild() {
+        surfaceView.removeCallbacks(rebuildRunnable)
+        surfaceView.postDelayed(rebuildRunnable, 200)
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         boundPlayer?.setVideoView(surfaceView)
-        if (boundPlayer?.localPlayer?.isPlaying == true) pendingVideoRebuild = true
         updatePictureInPictureParams()
     }
 
@@ -403,10 +398,7 @@ class OmniView(val context: ThemedReactContext) :
         height: Int
     ) {
         boundPlayer?.updateVideoLayout(width, height)
-        if (pendingVideoRebuild) {
-            surfaceView.removeCallbacks(rebuildRunnable)
-            surfaceView.postDelayed(rebuildRunnable, 200)
-        }
+        scheduleVideoRebuild()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {

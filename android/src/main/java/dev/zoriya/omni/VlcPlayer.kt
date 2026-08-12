@@ -107,6 +107,7 @@ class VlcPlayer(ctx: Context) :
     @Volatile
     private var cachedBufferedPosition: Long = 0L
     private var boundSurfaceView: SurfaceView? = null
+    private var videoOutputStale = false
     private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
 
     private val availableCommands: Player.Commands = Player.Commands.Builder()
@@ -348,6 +349,7 @@ class VlcPlayer(ctx: Context) :
         playerError = null
 
         player.stop()
+        videoOutputStale = false
 
         mediaItems.getOrNull(targetIndex)?.let { item ->
             val uri = item.localConfiguration?.uri?.toString()
@@ -897,30 +899,22 @@ class VlcPlayer(ctx: Context) :
         if (surfaceView == null) return clearVideoSurface()
         if (vlcVout.areViewsAttached() && boundSurfaceView === surfaceView) return
         boundSurfaceView = surfaceView
-        // Hand VLC the SurfaceView (not a raw Surface) so it reads the real view
-        // size and keeps the video layout correct as the surface resizes (e.g. the
-        // PIP window shrinking/growing); see updateVideoLayout for size updates.
+        videoOutputStale = (
+            player.playerState == IMedia.State.Playing ||
+            player.playerState == IMedia.State.Paused
+        )
         vlcVout.setVideoView(surfaceView)
         vlcVout.attachViews()
     }
 
-    /**
-     * VLC tears down its video decoder + output whenever the output Surface is
-     * destroyed (e.g. the SurfaceView being reparented for PIP) and does not
-     * rebuild them when a new Surface arrives — the picture stays black. Toggling
-     * the video track forces VLC to spin up a fresh decoder/vout against the
-     * currently-attached Surface. Safe no-op when nothing is attached/playing.
-     */
     fun rebuildVideoOutput() {
-        if (!vlcVout.areViewsAttached() || !player.isPlaying) return
+        if (!videoOutputStale || !player.isPlaying || !vlcVout.areViewsAttached()) return
+        videoOutputStale = false
         player.setVideoTrackEnabled(false)
         player.setVideoTrackEnabled(true)
         player.updateVideoSurfaces()
     }
 
-    /** Recompute the video layout for the current surface size. Must run whenever
-     * the surface resizes (VLC latches a stale geometry otherwise -> the picture
-     * renders at the wrong size, anchored in a corner). */
     fun updateVideoLayout(width: Int, height: Int) {
         if (!vlcVout.areViewsAttached()) return
         if (width > 0 && height > 0) vlcVout.setWindowSize(width, height)
