@@ -42,7 +42,6 @@ import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.RemoteCastPlayer
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
@@ -105,6 +104,7 @@ class OmniPlayer(
     private val castStateListener = CastStateListener {
         eventMap.emitCastStatus(computeCastStatus())
         listenToReceiver()
+        syncNotificationService()
     }
 
     // receivers have no queue to skip in (a queue would make them play things on
@@ -166,7 +166,8 @@ class OmniPlayer(
     private var serviceRunning = false
 
     private fun syncNotificationService() {
-        val shouldShow = showNotification == true && source != null
+        val shouldShow = showNotification == true && source != null &&
+            !runOnMainThreadSync { isCasting }
         when {
             shouldShow && !serviceRunning -> {
                 val otherIsPlaying = notificationPlayer?.let { other ->
@@ -232,7 +233,7 @@ class OmniPlayer(
         runOnMainThread {
             eventMap.dispose()
             castContext?.removeCastStateListener(castStateListener)
-            player.release()
+            if (!isCasting) player.release()
         }
     }
 
@@ -681,10 +682,6 @@ class OmniPlayerService : MediaSessionService() {
             }
             .build()
 
-        setMediaNotificationProvider(DefaultMediaNotificationProvider.Builder(this).build().apply {
-            setSmallIcon(applicationInfo.icon.takeIf { it != 0 }
-                ?: android.R.drawable.ic_media_play)
-        })
         addSession(mediaSession)
         setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)
 
@@ -725,8 +722,7 @@ class OmniPlayerService : MediaSessionService() {
         )
 
         return NotificationCompat.Builder(this, "omni_playback")
-            .setSmallIcon(applicationInfo.icon.takeIf { it != 0 }
-                ?: android.R.drawable.ic_media_play)
+            .setSmallIcon(androidx.media3.session.R.drawable.media3_notification_small_icon)
             .setContentTitle("Omni Player")
             .setContentText("Preparing playback...")
             .setContentIntent(pendingIntent)
@@ -737,7 +733,14 @@ class OmniPlayerService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        pauseAllPlayersAndStopSelf()
+        val casting = try {
+            CastContext.getSharedInstance(this)
+                .sessionManager.currentCastSession?.isConnected == true
+        } catch (_: Throwable) {
+            false
+        }
+        // keep service open if casting
+        if (!casting) pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {

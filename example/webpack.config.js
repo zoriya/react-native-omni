@@ -66,6 +66,7 @@ module.exports = {
 		port: 3000,
 		hot: true,
 		historyApiFallback: true,
+		allowedHosts: "all",
 		// jassub's wasm is multithreaded (pthreads), which needs SharedArrayBuffer
 		// and therefore a cross-origin-isolated page. `credentialless` keeps
 		// cross-origin video/subtitle/font requests working without CORP headers.
