@@ -104,7 +104,8 @@ class OmniPlayer(
     private val castStateListener = CastStateListener {
         eventMap.emitCastStatus(computeCastStatus())
         listenToReceiver()
-        syncNotificationService()
+        // we were only kept alive to hold this cast, it is over now
+        if (abandoned && !isCasting) release()
     }
 
     // receivers have no queue to skip in (a queue would make them play things on
@@ -128,12 +129,7 @@ class OmniPlayer(
 
     val player: Player = runOnMainThreadSync {
         castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
-        // the cast notification outlives the app, so OmniCastTapActivity has to find the
-        // url back even when nothing of ours ran in that process yet.
-        ctx.getSharedPreferences(OMNI_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(NOTIFICATION_URL_PREF, castOptions?.notificationUrl)
-            .apply()
+        notificationUrl = castOptions?.notificationUrl
         val cc = try {
             CastContext.getSharedInstance(ctx)
         } catch (_: Throwable) {
@@ -172,24 +168,26 @@ class OmniPlayer(
     private var serviceRunning = false
 
     private fun syncNotificationService() {
-        val shouldShow = showNotification == true && source != null &&
-            !runOnMainThreadSync { isCasting }
+        if (abandoned) return
+        val shouldShow = showNotification == true && source != null
         when {
             shouldShow && !serviceRunning -> {
                 val otherIsPlaying = notificationPlayer?.let { other ->
-                    other !== player && runOnMainThreadSync { other.isPlaying }
+                    // an abandoned one only holds it until the cast it kept alive ends
+                    other !== this && !other.abandoned &&
+                        runOnMainThreadSync { other.player.isPlaying }
                 } == true
                 if (otherIsPlaying) {
                     throw Error("Two players can't display notifications at the same time.")
                 }
-                notificationPlayer = player
+                notificationPlayer = this
                 ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
                 serviceRunning = true
             }
 
             !shouldShow && serviceRunning -> {
                 ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
-                if (notificationPlayer == player) notificationPlayer = null
+                if (notificationPlayer === this) notificationPlayer = null
                 serviceRunning = false
             }
         }
@@ -229,22 +227,36 @@ class OmniPlayer(
         }
     }
 
+    // the app let go of us. while casting we stay alive anyway: OmniPlayerService holds the
+    // process (and thus the session) up, and its notification is the only remote left - we
+    // keep owning both until castStateListener sees the cast end.
     @Volatile
-    private var released = false
+    private var abandoned = false
 
-    override fun release() {
-        if (released) return
-        released = true
-        showNotification = false
+    override fun abandon() {
+        if (abandoned) return
+        abandoned = true
+        if (!runOnMainThreadSync { isCasting }) release()
+    }
+
+    // drop everything. this ends the cast session, so it only runs once there is no cast
+    // left to hold (either there was none, or it just ended).
+    private fun release() {
         runOnMainThread {
-            eventMap.dispose()
             castContext?.removeCastStateListener(castStateListener)
-            if (!isCasting) player.release()
+            if (notificationPlayer === this) {
+                // syncNotificationService ignores us now, hand the service back ourselves
+                ctx.stopService(Intent(ctx, OmniPlayerService::class.java))
+                notificationPlayer = null
+                serviceRunning = false
+            }
+            eventMap.dispose()
+            player.release()
         }
     }
 
     override fun dispose() {
-        release()
+        abandon()
         super.dispose()
     }
 
@@ -641,7 +653,7 @@ class OmniPlayer(
     }
 
     companion object {
-        var notificationPlayer: Player? = null
+        var notificationPlayer: OmniPlayer? = null
 
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
@@ -655,9 +667,8 @@ class OmniPlayer(
         // prop; read by OmniCastOptionsProvider when the Cast SDK initializes.
         var receiverApplicationId: String? = null
 
-        // `cast.notificationUrl`, read back by OmniCastTapActivity.
-        const val OMNI_PREFS = "dev.zoriya.omni"
-        const val NOTIFICATION_URL_PREF = "notificationUrl"
+        // `cast.notificationUrl`, opened when our notification is tapped.
+        var notificationUrl: String? = null
     }
 }
 
@@ -668,24 +679,14 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val available = OmniPlayer.notificationPlayer
+        val available = OmniPlayer.notificationPlayer?.player
         if (available == null) {
             startForeground(1, createImmediateNotification())
             stopSelf()
             return
         }
         player = available
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        val sessionActivity = launchIntent?.let {
-            PendingIntent.getActivity(
-                this,
-                0,
-                it,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-        }
+        val sessionActivity = openIntent()
         mediaSession = MediaSession.Builder(this, player)
             .apply {
                 sessionActivity?.let { setSessionActivity(it) }
@@ -701,7 +702,7 @@ class OmniPlayerService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val current = OmniPlayer.notificationPlayer
+        val current = OmniPlayer.notificationPlayer?.player
         if (current != null && ::mediaSession.isInitialized && mediaSession.player !== current) {
             player = current
             mediaSession.player = current
@@ -721,23 +722,27 @@ class OmniPlayerService : MediaSessionService() {
             manager.createNotificationChannel(channel)
         }
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         return NotificationCompat.Builder(this, "omni_playback")
             .setSmallIcon(androidx.media3.session.R.drawable.media3_notification_small_icon)
             .setContentTitle("Omni Player")
             .setContentText("Preparing playback...")
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openIntent())
             .setOngoing(true)
             .build()
+    }
+
+    private fun openIntent(): PendingIntent? {
+        val intent = OmniPlayer.notificationUrl
+            ?.let { Intent(Intent.ACTION_VIEW, it.toUri()).setPackage(packageName) }
+            ?: packageManager.getLaunchIntentForPackage(packageName)
+            ?: return null
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession

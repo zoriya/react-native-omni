@@ -35,7 +35,7 @@ export const OmniProvider = ({
 	const [player, setPlayer] = useState<NativeOmniPlayer | null>(null);
 
 	const createPlayer = useEffectEvent((aBackend: AndroidBackend) =>
-		ProviderFactory.createPlayer(source, { android: aBackend }, cast),
+		ProviderFactory.createPlayer({ android: aBackend }, cast),
 	);
 
 	useEffect(() => {
@@ -44,11 +44,14 @@ export const OmniProvider = ({
 
 	useEffect(() => {
 		if (!player) return;
-		return () => player.release();
+		return () => player.abandon();
 	}, [player]);
 
 	useEffect(() => {
-		if (player) player.source = source;
+		if (!player) return;
+		// early return on init to keep running cast sessions active
+		if (source == null && player.source == null) return;
+		player.source = source;
 	}, [player, source]);
 
 	useEffect(() => {

@@ -81,13 +81,10 @@ export interface OmniPlayer
 		OmniPlayerT {
 	readonly eventMap: OmniEventMap;
 
-	release(): void;
+	// let go of the player. it stays alive as long as it holds a cast session (android).
+	abandon(): void;
 }
 
 export interface OmniPlayerFactory extends HybridObject<{ android: "kotlin" }> {
-	createPlayer(
-		props?: Source,
-		backend?: PlayerBackend,
-		cast?: CastOptions,
-	): OmniPlayer;
+	createPlayer(backend?: PlayerBackend, cast?: CastOptions): OmniPlayer;
 }
