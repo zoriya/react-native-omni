@@ -34,8 +34,11 @@ namespace margelo::nitro::omni {
       static const auto clazz = javaClassStatic();
       static const auto fieldReceiverApplicationId = clazz->getField<jni::JString>("receiverApplicationId");
       jni::local_ref<jni::JString> receiverApplicationId = this->getFieldValue(fieldReceiverApplicationId);
+      static const auto fieldNotificationUrl = clazz->getField<jni::JString>("notificationUrl");
+      jni::local_ref<jni::JString> notificationUrl = this->getFieldValue(fieldNotificationUrl);
       return CastOptions(
-        receiverApplicationId != nullptr ? std::make_optional(receiverApplicationId->toStdString()) : std::nullopt
+        receiverApplicationId != nullptr ? std::make_optional(receiverApplicationId->toStdString()) : std::nullopt,
+        notificationUrl != nullptr ? std::make_optional(notificationUrl->toStdString()) : std::nullopt
       );
     }
 
@@ -45,12 +48,13 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JCastOptions::javaobject> fromCpp(const CastOptions& value) {
-      using JSignature = JCastOptions(jni::alias_ref<jni::JString>);
+      using JSignature = JCastOptions(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
-        value.receiverApplicationId.has_value() ? jni::make_jstring(value.receiverApplicationId.value()) : nullptr
+        value.receiverApplicationId.has_value() ? jni::make_jstring(value.receiverApplicationId.value()) : nullptr,
+        value.notificationUrl.has_value() ? jni::make_jstring(value.notificationUrl.value()) : nullptr
       );
     }
   };

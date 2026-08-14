@@ -16,6 +16,8 @@ export interface Source {
 
 export interface CastOptions {
 	receiverApplicationId?: string;
+	// deep link opened when the cast notification is tapped (android only)
+	notificationUrl?: string;
 }
 
 export interface VideoSrc {

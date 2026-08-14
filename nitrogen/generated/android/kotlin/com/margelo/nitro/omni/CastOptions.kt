@@ -20,7 +20,10 @@ import java.util.Objects
 data class CastOptions(
   @DoNotStrip
   @Keep
-  val receiverApplicationId: String?
+  val receiverApplicationId: String?,
+  @DoNotStrip
+  @Keep
+  val notificationUrl: String?
 ) {
   /* primary constructor */
 
@@ -28,11 +31,13 @@ data class CastOptions(
     if (this === other) return true
     if (other !is CastOptions) return false
     return Objects.deepEquals(this.receiverApplicationId, other.receiverApplicationId)
+      && Objects.deepEquals(this.notificationUrl, other.notificationUrl)
   }
 
   override fun hashCode(): Int {
     return arrayOf<Any?>(
-      receiverApplicationId
+      receiverApplicationId,
+      notificationUrl
     ).contentDeepHashCode()
   }
 
@@ -44,8 +49,8 @@ data class CastOptions(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(receiverApplicationId: String?): CastOptions {
-      return CastOptions(receiverApplicationId)
+    private fun fromCpp(receiverApplicationId: String?, notificationUrl: String?): CastOptions {
+      return CastOptions(receiverApplicationId, notificationUrl)
     }
   }
 }

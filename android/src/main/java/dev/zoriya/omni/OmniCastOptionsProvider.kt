@@ -26,11 +26,7 @@ class OmniCastOptionsProvider : OptionsProvider {
             .setSmallIconDrawableResId(
                 androidx.media3.session.R.drawable.media3_notification_small_icon
             )
-            .apply {
-                context.packageManager.getLaunchIntentForPackage(context.packageName)
-                    ?.component?.className
-                    ?.let { setTargetActivityClassName(it) }
-            }
+            .setTargetActivityClassName(OmniCastTapActivity::class.java.name)
             .build()
 
         val mediaOptions = CastMediaOptions.Builder()

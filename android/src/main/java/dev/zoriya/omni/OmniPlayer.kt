@@ -128,6 +128,12 @@ class OmniPlayer(
 
     val player: Player = runOnMainThreadSync {
         castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
+        // the cast notification outlives the app, so OmniCastTapActivity has to find the
+        // url back even when nothing of ours ran in that process yet.
+        ctx.getSharedPreferences(OMNI_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(NOTIFICATION_URL_PREF, castOptions?.notificationUrl)
+            .apply()
         val cc = try {
             CastContext.getSharedInstance(ctx)
         } catch (_: Throwable) {
@@ -648,6 +654,10 @@ class OmniPlayer(
         // Receiver application id passed at runtime via OmniProvider's `cast`
         // prop; read by OmniCastOptionsProvider when the Cast SDK initializes.
         var receiverApplicationId: String? = null
+
+        // `cast.notificationUrl`, read back by OmniCastTapActivity.
+        const val OMNI_PREFS = "dev.zoriya.omni"
+        const val NOTIFICATION_URL_PREF = "notificationUrl"
     }
 }
 

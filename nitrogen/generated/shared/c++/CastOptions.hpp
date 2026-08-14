@@ -41,10 +41,11 @@ namespace margelo::nitro::omni {
   struct CastOptions final {
   public:
     std::optional<std::string> receiverApplicationId     SWIFT_PRIVATE;
+    std::optional<std::string> notificationUrl     SWIFT_PRIVATE;
 
   public:
     CastOptions() = default;
-    explicit CastOptions(std::optional<std::string> receiverApplicationId): receiverApplicationId(receiverApplicationId) {}
+    explicit CastOptions(std::optional<std::string> receiverApplicationId, std::optional<std::string> notificationUrl): receiverApplicationId(receiverApplicationId), notificationUrl(notificationUrl) {}
 
   public:
     friend bool operator==(const CastOptions& lhs, const CastOptions& rhs) = default;
@@ -60,12 +61,14 @@ namespace margelo::nitro {
     static inline margelo::nitro::omni::CastOptions fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::omni::CastOptions(
-        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "receiverApplicationId")))
+        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "receiverApplicationId"))),
+        JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "notificationUrl")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::CastOptions& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "receiverApplicationId"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.receiverApplicationId));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "notificationUrl"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.notificationUrl));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -77,6 +80,7 @@ namespace margelo::nitro {
         return false;
       }
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "receiverApplicationId")))) return false;
+      if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "notificationUrl")))) return false;
       return true;
     }
   };

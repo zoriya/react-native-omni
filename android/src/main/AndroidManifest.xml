@@ -16,5 +16,12 @@
 				<action android:name="androidx.media3.session.MediaSessionService" />
 			</intent-filter>
 		</service>
+		<activity
+			android:name="dev.zoriya.omni.OmniCastTapActivity"
+			android:exported="false"
+			android:excludeFromRecents="true"
+			android:noHistory="true"
+			android:taskAffinity=""
+			android:theme="@android:style/Theme.NoDisplay" />
 	</application>
 </manifest>

@@ -511,7 +511,10 @@ function App(): React.JSX.Element {
 		<OmniProvider
 			source={hasSource ? source : undefined}
 			backend={{ android: backend }}
-			cast={{ receiverApplicationId: "D8FB0FC1" }}
+			cast={{
+				receiverApplicationId: "D8FB0FC1",
+				notificationUrl: "omniexample://remote",
+			}}
 			showNotification
 		>
 			<PlayerExample
