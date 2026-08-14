@@ -47,6 +47,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.SystemOutputSwitcherDialogController
+import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.cast.framework.CastStateListener
@@ -302,6 +303,8 @@ class OmniPlayer(
 
     private fun sourceOf(item: MediaItem): Source {
         val meta = item.mediaMetadata
+        val status = castContext?.sessionManager?.currentCastSession
+            ?.remoteMediaClient?.mediaStatus
         return Source(
             src = VideoSrc(
                 uri = item.localConfiguration?.uri?.toString() ?: item.mediaId,
@@ -316,9 +319,8 @@ class OmniPlayer(
                 album = meta.albumTitle?.toString(),
                 artist = meta.artist?.toString(),
                 imageLink = meta.artworkUri?.toString(),
-                // we did not load it, we don't know what comes around it.
-                hasPrev = null,
-                hasNext = null,
+                hasPrev = status?.isMediaCommandSupported(MediaStatus.COMMAND_QUEUE_PREVIOUS),
+                hasNext = status?.isMediaCommandSupported(MediaStatus.COMMAND_QUEUE_NEXT),
             ),
             mixAudio = null,
             castId = item.mediaId,
