@@ -3,10 +3,10 @@ import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
 import { Video } from "@videojs/react/video";
 import {
 	type CSSProperties,
-	type RefObject,
 	useEffect,
 	useMemo,
 	useRef,
+	useState,
 	useSyncExternalStore,
 } from "react";
 import { usePlayerState } from "./events";
@@ -20,7 +20,9 @@ const SubtitleOverlay = ({
 	assets,
 	fonts,
 }: {
-	video: RefObject<HTMLVideoElement>;
+	// not a ref: the overlay is re-created when the element is swapped (which
+	// happens when the tech changes, ie. going from/to hls)
+	video: HTMLVideoElement | null;
 	assets?: SubtitleAssets;
 	fonts?: string[];
 }) => {
@@ -36,8 +38,7 @@ const SubtitleOverlay = ({
 	fontsRef.current = fonts;
 
 	useEffect(() => {
-		const el = video.current;
-		if (!el || !subtitle) return;
+		if (!video || !subtitle) return;
 		let renderer: { destroy(): void } | null = null;
 		let cancelled = false;
 		const attach = (created: { destroy(): void }) => {
@@ -58,7 +59,7 @@ const SubtitleOverlay = ({
 			import("jassub")
 				.then(({ default: JASSUB }) => {
 					const instance = new JASSUB({
-						video: el,
+						video,
 						subUrl: subtitle.link,
 						...(videoWidth && { videoWidth }),
 						...(videoHeight && { videoHeight }),
@@ -81,7 +82,7 @@ const SubtitleOverlay = ({
 			import("libpgs")
 				.then(({ PgsRenderer }) => {
 					const instance = new PgsRenderer({
-						video: el,
+						video,
 						subUrl: subtitle.link,
 						workerUrl:
 							pgs?.workerUrl ??
@@ -107,7 +108,7 @@ export const OmniView = ({
 	subtitleAssets,
 }: OmniViewProps & { style: CSSProperties }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const ref = useRef<HTMLVideoElement>(undefined!);
+	const [video, setVideo] = useState<HTMLVideoElement | null>(null);
 	const source = usePlayerState("source");
 
 	const isHls =
@@ -146,7 +147,7 @@ export const OmniView = ({
 			style={{ position: "relative", ...style }}
 		>
 			<Tech
-				ref={ref}
+				ref={setVideo}
 				src={source && startTime ? `${source.src.uri}#t=${startTime}` : source?.src.uri}
 				config={config}
 				autoPlay={autoplay}
@@ -167,7 +168,7 @@ export const OmniView = ({
 			</Tech>
 			{castStatus !== "connected" && castStatus !== "connecting" && (
 				<SubtitleOverlay
-					video={ref}
+					video={video}
 					assets={subtitleAssets}
 					fonts={source?.fonts}
 				/>
