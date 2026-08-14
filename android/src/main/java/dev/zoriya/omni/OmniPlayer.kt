@@ -29,11 +29,13 @@ import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.AndroidBackend
 import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
+import com.margelo.nitro.omni.Metadata
 import com.margelo.nitro.omni.MixAudioMode
 import com.margelo.nitro.omni.PlayerStatus
 import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
+import com.margelo.nitro.omni.VideoSrc
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem.RequestMetadata
 import androidx.media3.common.MediaItem.SubtitleConfiguration
@@ -299,7 +301,6 @@ class OmniPlayer(
     }
 
     private fun sourceOf(item: MediaItem): Source {
-        val extras = item.requestMetadata.extras
         val meta = item.mediaMetadata
         return Source(
             src = VideoSrc(
@@ -308,15 +309,7 @@ class OmniPlayer(
                 headers = emptyMap(),
             ),
             startTime = null,
-            subtitles = item.localConfiguration?.subtitleConfigurations.orEmpty().map {
-                Subtitle(
-                    id = it.id ?: it.uri.toString(),
-                    link = it.uri.toString(),
-                    mimeType = it.mimeType,
-                    language = it.language,
-                    label = it.label,
-                )
-            }.toTypedArray(),
+            subtitles = emptyArray(),
             fonts = null,
             metadata = Metadata(
                 title = meta.title?.toString() ?: "",
@@ -328,15 +321,8 @@ class OmniPlayer(
                 hasNext = null,
             ),
             mixAudio = null,
-            castId = extras?.getString(CAST_ID_EXTRA),
-            castData = extras?.getString(CAST_DATA_EXTRA)?.let { raw ->
-                try {
-                    val json = JSONObject(raw)
-                    json.keys().asSequence().associateWith { json.optString(it) }
-                } catch (_: Throwable) {
-                    null
-                }
-            },
+            castId = item.mediaId,
+            castData = null,
         )
     }
 
@@ -450,15 +436,39 @@ class OmniPlayer(
         }
     }
 
+
     init {
-        runOnMainThreadSync { eventMap.player = player }
+        runOnMainThreadSync {
+            eventMap.player = player
+            player.addListener(object : Player.Listener {
+                override fun onMediaItemTransition(item: MediaItem?, reason: Int) = followMedia(item)
+            })
+        }
     }
 
-    override var source: Source? = null
+    private fun followMedia(item: MediaItem?) {
+        // our media only leaves the player while it is being handed over to the
+        // receiver (starting a cast), it is not gone.
+        if (item == null && ownItem != null) return
+        if (item != null && item == ownItem) return
+        val source = item?.let { sourceOf(it) }
+        if (source == _source) return
+        _source = source
+        eventMap.emitSource(source)
+        syncNotificationService()
+    }
+
+    private var _source: Source? = null
+    private var ownItem: MediaItem? = null
+
+
+    override var source: Source?
+        get() = _source
         set(value) {
-            field = value
+            _source = value
             eventMap.emitSource(value)
             if (value == null) {
+                ownItem = null
                 runOnMainThreadSync {
                     player.clearMediaItems()
                 }
@@ -484,6 +494,7 @@ class OmniPlayer(
                 value.castId,
                 value.castData,
             )
+            ownItem = currentItem
 
             runOnMainThreadSync {
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
