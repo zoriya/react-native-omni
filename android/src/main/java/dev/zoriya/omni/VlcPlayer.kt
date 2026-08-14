@@ -616,7 +616,7 @@ class VlcPlayer(ctx: Context) :
                         .setWidth(videoTrack?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
                         .setHeight(videoTrack?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
                         .setFrameRate(
-                            videoTrack?.takeIf { it.frameRateDen > 0 }
+                            videoTrack?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
                                 ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
                                 ?: Format.NO_VALUE.toFloat()
                         )
