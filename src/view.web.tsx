@@ -119,9 +119,11 @@ export const OmniView = ({
 	const headersRef = useRef(source?.src?.headers);
 	headersRef.current = source?.src?.headers;
 
+	const startTime = source?.startTime;
 	const config = useMemo<HlsMediaConfig>(
 		() => ({
 			hlsJs: {
+				...(startTime && { startPosition: startTime }),
 				xhrSetup: (xhr: XMLHttpRequest) => {
 					const headers = headersRef.current;
 					if (!headers) return;
@@ -131,19 +133,8 @@ export const OmniView = ({
 				},
 			},
 		}),
-		[],
+		[startTime],
 	);
-
-	const player = usePlayer();
-	const uri = source?.src.uri;
-	const startTime = source?.startTime;
-	const prevUri = useRef<string | undefined>(undefined);
-	useEffect(() => {
-		if (!uri) return;
-		if (startTime) player.currentTime = startTime;
-		if (autoplay && prevUri.current && prevUri.current !== uri) player.play();
-		prevUri.current = uri;
-	}, [player, uri, startTime, autoplay]);
 
 	// While casting, the receiver renders subtitles (the player forwards the
 	// selection); skip rendering them locally on the idle <video>.
@@ -156,7 +147,7 @@ export const OmniView = ({
 		>
 			<Tech
 				ref={ref}
-				src={source?.src.uri}
+				src={source && startTime ? `${source.src.uri}#t=${startTime}` : source?.src.uri}
 				config={config}
 				autoPlay={autoplay}
 				playsInline
