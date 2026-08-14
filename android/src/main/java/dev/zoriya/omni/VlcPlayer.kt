@@ -83,13 +83,15 @@ class VlcPlayer(ctx: Context) :
         if (Looper.myLooper() == Looper.getMainLooper()) flush() else applicationHandler.post(flush)
     }
 
-    private val libVLC = LibVLC(ctx, arrayListOf(
-        "--network-caching=1500",
-        "--file-caching=1500",
-        "--no-stats",
-        "--no-osd",
-        "--quiet"
-    ))
+    private val libVLC = LibVLC(
+        ctx, arrayListOf(
+            "--network-caching=1500",
+            "--file-caching=1500",
+            "--no-stats",
+            "--no-osd",
+            "--quiet"
+        )
+    )
 
     private val player = MediaPlayer(libVLC)
 
@@ -98,14 +100,26 @@ class VlcPlayer(ctx: Context) :
     private var mediaItems: List<MediaItem> = emptyList()
     private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
+
     @Volatile
     private var playerError: PlaybackException? = null
+
     @Volatile
     private var released = false
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
     private var userInitiatedTransition: Boolean = false
+
     @Volatile
     private var cachedBufferedPosition: Long = 0L
+
+    // vlc handles seeks on its input thread and keeps reporting the pre-seek time
+    // until it decoded the new position, so remember where we asked to go and
+    // report that instead
+    @Volatile
+    private var pendingSeekPosition: Long = TIME_UNSET
+
+    @Volatile
+    private var seekOriginPosition: Long = 0L
     private var boundSurfaceView: SurfaceView? = null
     private var videoOutputStale = false
     private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
@@ -178,6 +192,7 @@ class VlcPlayer(ctx: Context) :
 
             MediaPlayer.Event.Stopped -> {
                 abandonAudioFocus()
+                pendingSeekPosition = TIME_UNSET
                 notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_IDLE)
                 }
@@ -185,6 +200,7 @@ class VlcPlayer(ctx: Context) :
 
             MediaPlayer.Event.EndReached -> {
                 abandonAudioFocus()
+                pendingSeekPosition = TIME_UNSET
                 notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_ENDED)
                 }
@@ -216,7 +232,14 @@ class VlcPlayer(ctx: Context) :
 
             // progress is polled instead of pushed dozens of times per seconds.
             // this improves perf & battery life (native -> js bridge is expensive)
-            MediaPlayer.Event.TimeChanged -> Unit
+            MediaPlayer.Event.TimeChanged -> {
+                val pending = pendingSeekPosition
+                if (pending != TIME_UNSET &&
+                    (Math.abs(event.timeChanged - seekOriginPosition) > 1_000 || Math.abs(event.timeChanged - pending) < 1_000)
+                ) {
+                    pendingSeekPosition = TIME_UNSET
+                }
+            }
 
             // vlc has no video-size event, Vout event still has unknown size.
             // This is the first callback with known size.
@@ -294,7 +317,11 @@ class VlcPlayer(ctx: Context) :
             audioManager.requestAudioFocus(request)
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            audioManager.requestAudioFocus(
+                this,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
         }
         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         return hasAudioFocus
@@ -347,6 +374,7 @@ class VlcPlayer(ctx: Context) :
         currentMediaItemIndex = targetIndex
         playlistMetadata = mediaItems.getOrNull(targetIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
         playerError = null
+        pendingSeekPosition = TIME_UNSET
 
         player.stop()
         videoOutputStale = false
@@ -378,7 +406,8 @@ class VlcPlayer(ctx: Context) :
             EVENT_PLAYLIST_METADATA_CHANGED
         )
         if (prev != currentMediaItemIndex) events += EVENT_MEDIA_ITEM_TRANSITION
-        val reason = if (userInitiatedTransition) MEDIA_ITEM_TRANSITION_REASON_SEEK else MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+        val reason =
+            if (userInitiatedTransition) MEDIA_ITEM_TRANSITION_REASON_SEEK else MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
         userInitiatedTransition = false
         notifyListeners(events.toTypedArray()) {
             it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
@@ -432,6 +461,7 @@ class VlcPlayer(ctx: Context) :
         mediaItems = emptyList()
         currentMediaItemIndex = INDEX_UNSET
         playlistMetadata = MediaMetadata.EMPTY
+        pendingSeekPosition = TIME_UNSET
         player.stop()
 
         val events = mutableListOf(
@@ -497,7 +527,8 @@ class VlcPlayer(ctx: Context) :
         seekCommand: Int,
         isRepeatingCurrentItem: Boolean
     ) {
-        val targetIndex = if (mediaItemIndex == INDEX_UNSET) currentMediaItemIndex else mediaItemIndex
+        val targetIndex =
+            if (mediaItemIndex == INDEX_UNSET) currentMediaItemIndex else mediaItemIndex
         if (targetIndex == INDEX_UNSET || targetIndex !in mediaItems.indices) return
 
         if (targetIndex != currentMediaItemIndex) {
@@ -509,6 +540,10 @@ class VlcPlayer(ctx: Context) :
 
         val from = getCurrentPosition()
         val target = positionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
+        if (player.isSeekable) {
+            seekOriginPosition = player.time.coerceAtLeast(0L)
+            pendingSeekPosition = target
+        }
         player.time = target
         // since vlc reports progress events every few ms they don't have a seek finished event.
         notifyListeners(EVENT_POSITION_DISCONTINUITY) {
@@ -588,7 +623,10 @@ class VlcPlayer(ctx: Context) :
                         .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
                         .build()
                 }
-                val group = TrackGroup("vlc-video-${videoTracks.minOf { it.id }}", *videoFormats.toTypedArray())
+                val group = TrackGroup(
+                    "vlc-video-${videoTracks.minOf { it.id }}",
+                    *videoFormats.toTypedArray()
+                )
                 val selected = BooleanArray(videoFormats.size) { idx ->
                     selectedVideo != null && selectedVideo.id == videoTracks[idx].id
                 }
@@ -607,7 +645,10 @@ class VlcPlayer(ctx: Context) :
                         .setSampleMimeType("audio/x-unknown")
                         .build()
                 }
-                val group = TrackGroup("vlc-audio-${audioTracks.minOf { it.id }}", *audioFormats.toTypedArray())
+                val group = TrackGroup(
+                    "vlc-audio-${audioTracks.minOf { it.id }}",
+                    *audioFormats.toTypedArray()
+                )
                 val selected = BooleanArray(audioFormats.size) { idx ->
                     selectedAudio != null && selectedAudio.id == audioTracks[idx].id
                 }
@@ -625,7 +666,8 @@ class VlcPlayer(ctx: Context) :
                 .setSampleMimeType("text/x-unknown")
                 .build()
             val group = TrackGroup("vlc-sub-${track.id}", format)
-            val selected = booleanArrayOf(selectedSubtitle != null && selectedSubtitle.id == track.id)
+            val selected =
+                booleanArrayOf(selectedSubtitle != null && selectedSubtitle.id == track.id)
             val support = intArrayOf(FORMAT_HANDLED)
             result.add(Group(group, false, support, selected))
         }
@@ -663,10 +705,12 @@ class VlcPlayer(ctx: Context) :
                     player.setVideoTrackEnabled(true)
                     player.selectTrack(trackId)
                 }
+
                 TRACK_TYPE_AUDIO -> {
                     hasAudioOverride = true
                     player.selectTrack(trackId)
                 }
+
                 TRACK_TYPE_TEXT -> {
                     hasTextOverride = true
                     player.selectTrack(trackId)
@@ -711,7 +755,12 @@ class VlcPlayer(ctx: Context) :
         val preferredLabels = labels.filter { it.isNotEmpty() }
         if (preferredLanguages.isEmpty() && preferredLabels.isEmpty()) return null
 
-        data class Candidate(val id: String, val langIndex: Int, val labelIndex: Int, val hasDefaultFlag: Boolean)
+        data class Candidate(
+            val id: String,
+            val langIndex: Int,
+            val labelIndex: Int,
+            val hasDefaultFlag: Boolean
+        )
 
         val candidates = tracks.groups
             .filter { it.type == trackType }
@@ -761,7 +810,8 @@ class VlcPlayer(ctx: Context) :
         // timelines are immutable
         val items = mediaItems
         val currentIndex = currentMediaItemIndex
-        val currentDurationUs = duration.takeIf { it != TIME_UNSET }?.let { it * 1000L } ?: TIME_UNSET
+        val currentDurationUs =
+            duration.takeIf { it != TIME_UNSET }?.let { it * 1000L } ?: TIME_UNSET
         if (items.isEmpty()) return Timeline.EMPTY
         return object : Timeline() {
             private fun durationUsForIndex(index: Int): Long =
@@ -816,7 +866,11 @@ class VlcPlayer(ctx: Context) :
 
     override fun getDuration(): Long = player.length.takeIf { it > 0 } ?: TIME_UNSET
 
-    override fun getCurrentPosition() = player.time.coerceAtLeast(0L)
+    override fun getCurrentPosition(): Long {
+        val pending = pendingSeekPosition
+        if (pending != TIME_UNSET) return pending
+        return player.time.coerceAtLeast(0L)
+    }
 
     override fun getBufferedPosition(): Long {
         val duration = getDuration()
@@ -946,7 +1000,8 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getVideoSize(): VideoSize {
-        val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack ?: return VideoSize.UNKNOWN
+        val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack
+            ?: return VideoSize.UNKNOWN
         if (videoTrack.width <= 0 || videoTrack.height <= 0) return VideoSize.UNKNOWN
         val par = if (videoTrack.sarNum > 0 && videoTrack.sarDen > 0) {
             videoTrack.sarNum.toFloat() / videoTrack.sarDen.toFloat()
