@@ -1,13 +1,7 @@
 import { createPlayer } from "@videojs/react";
 import { GoogleCast } from "@videojs/react/media/google-cast";
 import { videoFeatures } from "@videojs/react/video";
-import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-	useRef,
-} from "react";
+import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { usePlayerState } from "./events";
 import { WebOmniPlayer } from "./player.web";
 import type { OmniPlayer, PlayerBackend } from "./types/player";
@@ -58,16 +52,10 @@ const PlayerInitializer = ({
 }) => {
 	const store = VideoPlayer.usePlayer();
 	const player = useLazyRef(() => new WebOmniPlayer(store));
-	const seekedForSrc = useRef<string | undefined>(undefined);
 
 	useEffect(() => {
 		player.source = source;
-		const uri = source?.src?.uri;
-		if (uri !== seekedForSrc.current) {
-			seekedForSrc.current = uri;
-			if (source?.startTime) store.seek(source.startTime);
-		}
-	}, [source, store]);
+	}, [source]);
 
 	useEffect(() => {
 		player.showNotification = showNotification;

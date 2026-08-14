@@ -298,6 +298,48 @@ class OmniPlayer(
             .build()
     }
 
+    private fun sourceOf(item: MediaItem): Source {
+        val extras = item.requestMetadata.extras
+        val meta = item.mediaMetadata
+        return Source(
+            src = VideoSrc(
+                uri = item.localConfiguration?.uri?.toString() ?: item.mediaId,
+                mimeType = item.localConfiguration?.mimeType,
+                headers = emptyMap(),
+            ),
+            startTime = null,
+            subtitles = item.localConfiguration?.subtitleConfigurations.orEmpty().map {
+                Subtitle(
+                    id = it.id ?: it.uri.toString(),
+                    link = it.uri.toString(),
+                    mimeType = it.mimeType,
+                    language = it.language,
+                    label = it.label,
+                )
+            }.toTypedArray(),
+            fonts = null,
+            metadata = Metadata(
+                title = meta.title?.toString() ?: "",
+                album = meta.albumTitle?.toString(),
+                artist = meta.artist?.toString(),
+                imageLink = meta.artworkUri?.toString(),
+                // we did not load it, we don't know what comes around it.
+                hasPrev = null,
+                hasNext = null,
+            ),
+            mixAudio = null,
+            castId = extras?.getString(CAST_ID_EXTRA),
+            castData = extras?.getString(CAST_DATA_EXTRA)?.let { raw ->
+                try {
+                    val json = JSONObject(raw)
+                    json.keys().asSequence().associateWith { json.optString(it) }
+                } catch (_: Throwable) {
+                    null
+                }
+            },
+        )
+    }
+
     fun setVideoView(surfaceView: android.view.SurfaceView) {
         runOnMainThread {
             localPlayer.setVideoSurfaceView(surfaceView)

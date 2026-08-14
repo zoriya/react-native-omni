@@ -134,6 +134,17 @@ export const OmniView = ({
 		[],
 	);
 
+	const player = usePlayer();
+	const uri = source?.src.uri;
+	const startTime = source?.startTime;
+	const prevUri = useRef<string | undefined>(undefined);
+	useEffect(() => {
+		if (!uri) return;
+		if (startTime) player.currentTime = startTime;
+		if (autoplay && prevUri.current && prevUri.current !== uri) player.play();
+		prevUri.current = uri;
+	}, [player, uri, startTime, autoplay]);
+
 	// While casting, the receiver renders subtitles (the player forwards the
 	// selection); skip rendering them locally on the idle <video>.
 	const castStatus = usePlayerState("castStatus");
