@@ -111,7 +111,9 @@ class OmniPlayer(
     // their own), so they ask us to do it when something else - google home, the
     // assistant, ... - requests a prev/next. same path as our own buttons.
     private fun listenToReceiver() {
-        val session = castContext?.sessionManager?.currentCastSession ?: return
+        val session = castContext?.sessionManager?.currentCastSession
+        eventMap.remote = session?.remoteMediaClient
+        if (session == null) return
         try {
             session.setMessageReceivedCallbacks(OMNI_NAMESPACE) { _, _, message ->
                 when (JSONObject(message).optString("action")) {

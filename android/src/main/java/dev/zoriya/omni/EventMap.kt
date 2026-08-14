@@ -15,6 +15,8 @@ import androidx.media3.common.Player.STATE_READY
 import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.margelo.nitro.omni.BoolProperty
 import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
@@ -102,6 +104,8 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
             }
             onTracksChanged(value.currentTracks)
         }
+
+    var remote: RemoteMediaClient? = null
 
     fun emitCastStatus(status: CastStatus) {
         castStatusListeners.forEach { it(status) }
@@ -200,7 +204,13 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         val state = when (player.playbackState) {
-            STATE_IDLE -> PlayerStatus.IDLE
+            STATE_IDLE -> {
+                // cast doesn't have STATE_ENDED, so handle this manually
+                if (remote?.mediaStatus?.idleReason == MediaStatus.IDLE_REASON_FINISHED)
+                    onEndListeners.forEach { it() }
+                PlayerStatus.IDLE
+            }
+
             STATE_BUFFERING -> PlayerStatus.LOADING
             STATE_READY -> PlayerStatus.READYTOPLAY
             STATE_ENDED -> {
