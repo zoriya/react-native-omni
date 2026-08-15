@@ -597,6 +597,18 @@ class VlcPlayer(ctx: Context) :
         }
     }
 
+    // the adaptive demuxer has no stable es id so its tracks are named `audio/auto/<n>` (see
+    // EsOutCreateStrId in vlc's es_out.c) while a plain file gives `audio/<n>`.
+    // for hls it sets the description to "<EXT-X-MEDIA GROUP-ID> <NAME>" (hls/playlist/Parser.cpp),
+    // so one track offered in n quality groups shows up as n tracks: keep the part after the
+    // group-id so they collapse back into a single track holding n renditions.
+    // (dash sets the description to the Role, a single word, so this is a no-op there.)
+    private fun trackName(track: IMedia.Track): String? {
+        val description = track.description
+        if (description == null || !track.id.contains("/auto/")) return track.name
+        return description.substringAfter(' ')
+    }
+
     override fun getCurrentTracks(): Tracks {
         val result = ArrayList<Group>()
         val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
@@ -604,13 +616,13 @@ class VlcPlayer(ctx: Context) :
         val selectedSubtitle = player.getSelectedTrack(IMedia.Track.Type.Text)
 
         player.getTracks(IMedia.Track.Type.Video).orEmpty()
-            .groupBy { listOf(it.language, it.name, it.description) }
+            .groupBy { listOf(it.language, trackName(it)) }
             .values.forEach { videoTracks ->
                 val videoFormats = videoTracks.map { track ->
                     val videoTrack = track as? VideoTrack
                     Format.Builder()
                         .setId(track.id)
-                        .setLabel(track.name)
+                        .setLabel(trackName(track))
                         .setLanguage(track.language)
                         .setSampleMimeType("video/x-unknown")
                         .setWidth(videoTrack?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
@@ -635,12 +647,12 @@ class VlcPlayer(ctx: Context) :
             }
 
         player.getTracks(IMedia.Track.Type.Audio).orEmpty()
-            .groupBy { listOf(it.language, it.name, it.description) }
+            .groupBy { listOf(it.language, trackName(it)) }
             .values.forEach { audioTracks ->
                 val audioFormats = audioTracks.map { track ->
                     Format.Builder()
                         .setId(track.id)
-                        .setLabel(track.name)
+                        .setLabel(trackName(track))
                         .setLanguage(track.language)
                         .setSampleMimeType("audio/x-unknown")
                         .build()
