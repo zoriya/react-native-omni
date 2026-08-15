@@ -466,6 +466,8 @@ class OmniPlayer(
             player.addListener(object : Player.Listener {
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) = followMedia(item)
             })
+            // check for cast rejoin
+            followMedia(player.currentMediaItem)
         }
     }
 

@@ -4,6 +4,7 @@ import {
 	useContext,
 	useEffect,
 	useEffectEvent,
+	useRef,
 	useState,
 } from "react";
 import { NitroModules } from "react-native-nitro-modules";
@@ -47,10 +48,13 @@ export const OmniProvider = ({
 		return () => player.abandon();
 	}, [player]);
 
+	const inited = useRef<NativeOmniPlayer | null>(null);
 	useEffect(() => {
 		if (!player) return;
-		// early return on init to keep running cast sessions active
-		if (source == null && player.source == null) return;
+		if (inited.current !== player) {
+			inited.current = player;
+			if (source == null) return;
+		}
 		player.source = source;
 	}, [player, source]);
 

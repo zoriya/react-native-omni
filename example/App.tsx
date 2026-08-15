@@ -79,6 +79,7 @@ function PlayerExample({
 	const volume = usePlayerState("volume");
 	const isAutoQuality = usePlayerState("isAutoQuality");
 	const castStatus = usePlayerState("castStatus");
+	const source = usePlayerState("source");
 	const [logs, setLogs] = useState<{ id: number; message: string }[]>([]);
 	const logId = useRef(0);
 	const tracks = {
@@ -280,6 +281,9 @@ function PlayerExample({
 				</Text>
 				<Text style={styles.statText}>
 					Volume: {(volume * 100).toFixed(0)}%
+				</Text>
+				<Text style={styles.statText}>
+					Source: {source?.metadata?.title ?? "(none)"}
 				</Text>
 			</View>
 
