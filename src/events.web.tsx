@@ -1,3 +1,4 @@
+import { MediaError } from "@videojs/media";
 import {
 	type Selector,
 	selectAudioTrack,
@@ -43,6 +44,10 @@ const eventMapper: EventMapperConfig = {
 	}),
 	...createEventMapper("error", selectError, (cb, value, prev) => {
 		if (value?.error && value.error !== prev?.error) {
+			// a segment failing to load is a hiccup, playback usually keeps
+			// going: don't bother the app with those.
+			const details = (value.error as MediaError).context;
+			if (details === "fragLoadTimeOut" || details === "fragLoadError") return;
 			cb(
 				value.error.message ?? "Unknown error",
 				value.error.message ?? "Unknown error",
