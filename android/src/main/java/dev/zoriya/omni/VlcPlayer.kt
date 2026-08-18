@@ -488,6 +488,7 @@ class VlcPlayer(ctx: Context) :
 
     override fun getPlaybackState(): Int =
         when {
+            released -> STATE_IDLE
             playerError != null -> STATE_IDLE
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
             player.media?.also { it.release() } == null -> STATE_IDLE
@@ -505,7 +506,7 @@ class VlcPlayer(ctx: Context) :
         if (playWhenReady) player.play() else player.pause()
     }
 
-    override fun getPlayWhenReady(): Boolean = player.isPlaying
+    override fun getPlayWhenReady(): Boolean = !released && player.isPlaying
 
     override fun setRepeatMode(repeatMode: Int) = Unit
 
@@ -577,7 +578,8 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getPlaybackParameters(): PlaybackParameters =
-        PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
+        if (released) PlaybackParameters.DEFAULT
+        else PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
 
     override fun stop() {
         player.stop()
@@ -610,6 +612,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getCurrentTracks(): Tracks {
+        if (released) return Tracks.EMPTY
         val result = ArrayList<Group>()
         val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
         val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
@@ -876,9 +879,11 @@ class VlcPlayer(ctx: Context) :
 
     override fun getCurrentMediaItemIndex() = currentMediaItemIndex.coerceAtLeast(0)
 
-    override fun getDuration(): Long = player.length.takeIf { it > 0 } ?: TIME_UNSET
+    override fun getDuration(): Long =
+        if (released) TIME_UNSET else player.length.takeIf { it > 0 } ?: TIME_UNSET
 
     override fun getCurrentPosition(): Long {
+        if (released) return 0L
         val pending = pendingSeekPosition
         if (pending != TIME_UNSET) return pending
         return player.time.coerceAtLeast(0L)
@@ -913,7 +918,8 @@ class VlcPlayer(ctx: Context) :
         notifyVolumeChanged()
     }
 
-    override fun getVolume(): Float = (player.volume / 100f).coerceIn(0f, 1f)
+    override fun getVolume(): Float =
+        if (released) 1f else (player.volume / 100f).coerceIn(0f, 1f)
 
     override fun mute() {
         val current = getVolume()
@@ -1012,6 +1018,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getVideoSize(): VideoSize {
+        if (released) return VideoSize.UNKNOWN
         val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack
             ?: return VideoSize.UNKNOWN
         if (videoTrack.width <= 0 || videoTrack.height <= 0) return VideoSize.UNKNOWN
