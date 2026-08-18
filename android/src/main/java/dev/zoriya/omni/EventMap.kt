@@ -82,7 +82,7 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
                 else -> PlayerStatus.IDLE
             }
             playerStatusListeners.forEach { it(status) }
-            stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(value.isPlaying) }
+            stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(value.playWhenReady) }
             stateBoolListeners[BoolProperty.MUTED]?.forEach { it(value.volume <= 0f) }
             stateListeners[NumberProperty.VOLUME]?.forEach { it(value.volume.toDouble()) }
             stateListeners[NumberProperty.PLAYBACKRATE]?.forEach {
@@ -223,11 +223,13 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
         playerStatusListeners.forEach { it(state) }
     }
 
+    // `isPlaying` is off while buffering, js wants the intent: a player waiting for
+    // data still is playing for the ui (`status` already tells about buffering).
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
             onAudioFocusChangeListeners.forEach { it("loss") }
         }
-        onIsPlayingChanged(player.isPlaying)
+        stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(playWhenReady) }
     }
 
     override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
@@ -236,10 +238,6 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
                 "lossTransient"
             else "gain"
         onAudioFocusChangeListeners.forEach { it(status) }
-    }
-
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        stateBoolListeners[BoolProperty.ISPLAYING]?.forEach { it(isPlaying) }
     }
 
     override fun onVolumeChanged(volume: Float) {

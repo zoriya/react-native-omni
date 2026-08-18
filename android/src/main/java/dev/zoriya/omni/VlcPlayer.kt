@@ -156,8 +156,11 @@ class VlcPlayer(ctx: Context) :
         when (event.type) {
             MediaPlayer.Event.Opening -> {
                 lastVideoSize = VideoSize.UNKNOWN
-                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
+                notifyListeners(
+                    arrayOf(EVENT_PLAYBACK_STATE_CHANGED, EVENT_PLAY_WHEN_READY_CHANGED)
+                ) {
                     it.onPlaybackStateChanged(STATE_BUFFERING)
+                    it.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
                 }
             }
 
@@ -169,6 +172,7 @@ class VlcPlayer(ctx: Context) :
                         EVENT_MEDIA_METADATA_CHANGED,
                         EVENT_PLAYBACK_STATE_CHANGED,
                         EVENT_IS_PLAYING_CHANGED,
+                        EVENT_PLAY_WHEN_READY_CHANGED,
                         EVENT_TRACKS_CHANGED
                     )
                 ) {
@@ -176,6 +180,7 @@ class VlcPlayer(ctx: Context) :
                     it.onMediaMetadataChanged(mediaMetadata)
                     it.onPlaybackStateChanged(STATE_READY)
                     it.onIsPlayingChanged(true)
+                    it.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
                     it.onTracksChanged(getCurrentTracks())
                 }
                 maybeNotifyVideoSizeChanged()
@@ -506,7 +511,8 @@ class VlcPlayer(ctx: Context) :
         if (playWhenReady) player.play() else player.pause()
     }
 
-    override fun getPlayWhenReady(): Boolean = !released && player.isPlaying
+    override fun getPlayWhenReady(): Boolean =
+        !released && (player.isPlaying || player.playerState == IMedia.State.Opening)
 
     override fun setRepeatMode(repeatMode: Int) = Unit
 

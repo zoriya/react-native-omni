@@ -386,7 +386,7 @@ class OmniPlayer(
         }
     }
 
-    override val isPlaying by mainThreadProperty { player.isPlaying }
+    override val isPlaying by mainThreadProperty { player.playWhenReady }
     override var currentTime by mainThreadProperty(
         get = { player.currentPosition.toDouble() / 1000.0 },
         set = { value -> player.seekTo((value.coerceAtLeast(0.0) * 1000.0).toLong()) }
