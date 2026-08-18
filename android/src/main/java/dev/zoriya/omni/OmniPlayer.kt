@@ -460,6 +460,9 @@ class OmniPlayer(
     }
 
 
+    private var _source: Source? = null
+    private var ownItem: MediaItem? = null
+
     init {
         runOnMainThreadSync {
             eventMap.player = player
@@ -472,9 +475,17 @@ class OmniPlayer(
     }
 
     private fun followMedia(item: MediaItem?) {
-        // our media only leaves the player while it is being handed over to the
-        // receiver (starting a cast), it is not gone.
-        if (item == null && ownItem != null) return
+        if (item == null && ownItem != null) {
+            // our media only leaves the player while it is being handed over (to the
+            // receiver when a cast starts, back to us when it ends), it is not gone.
+            // it only is when the receiver dropped it while we are still connected to
+            // it: someone stopped it (google home, the tv, ...) or took it over.
+            val idleReason = eventMap.remote?.mediaStatus?.idleReason
+            val dropped = idleReason == MediaStatus.IDLE_REASON_CANCELED ||
+                idleReason == MediaStatus.IDLE_REASON_INTERRUPTED
+            if (!isCasting || !dropped) return
+            ownItem = null
+        }
         if (item != null && item == ownItem) return
         val source = item?.let { sourceOf(it) }
         if (source == _source) return
@@ -482,10 +493,6 @@ class OmniPlayer(
         eventMap.emitSource(source)
         syncNotificationService()
     }
-
-    private var _source: Source? = null
-    private var ownItem: MediaItem? = null
-
 
     override var source: Source?
         get() = _source
