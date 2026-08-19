@@ -400,6 +400,7 @@ class VlcPlayer(ctx: Context) :
         pendingSeekPosition = TIME_UNSET
         pendingSlaveHash = null
         loadingSlave = false
+        trackOrders.clear()
         subtitleSlavesByHash = mediaItems.getOrNull(targetIndex)
             ?.localConfiguration?.subtitleConfigurations.orEmpty()
             .associateBy { md5(it.uri.toString()) }
@@ -690,6 +691,19 @@ class VlcPlayer(ctx: Context) :
         if (track.id.contains("/auto/")) trackName(track) ?: track.id
         else listOf(track.language, track.name)
 
+    // selecting a track makes vlc recreate its es with a fresh, higher id ("audio/auto/4"
+    // becomes "audio/auto/7"), so its own order puts whatever was picked last and the list
+    // reshuffles. order on the lowest es number a track was ever seen with instead.
+    private val trackOrders = mutableMapOf<Pair<Int, Any>, Int>()
+
+    private fun trackOrder(type: Int, tracks: List<IMedia.Track>): Int {
+        val key = type to trackKey(tracks.first())
+        val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
+        val order = minOf(trackOrders[key] ?: Int.MAX_VALUE, es)
+        trackOrders[key] = order
+        return order
+    }
+
     override fun getCurrentTracks(): Tracks {
         if (released) return Tracks.EMPTY
         val result = ArrayList<Group>()
@@ -702,7 +716,8 @@ class VlcPlayer(ctx: Context) :
 
         player.getTracks(IMedia.Track.Type.Video).orEmpty()
             .groupBy { trackKey(it) }
-            .values.forEach { videoTracks ->
+            .entries.sortedBy { trackOrder(TRACK_TYPE_VIDEO, it.value) }
+            .forEach { (_, videoTracks) ->
                 val videoFormats = videoTracks.map { track ->
                     val videoTrack = track as? VideoTrack
                     Format.Builder()
@@ -733,7 +748,8 @@ class VlcPlayer(ctx: Context) :
 
         player.getTracks(IMedia.Track.Type.Audio).orEmpty()
             .groupBy { trackKey(it) }
-            .values.forEach { audioTracks ->
+            .entries.sortedBy { trackOrder(TRACK_TYPE_AUDIO, it.value) }
+            .forEach { (_, audioTracks) ->
                 val audioFormats = audioTracks.map { track ->
                     Format.Builder()
                         .setId(track.id)
@@ -761,7 +777,7 @@ class VlcPlayer(ctx: Context) :
 
         textTracks
             .filter { it !in loadedSlaves.values }
-            .sortedBy { it.id }
+            .sortedBy { trackOrder(TRACK_TYPE_TEXT, listOf(it)) }
             .forEach { track ->
                 val format = Format.Builder()
                     .setId(track.id)
