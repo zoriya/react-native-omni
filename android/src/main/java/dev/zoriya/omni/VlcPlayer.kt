@@ -98,6 +98,7 @@ class VlcPlayer(ctx: Context) :
     private val vlcVout: IVLCVout = player.vlcVout
 
     private var mediaItems: List<MediaItem> = emptyList()
+    private var subtitleSlavesByHash: Map<String, MediaItem.SubtitleConfiguration> = emptyMap()
     private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
 
@@ -380,6 +381,9 @@ class VlcPlayer(ctx: Context) :
         playlistMetadata = mediaItems.getOrNull(targetIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
         playerError = null
         pendingSeekPosition = TIME_UNSET
+        subtitleSlavesByHash = mediaItems.getOrNull(targetIndex)
+            ?.localConfiguration?.subtitleConfigurations.orEmpty()
+            .associateBy { md5(it.uri.toString()) }
 
         player.stop()
         videoOutputStale = false
@@ -422,15 +426,6 @@ class VlcPlayer(ctx: Context) :
                 it.onMediaItemTransition(currentMediaItem, reason)
             }
         }
-    }
-
-    // vlc keys each slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
-    private fun subtitleSlaveForTrackId(trackId: String): MediaItem.SubtitleConfiguration? {
-        val hash = trackId.substringBefore("/spu/", "")
-        if (hash.isEmpty()) return null
-        return mediaItems.getOrNull(currentMediaItemIndex)
-            ?.localConfiguration?.subtitleConfigurations
-            ?.firstOrNull { md5(it.uri.toString()) == hash }
     }
 
     private fun md5(value: String): String =
@@ -688,8 +683,9 @@ class VlcPlayer(ctx: Context) :
             }
 
         player.getTracks(IMedia.Track.Type.Text)?.forEach { track ->
-            // external subs don't have label/language, match them back to surface them
-            val slave = subtitleSlaveForTrackId(track.id)
+            // external subs don't have label/language, match them back to surface them.
+            // vlc keys a slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
+            val slave = subtitleSlavesByHash[track.id.substringBefore("/spu/", "")]
             val format = Format.Builder()
                 .setId(track.id)
                 .setLabel(slave?.label ?: track.name)
