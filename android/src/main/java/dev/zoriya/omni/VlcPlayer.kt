@@ -48,6 +48,9 @@ import org.videolan.libvlc.interfaces.IMedia.VideoTrack
 import org.videolan.libvlc.interfaces.IVLCVout
 import java.security.MessageDigest
 
+// marks a sideloaded sub that is listed but not fetched by vlc yet
+private const val PENDING_SLAVE_PREFIX = "vlc-pending-sub:"
+
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
     BasePlayer(),
@@ -99,6 +102,7 @@ class VlcPlayer(ctx: Context) :
 
     private var mediaItems: List<MediaItem> = emptyList()
     private var subtitleSlavesByHash: Map<String, MediaItem.SubtitleConfiguration> = emptyMap()
+    private var pendingSlaveHash: String? = null
     private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
 
@@ -256,6 +260,12 @@ class VlcPlayer(ctx: Context) :
             MediaPlayer.Event.ESAdded,
             MediaPlayer.Event.ESDeleted,
             MediaPlayer.Event.ESSelected -> {
+                // vlc ignores a slave's `select` flag while another sub plays, do it ourselves
+                pendingSlaveHash?.let { hash ->
+                    player.getTracks(IMedia.Track.Type.Text).orEmpty()
+                        .firstOrNull { it.id.startsWith("$hash/spu/") }
+                        ?.let { pendingSlaveHash = null; player.selectTrack(it.id) }
+                }
                 notifyListeners(EVENT_TRACKS_CHANGED) {
                     it.onTracksChanged(getCurrentTracks())
                 }
@@ -381,6 +391,7 @@ class VlcPlayer(ctx: Context) :
         playlistMetadata = mediaItems.getOrNull(targetIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
         playerError = null
         pendingSeekPosition = TIME_UNSET
+        pendingSlaveHash = null
         subtitleSlavesByHash = mediaItems.getOrNull(targetIndex)
             ?.localConfiguration?.subtitleConfigurations.orEmpty()
             .associateBy { md5(it.uri.toString()) }
@@ -394,12 +405,6 @@ class VlcPlayer(ctx: Context) :
                 val media = Media(libVLC, uri.toUri())
                 media.setHWDecoderEnabled(true, false)
                 applyRequestHeaders(media, item.requestMetadata.extras)
-
-                item.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
-                    media.addSlave(
-                        IMedia.Slave(IMedia.Slave.Type.Subtitle, 0, subtitle.uri.toString())
-                    )
-                }
 
                 val targetMs = startPositionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
                 media.addOption(":start-time=${targetMs / 1000.0}")
@@ -426,6 +431,30 @@ class VlcPlayer(ctx: Context) :
                 it.onMediaItemTransition(currentMediaItem, reason)
             }
         }
+    }
+
+    private fun selectTextTrack(trackId: String) {
+        // embedded subs
+        val slaveUri = trackId.substringAfter(PENDING_SLAVE_PREFIX, "")
+        if (slaveUri.isEmpty()) {
+            pendingSlaveHash = null
+            player.selectTrack(trackId)
+            return
+        }
+
+        val hash = md5(slaveUri)
+        // already loaded ones
+        val es = player.getTracks(IMedia.Track.Type.Text).orEmpty()
+            .firstOrNull { it.id.startsWith("$hash/spu/") }
+        if (es != null) {
+            pendingSlaveHash = null
+            player.selectTrack(es.id)
+            return
+        }
+
+        if (hash == pendingSlaveHash) return
+        pendingSlaveHash = hash
+        player.addSlave(IMedia.Slave.Type.Subtitle, slaveUri.toUri(), true)
     }
 
     private fun md5(value: String): String =
@@ -682,21 +711,40 @@ class VlcPlayer(ctx: Context) :
                 result.add(Group(group, audioFormats.size > 1, support, selected))
             }
 
-        player.getTracks(IMedia.Track.Type.Text)?.forEach { track ->
-            // external subs don't have label/language, match them back to surface them.
-            // vlc keys a slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
-            val slave = subtitleSlavesByHash[track.id.substringBefore("/spu/", "")]
+        val textTracks = player.getTracks(IMedia.Track.Type.Text).orEmpty()
+        // vlc keys a slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
+        val loadedSlaves = textTracks.mapNotNull { track ->
+            subtitleSlavesByHash[track.id.substringBefore("/spu/", "")]?.let { it.uri to track }
+        }.toMap()
+
+        textTracks
+            .filter { it !in loadedSlaves.values }
+            .sortedBy { it.id }
+            .forEach { track ->
+                val format = Format.Builder()
+                    .setId(track.id)
+                    .setLabel(track.name)
+                    .setLanguage(track.language)
+                    .setSampleMimeType("text/x-unknown")
+                    .build()
+                val group = TrackGroup("vlc-sub-${track.id}", format)
+                val selected = booleanArrayOf(selectedSubtitle?.id == track.id)
+                result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
+            }
+
+        // sideloaded subs, listed from their config whether or not vlc fetched them yet
+        mediaItems.getOrNull(currentMediaItemIndex)?.localConfiguration
+            ?.subtitleConfigurations.orEmpty().forEach { config ->
+            val track = loadedSlaves[config.uri]
             val format = Format.Builder()
-                .setId(track.id)
-                .setLabel(slave?.label ?: track.name)
-                .setLanguage(slave?.language ?: track.language)
+                .setId("$PENDING_SLAVE_PREFIX${config.uri}")
+                .setLabel(config.label ?: track?.name)
+                .setLanguage(config.language ?: track?.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
-            val group = TrackGroup(slave?.id ?: "vlc-sub-${track.id}", format)
-            val selected =
-                booleanArrayOf(selectedSubtitle != null && selectedSubtitle.id == track.id)
-            val support = intArrayOf(FORMAT_HANDLED)
-            result.add(Group(group, false, support, selected))
+            val group = TrackGroup(config.id ?: "vlc-sub-${config.uri}", format)
+            val selected = booleanArrayOf(track != null && selectedSubtitle?.id == track.id)
+            result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
         }
 
         return if (result.isEmpty()) Tracks.EMPTY else Tracks(result)
@@ -713,7 +761,10 @@ class VlcPlayer(ctx: Context) :
 
         if (videoDisabled) player.setVideoTrackEnabled(false)
         if (audioDisabled) player.unselectTrackType(IMedia.Track.Type.Audio)
-        if (textDisabled) player.unselectTrackType(IMedia.Track.Type.Text)
+        if (textDisabled) {
+            pendingSlaveHash = null
+            player.unselectTrackType(IMedia.Track.Type.Text)
+        }
 
         val tracks = getCurrentTracks()
 
@@ -740,7 +791,7 @@ class VlcPlayer(ctx: Context) :
 
                 TRACK_TYPE_TEXT -> {
                     hasTextOverride = true
-                    player.selectTrack(trackId)
+                    selectTextTrack(trackId)
                 }
             }
         }
@@ -768,7 +819,7 @@ class VlcPlayer(ctx: Context) :
                 trackSelectionParameters.preferredTextLanguages,
                 trackSelectionParameters.preferredTextLabels,
             )
-            textPreference?.let { player.selectTrack(it) }
+            textPreference?.let { selectTextTrack(it) }
         }
     }
 
