@@ -1,6 +1,16 @@
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	ActivityIndicator,
+	Animated,
+	PanResponder,
+	Pressable,
+	ScrollView,
+	StatusBar,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import {
 	type AndroidBackend,
 	OmniProvider,
@@ -11,10 +21,10 @@ import {
 } from "react-native-omni";
 
 const PLAYLIST = [
-	{
-		title:"tset",
-		uri:"https://kyoo.sdg.moe/api/videos/bubble/direct?clientId=9cd89b10-5faa-4397-a6ef-576f147a171e&x-presign=eyJhbGciOiJSUzI1NiIsImtpZCI6IjgxUHJvYXZ2RjAyYkJNS0QzQ28vRDh1QXNTTm1wZ3VmT0hqZTB4d3ZGU3MiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3ODcxNzE0NjUsImlhdCI6MTc4NzA4NTA2NSwiaXNzIjoiaHR0cHM6Ly9reW9vLnNkZy5tb2UiLCJqdGkiOiI1NGYxYjU2OC1lMTc3LTRhNmItYmMzNi03YTcxYjg2NjBjOTciLCJwZXJtaXNzaW9ucyI6WyJ1c2Vycy5yZWFkIiwidXNlcnMud3JpdGUiLCJ1c2Vycy5kZWxldGUiLCJhcGlrZXlzLnJlYWQiLCJhcGlrZXlzLndyaXRlIiwiY29yZS5yZWFkIiwiY29yZS53cml0ZSIsImNvcmUucGxheSIsInNjYW5uZXIudHJpZ2dlciIsInNjYW5uZXIuZ3Vlc3MiLCJzY2FubmVyLnNlYXJjaCIsInNjYW5uZXIuYWRkIl0sInByZXNpZ24iOiJbe1widXJsXCI6bnVsbCxcInZlcmJcIjpcIkdFVFwiLFwicHJlZml4XCI6XCIvYXBpL3ZpZGVvcy9idWJibGVcIn0se1widXJsXCI6XCIvYXBpL3dzXCIsXCJ2ZXJiXCI6XCJHRVRcIn0se1widXJsXCI6bnVsbCxcInZlcmJcIjpcIkdFVFwiLFwicHJlZml4XCI6XCIvdmlkZW8vTDIxbFpHbGhMMEoxWW1Kc1pTOUNkV0ppYkdVZ0tESXdNaklwTG0xcmRnXCJ9LHtcInVybFwiOlwiL2FwaS9pbWFnZXMvMzZkNjY2ZWIxNzk4MWY3YmU1MzI4ZDU1YzUwYTRjOWMwZTJhYzM4NWE5MWQ4YmQ5NTI2NWEyZGQ5ODdjZmM1OFwiLFwidmVyYlwiOlwiR0VUXCJ9LHtcInVybFwiOlwiL2FwaS9pbWFnZXMvYTViZmQ1OTBkMjY5ZTFmMDJkNzI0NWYxNDRlYTU1NGMxNDllMDZiNzNkZTI1YTM2YzJjZGZiOWJiN2Q0MjQ5YlwiLFwidmVyYlwiOlwiR0VUXCJ9XSIsInNldHRpbmdzIjp7ImF1ZGlvTGFuZ3VhZ2UiOiJvcmlnaW5hbCIsImNoYXB0ZXJTa2lwIjp7ImNyZWRpdHMiOiJzaG93U2tpcEJ1dHRvbiIsImludHJvIjoic2hvd1NraXBCdXR0b24iLCJwcmV2aWV3Ijoic2hvd1NraXBCdXR0b24iLCJyZWNhcCI6InNob3dTa2lwQnV0dG9uIn0sImRvd25sb2FkUXVhbGl0eSI6Im9yaWdpbmFsIiwic3VidGl0bGVMYW5ndWFnZSI6ImVuIn0sInNpZCI6IjVmOTM1Yzk3LTMxNzctNDE2Ny1hMDY2LTI5MDRkYjczNDZhOSIsInN1YiI6ImYxMWQ2OTFmLTkyMTYtNGUzZi04MWQ1LWY1ZDJiMGRkYzk3NCIsInVzZXJuYW1lIjoiem9yaXlhIiwidmVyaWZpZWQiOnRydWUsIndzUm91dGVzIjpbIndhdGNoL2QxY2FkYmVhLWNlMDYtNDRmZi05YjhhLTgwZjMxYmQzOTkzMSJdfQ.JLHqTk5eK78NVGZ80QMVjOI9QfRY5qy0sDxi9brXR-FwWSIGw_wqCUEYKe7mz6SqycX3bh1VuSD5fA18fcrIgBCRrkxISj8X2P4ahg5BNYWwsPGalTD1XfdTWWgFkWGK4xUo6-anZz-z4W4XcpYLYsgpcp4_VDNAWWmA-smGEMeMoZRSeaEu7UdRR4PUnXpym6sWlRNpxkmbvcFWDLKJRYKEEbpjgJsXaeeBMnOydpI5EylqtjjFX_Xq0CjyApN5pjhWtS5miKRU3g5qeZYPeBAuAI7x8Kfobaegi25EV4b_5UafqiEb4PxDbMJnaXq3NxL_h9EBqRALWZywNfgUed0yJT1WDgy_l35ayfp8ixxvk2NM0cxnKhBHHTEpKiZWyPbwGGr0zIRZxaWu00k-wmmB3FclD6jz0ukEabcuBwTBkWWfIQlwV7ieKZdXTYdnE_OmKK4Ylk3X7p2d8MrE5C2wvFxJjuj1UU23Y2QlEnNex-J0ELSTQ0LDjb1RpGAlE-pxYvNu33SeFC1MkED9UpcZMy_TWa6LATRfsF7fVgLTSpoQvAP3sKzlfNq6OHYVQ-_DlsPPppXeTwyxId4TMx7jU9nQt8nW23SiEo-Z_b8Tn0Qr_BbSqb9zXP05P5lKSumnzSJJuXZrs9K8wTNFAO3Aq7x8-Ofby-fua5_qWtk",
-	},
+	// {
+	// 	title:"tset",
+	// 	uri:"http://fuhen.local:8901/api/videos/bubble/master.m3u8?clientId=ea9dfc63-817b-4b99-bd8a-f32d50cf68c9",
+	// },
 	{
 		title: "elephants dram",
 		artist: "multi audio",
@@ -37,10 +47,76 @@ const PLAYLIST = [
 		album: "Sintel",
 		artwork:
 			"https://download.blender.org/durian/trailer/sintel_trailer-480p.jpg",
-		uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+		uri: "https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4",
 		imageLink: undefined,
 	},
 ] as const;
+
+const SUBTITLES = [
+	{
+		id: "kusu",
+		link: "https://jassub.pages.dev/subtitles/Kusriya%20S2%20OP1v3.ass",
+		label: "ass test",
+		language: "jp",
+	},
+	{
+		id: "pgs",
+		link: "https://raw.githubusercontent.com/Arcus92/libpgs-js/main/tests/files/test.sup",
+		label: "PGS test",
+	},
+	{"id":"0","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/0.srt?format=vtt", "label":"Japanese (SDH)","language":"ja"},
+	{"id":"1","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/1.srt?format=vtt", "label":"German (Forced)","language":"de"},
+	{"id":"2","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/2.srt?format=vtt", "label":"English (Forced)","language":"en"},
+	{"id":"3","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/3.srt?format=vtt", "label":"Spanish (Latin America) (Forced)","language":"es"},
+	{"id":"4","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/4.srt?format=vtt", "label":"Spanish (Spain) (Forced)","language":"es"},
+	{"id":"5","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/5.srt?format=vtt", "label":"French (Forced)","language":"fr"},
+	{"id":"6","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/6.srt?format=vtt", "label":"Italian (Forced)","language":"it"},
+	{"id":"7","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/7.srt?format=vtt", "label":"Korean (Forced)","language":"ko"},
+	{"id":"8","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/8.srt?format=vtt", "label":"Polish (Forced)","language":"pl"},
+	{"id":"9","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/9.srt?format=vtt", "label":"Portuguese (Brazil) (Forced)","language":"pt"},
+	{"id":"10","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/10.srt?format=vtt", "label":"Thai (Forced)","language":"th"},
+	{"id":"11","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/11.srt?format=vtt", "label":"Chinese (Traditional) (Forced)","language":"zh"},
+	{"id":"12","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/12.srt?format=vtt", "label":"Arabic","language":"ar"},
+	{"id":"13","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/13.srt?format=vtt", "label":"Czech","language":"cs"},
+	{"id":"14","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/14.srt?format=vtt", "label":"Danish","language":"da"},
+	{"id":"15","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/15.srt?format=vtt", "label":"German","language":"de"},
+	{"id":"16","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/16.srt?format=vtt", "label":"Greek","language":"el"},
+	{"id":"17","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/17.srt?format=vtt", "label":"English","language":"en"},
+	{"id":"18","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/18.srt?format=vtt", "label":"English","language":"en"},
+	{"id":"19","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/19.srt?format=vtt", "label":"English (SDH)","language":"en"},
+	{"id":"20","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/20.srt?format=vtt", "label":"Spanish (Latin America)","language":"es"},
+	{"id":"21","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/21.srt?format=vtt", "label":"Spanish (Spain)","language":"es"},
+	{"id":"22","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/22.srt?format=vtt", "label":"Finnish","language":"fi"},
+	{"id":"23","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/23.srt?format=vtt", "label":"French","language":"fr"},
+	{"id":"24","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/24.srt?format=vtt", "label":"Hebrew","language":"he"},
+	{"id":"25","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/25.srt?format=vtt", "label":"Croatian","language":"hr"},
+	{"id":"26","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/26.srt?format=vtt", "label":"Hungarian","language":"hu"},
+	{"id":"27","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/27.srt?format=vtt", "label":"Indonesian","language":"id"},
+	{"id":"28","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/28.srt?format=vtt", "label":"Italian","language":"it"},
+	{"id":"29","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/29.srt?format=vtt", "label":"Korean","language":"ko"},
+	{"id":"30","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/30.srt?format=vtt", "label":"Malay","language":"ms"},
+	{"id":"31","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/31.srt?format=vtt", "label":"Norwegian Bokmål","language":"nb"},
+	{"id":"32","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/32.srt?format=vtt", "label":"Dutch","language":"nl"},
+	{"id":"33","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/33.srt?format=vtt", "label":"Polish","language":"pl"},
+	{"id":"34","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/34.srt?format=vtt", "label":"Portuguese (Brazil)","language":"pt"},
+	{"id":"35","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/35.srt?format=vtt", "label":"Portuguese (Portugal)","language":"pt"},
+	{"id":"36","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/36.srt?format=vtt", "label":"Romanian","language":"ro"},
+	{"id":"37","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/37.srt?format=vtt", "label":"Russian","language":"ru"},
+	{"id":"38","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/38.srt?format=vtt", "label":"Swedish","language":"sv"},
+	{"id":"39","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/39.srt?format=vtt", "label":"Thai","language":"th"},
+	{"id":"40","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/40.srt?format=vtt", "label":"Turkish","language":"tr"},
+	{"id":"41","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/41.srt?format=vtt", "label":"Ukrainian","language":"uk"},
+	{"id":"42","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/42.srt?format=vtt", "label":"Vietnamese","language":"vi"},
+	{"id":"43","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/43.srt?format=vtt", "label":"Chinese (Simplified)","language":"zh"},
+	{"id":"44","link":"http://fuhen.local:8901/video/L3ZpZGVvL0J1YmJsZSAoMjAyMikubWt2/subtitle/44.srt?format=vtt", "label":"Chinese (Traditional)","language":"zh"}
+];
+
+const START_TIMES = [0, 30, 60, 300, 600];
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const VOLUMES = [0, 0.25, 0.5, 0.75, 1];
+const SEEK_STEP = 10;
+// a second tap on the same side within this delay seeks instead of toggling the ui
+const DOUBLE_TAP_DELAY = 300;
 
 function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) {
@@ -48,50 +124,643 @@ function formatTime(seconds: number): string {
 	}
 
 	const total = Math.floor(seconds);
-	const mins = Math.floor(total / 60)
+	const hours = Math.floor(total / 3600);
+	const mins = Math.floor((total % 3600) / 60)
 		.toString()
 		.padStart(2, "0");
 	const secs = (total % 60).toString().padStart(2, "0");
-	return `${mins}:${secs}`;
+	return hours > 0 ? `${hours}:${mins}:${secs}` : `${mins}:${secs}`;
 }
 
-function PlayerExample({
-	onPrev,
-	onNext,
-	trackLabel,
+type Panel =
+	| "none"
+	| "video"
+	| "audio"
+	| "subtitles"
+	| "quality"
+	| "speed"
+	| "volume";
+
+function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
+	const player = usePlayer();
+	const status = usePlayerState("status");
+	const isPlaying = usePlayerState("isPlaying");
+	// refresh twice a second so the progress bar doesn't look choppy
+	const currentTime = usePlayerState("currentTime", 0.5);
+	const buffered = usePlayerState("buffered");
+	const duration = usePlayerState("duration");
+	const playbackRate = usePlayerState("playbackRate");
+	const muted = usePlayerState("muted");
+	const volume = usePlayerState("volume");
+	const isAutoQuality = usePlayerState("isAutoQuality");
+	const castStatus = usePlayerState("castStatus");
+	const source = usePlayerState("source");
+	const videos = usePlayerState("videos");
+	const audios = usePlayerState("audios");
+	const subtitles = usePlayerState("subtitles");
+	const renditions = usePlayerState("renditions");
+
+	// the ui never auto-hides, you have to tap once to toggle it
+	const [visible, setVisible] = useState(true);
+	const [panel, setPanel] = useState<Panel>("none");
+	const [hint, setHint] = useState<{
+		side: "left" | "right";
+		amount: number;
+	} | null>(null);
+	const [scrub, setScrub] = useState<number | null>(null);
+
+	const fade = useRef(new Animated.Value(1)).current;
+	useEffect(() => {
+		Animated.timing(fade, {
+			toValue: visible ? 1 : 0,
+			duration: 180,
+			useNativeDriver: true,
+		}).start();
+	}, [visible, fade]);
+
+	const tap = useRef({
+		side: "",
+		at: 0,
+		count: 0,
+		timer: null as ReturnType<typeof setTimeout> | null,
+	});
+	const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	useEffect(
+		() => () => {
+			if (tap.current.timer) clearTimeout(tap.current.timer);
+			if (hintTimer.current) clearTimeout(hintTimer.current);
+		},
+		[],
+	);
+
+	const onTapZone = (side: "left" | "right") => {
+		const state = tap.current;
+		const now = Date.now();
+		if (state.side === side && now - state.at < DOUBLE_TAP_DELAY) {
+			if (state.timer) clearTimeout(state.timer);
+			state.timer = null;
+			state.at = now;
+			state.count += 1;
+			player.seekBy(side === "left" ? -SEEK_STEP : SEEK_STEP);
+			setHint({ side, amount: state.count * SEEK_STEP });
+			if (hintTimer.current) clearTimeout(hintTimer.current);
+			hintTimer.current = setTimeout(() => {
+				setHint(null);
+				tap.current.side = "";
+				tap.current.count = 0;
+			}, 800);
+			return;
+		}
+
+		state.side = side;
+		state.at = now;
+		state.count = 0;
+		if (state.timer) clearTimeout(state.timer);
+		// single tap: wait for a possible second tap before toggling the ui
+		state.timer = setTimeout(() => {
+			state.timer = null;
+			state.side = "";
+			setVisible((v) => !v);
+		}, DOUBLE_TAP_DELAY);
+	};
+
+	const barOrigin = useRef(0);
+	const barWidth = useRef(0);
+	const scrubbed = useRef(0);
+	const durationRef = useRef(duration);
+	durationRef.current = duration;
+
+	const pan = useMemo(
+		() =>
+			PanResponder.create({
+				onStartShouldSetPanResponder: () => true,
+				onMoveShouldSetPanResponder: () => true,
+				onPanResponderGrant: (e) => {
+					barOrigin.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
+					const ratio = Math.max(
+						0,
+						Math.min(1, e.nativeEvent.locationX / (barWidth.current || 1)),
+					);
+					scrubbed.current = ratio * durationRef.current;
+					setScrub(scrubbed.current);
+				},
+				onPanResponderMove: (_e, gesture) => {
+					const x = gesture.moveX - barOrigin.current;
+					const ratio = Math.max(0, Math.min(1, x / (barWidth.current || 1)));
+					scrubbed.current = ratio * durationRef.current;
+					setScrub(scrubbed.current);
+				},
+				onPanResponderRelease: () => {
+					player.currentTime = scrubbed.current;
+					setScrub(null);
+				},
+				onPanResponderTerminate: () => setScrub(null),
+			}),
+		[player],
+	);
+
+	const shownTime = scrub ?? currentTime;
+	const progress = duration > 0 ? Math.min(1, shownTime / duration) * 100 : 0;
+	const bufferedProgress =
+		duration > 0 ? Math.min(1, buffered / duration) * 100 : 0;
+	const selectedRendition = renditions.find((rendition) => rendition.selected);
+	const activeSubtitle = subtitles.find((subtitle) => subtitle.selected);
+
+	const option = (
+		key: string,
+		label: string,
+		selected: boolean,
+		onPress: () => void,
+	) => (
+		<Pressable
+			key={key}
+			style={[styles.option, selected && styles.optionSelected]}
+			onPress={() => {
+				onPress();
+				setPanel("none");
+			}}
+		>
+			<Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+				{label}
+			</Text>
+		</Pressable>
+	);
+
+	return (
+		<View style={styles.playerRoot}>
+			<StatusBar hidden />
+			<OmniView
+				style={styles.video}
+				autoplay={true}
+				subtitleAssets={{
+					jassub: {
+						fontUrl: "/jassub/default.woff2",
+					},
+				}}
+			/>
+
+			{/* tap zones sit under the controls (which are `box-none`, so blank
+			    areas fall through to here) */}
+			<View style={styles.tapZones}>
+				<Pressable style={styles.tapZone} onPress={() => onTapZone("left")} />
+				<Pressable style={styles.tapZone} onPress={() => onTapZone("right")} />
+			</View>
+
+			<Animated.View
+				pointerEvents={visible ? "box-none" : "none"}
+				style={[styles.controls, { opacity: fade }]}
+			>
+				<View pointerEvents="none" style={styles.scrim} />
+
+				<View style={styles.topBar}>
+					{/* unmounts the OmniView but keeps the provider (and playback) alive */}
+					<Pressable style={styles.iconButton} onPress={onBack} hitSlop={8}>
+						<Text style={styles.iconText}>←</Text>
+					</Pressable>
+					<View style={styles.topTitles}>
+						<Text style={styles.topTitle} numberOfLines={1}>
+							{source?.metadata?.title ?? "No media"}
+						</Text>
+						<Text style={styles.topSubtitle} numberOfLines={1}>
+							{source?.metadata?.artist ?? status}
+						</Text>
+					</View>
+					{castStatus !== "unsupported" && (
+						<Pressable
+							style={[
+								styles.pill,
+								(castStatus === "connected" || castStatus === "connecting") &&
+									styles.pillActive,
+							]}
+							onPress={() => player.toggleCastStatus()}
+						>
+							<Text style={styles.pillText}>
+								{castStatus === "connected"
+									? "Casting"
+									: castStatus === "connecting"
+										? "Connecting"
+										: "Cast"}
+							</Text>
+						</Pressable>
+					)}
+				</View>
+
+				<View pointerEvents="box-none" style={styles.centerRow}>
+					<Pressable
+						style={styles.roundButton}
+						onPress={() => player.playPrev()}
+					>
+						<Text style={styles.roundText}>◀◀</Text>
+					</Pressable>
+					<Pressable
+						style={[styles.roundButton, styles.playButton]}
+						onPress={() => {
+							if (isPlaying) player.pause();
+							else player.play();
+						}}
+					>
+						<Text style={styles.playText}>{isPlaying ? "▮▮" : "▶"}</Text>
+					</Pressable>
+					<Pressable
+						style={styles.roundButton}
+						onPress={() => player.playNext()}
+					>
+						<Text style={styles.roundText}>▶▶</Text>
+					</Pressable>
+				</View>
+
+				<View style={styles.bottomBar}>
+					<View style={styles.timeRow}>
+						<Text style={styles.timeText}>{formatTime(shownTime)}</Text>
+						<Text style={styles.timeText}>{formatTime(duration)}</Text>
+					</View>
+
+					<View
+						style={styles.progressHitbox}
+						onLayout={(e) => {
+							barWidth.current = e.nativeEvent.layout.width;
+						}}
+						{...pan.panHandlers}
+					>
+						<View pointerEvents="none" style={styles.progressTrack}>
+							<View
+								pointerEvents="none"
+								style={[
+									styles.progressBuffered,
+									{ width: `${bufferedProgress}%` },
+								]}
+							/>
+							<View
+								pointerEvents="none"
+								style={[styles.progressFill, { width: `${progress}%` }]}
+							/>
+						</View>
+						<View
+							pointerEvents="none"
+							style={[
+								styles.progressThumb,
+								{ left: `${progress}%` },
+								scrub !== null && styles.progressThumbActive,
+							]}
+						/>
+					</View>
+
+					<View style={styles.actionRow}>
+						<Pressable style={styles.pill} onPress={() => setPanel("speed")}>
+							<Text style={styles.pillText}>{playbackRate.toFixed(2)}x</Text>
+						</Pressable>
+						<Pressable
+							style={[styles.pill, muted && styles.pillActive]}
+							onPress={() => setPanel("volume")}
+						>
+							<Text style={styles.pillText}>
+								{muted ? "Muted" : `Vol ${Math.round(volume * 100)}%`}
+							</Text>
+						</Pressable>
+						<Pressable style={styles.pill} onPress={() => setPanel("audio")}>
+							<Text style={styles.pillText}>Audio ({audios.length})</Text>
+						</Pressable>
+						<Pressable
+							style={[styles.pill, activeSubtitle && styles.pillActive]}
+							onPress={() => setPanel("subtitles")}
+						>
+							<Text style={styles.pillText}>
+								{activeSubtitle
+									? (activeSubtitle.label ?? activeSubtitle.language ?? "Subs")
+									: "Subs off"}
+							</Text>
+						</Pressable>
+						<Pressable style={styles.pill} onPress={() => setPanel("quality")}>
+							<Text style={styles.pillText}>
+								{isAutoQuality
+									? `Auto${selectedRendition ? ` ${selectedRendition.height}p` : ""}`
+									: `${selectedRendition?.height ?? "?"}p`}
+							</Text>
+						</Pressable>
+						{videos.length > 1 && (
+							<Pressable style={styles.pill} onPress={() => setPanel("video")}>
+								<Text style={styles.pillText}>Video ({videos.length})</Text>
+							</Pressable>
+						)}
+					</View>
+				</View>
+			</Animated.View>
+
+			{hint && (
+				<View pointerEvents="none" style={styles.tapZones}>
+					<View style={styles.tapZone}>
+						{hint.side === "left" && (
+							<View style={styles.hintBubble}>
+								<Text style={styles.hintText}>-{hint.amount}s</Text>
+							</View>
+						)}
+					</View>
+					<View style={styles.tapZone}>
+						{hint.side === "right" && (
+							<View style={styles.hintBubble}>
+								<Text style={styles.hintText}>+{hint.amount}s</Text>
+							</View>
+						)}
+					</View>
+				</View>
+			)}
+
+			{panel !== "none" && (
+				<>
+					<Pressable
+						style={styles.sheetBackdrop}
+						onPress={() => setPanel("none")}
+					/>
+					<View style={styles.sheet}>
+						<View style={styles.sheetHeader}>
+							<Text style={styles.sheetTitle}>
+								{panel === "subtitles"
+									? "Subtitles"
+									: panel[0].toUpperCase() + panel.slice(1)}
+							</Text>
+							<Pressable onPress={() => setPanel("none")} hitSlop={10}>
+								<Text style={styles.sheetClose}>✕</Text>
+							</Pressable>
+						</View>
+						<ScrollView contentContainerStyle={styles.sheetContent}>
+							{panel === "speed" &&
+								RATES.map((rate) =>
+									option(
+										`rate-${rate}`,
+										`${rate.toFixed(2)}x`,
+										rate === playbackRate,
+										() => {
+											player.playbackRate = rate;
+										},
+									),
+								)}
+							{panel === "volume" && (
+								<>
+									{option("mute", muted ? "Unmute" : "Mute", muted, () => {
+										player.muted = !muted;
+									})}
+									{VOLUMES.map((level) =>
+										option(
+											`vol-${level}`,
+											`${Math.round(level * 100)}%`,
+											!muted && Math.abs(volume - level) < 0.01,
+											() => {
+												player.muted = false;
+												player.volume = level;
+											},
+										),
+									)}
+								</>
+							)}
+							{panel === "audio" &&
+								(audios.length === 0 ? (
+									<Text style={styles.emptyText}>No audio tracks</Text>
+								) : (
+									audios.map((audio) =>
+										option(
+											`audio-${audio.id}`,
+											audio.label ?? audio.language ?? audio.id,
+											audio.selected,
+											() => player.selectAudio(audio),
+										),
+									)
+								))}
+							{panel === "video" &&
+								videos.map((video) =>
+									option(
+										`video-${video.id}`,
+										video.label ?? video.language ?? video.id,
+										video.selected,
+										() => player.selectVideo(video),
+									),
+								)}
+							{panel === "subtitles" && (
+								<>
+									{option("subs-off", "Off", !activeSubtitle, () =>
+										player.selectSubtitle(undefined),
+									)}
+									{subtitles.map((subtitle) =>
+										option(
+											`subtitle-${subtitle.id}`,
+											subtitle.label ?? subtitle.language ?? subtitle.id,
+											subtitle.selected,
+											() => player.selectSubtitle(subtitle),
+										),
+									)}
+								</>
+							)}
+							{panel === "quality" && (
+								<>
+									{option(
+										"quality-auto",
+										`Auto${isAutoQuality && selectedRendition ? ` (${selectedRendition.height}p)` : ""}`,
+										isAutoQuality,
+										() => player.selectRendition(undefined),
+									)}
+									{renditions.length === 0 ? (
+										<Text style={styles.emptyText}>No renditions</Text>
+									) : (
+										renditions.map((rendition) =>
+											option(
+												`rendition-${rendition.id}`,
+												`${rendition.width}x${rendition.height} (${Math.round(rendition.bitrate / 1000)} kbps)`,
+												!isAutoQuality && rendition.selected,
+												() => player.selectRendition(rendition),
+											),
+										)
+									)}
+								</>
+							)}
+						</ScrollView>
+					</View>
+				</>
+			)}
+
+			{status === "loading" && (
+				<View pointerEvents="none" style={styles.overlayCenter}>
+					<ActivityIndicator size="large" color="#ffffff" />
+				</View>
+			)}
+			{status === "error" && (
+				<View pointerEvents="none" style={styles.overlayCenter}>
+					<Text style={styles.errorText}>Playback error</Text>
+				</View>
+			)}
+		</View>
+	);
+}
+
+function Home({
 	backend,
 	onSwitchBackend,
+	currentIndex,
 	hasSource,
-	onLoad,
+	startTime,
+	onSetStartTime,
+	onPlayIndex,
+	onOpenPlayer,
+	onStop,
+	logs,
 }: {
-	onPrev: () => void;
-	onNext: () => void;
-	trackLabel: string;
 	backend: AndroidBackend;
 	onSwitchBackend: (backend: AndroidBackend) => void;
+	currentIndex: number;
 	hasSource: boolean;
-	onLoad: () => void;
+	startTime: number;
+	onSetStartTime: (startTime: number) => void;
+	onPlayIndex: (index: number) => void;
+	onOpenPlayer: () => void;
+	onStop: () => void;
+	logs: { id: number; message: string }[];
 }): React.JSX.Element {
 	const player = usePlayer();
 	const status = usePlayerState("status");
 	const isPlaying = usePlayerState("isPlaying");
 	const currentTime = usePlayerState("currentTime");
 	const duration = usePlayerState("duration");
-	const playbackRate = usePlayerState("playbackRate");
-
-	const muted = usePlayerState("muted");
-	const volume = usePlayerState("volume");
-	const isAutoQuality = usePlayerState("isAutoQuality");
 	const castStatus = usePlayerState("castStatus");
 	const source = usePlayerState("source");
+
+	return (
+		<ScrollView style={styles.home} contentContainerStyle={styles.homeContent}>
+			<Text style={styles.heading}>react-native-omni</Text>
+			<Text style={styles.subheading}>
+				Pick a media to open the player. The back button only unmounts the
+				OmniView: the provider stays mounted, so on native the player (and its
+				notification) keeps running in the background.
+			</Text>
+
+			{hasSource && (
+				<View style={styles.card}>
+					<Text style={styles.cardTitle}>
+						{source?.metadata?.title ?? "(none)"}
+					</Text>
+					<Text style={styles.cardText}>
+						{status} · {formatTime(currentTime)} / {formatTime(duration)} ·
+						cast: {castStatus}
+					</Text>
+					<View style={styles.row}>
+						<Pressable
+							style={styles.button}
+							onPress={() => {
+								if (isPlaying) player.pause();
+								else player.play();
+							}}
+						>
+							<Text style={styles.buttonText}>
+								{isPlaying ? "Pause" : "Play"}
+							</Text>
+						</Pressable>
+						<Pressable style={styles.button} onPress={onOpenPlayer}>
+							<Text style={styles.buttonText}>Open player</Text>
+						</Pressable>
+						<Pressable style={styles.button} onPress={onStop}>
+							<Text style={styles.buttonText}>Unload</Text>
+						</Pressable>
+					</View>
+				</View>
+			)}
+
+			<Text style={styles.sectionTitle}>Backend (android)</Text>
+			<View style={styles.row}>
+				<Pressable
+					style={[styles.button, backend === "vlc" && styles.buttonSelected]}
+					onPress={() => onSwitchBackend("vlc")}
+				>
+					<Text style={styles.buttonText}>VLC</Text>
+				</Pressable>
+				<Pressable
+					style={[
+						styles.button,
+						backend === "exoplayer" && styles.buttonSelected,
+					]}
+					onPress={() => onSwitchBackend("exoplayer")}
+				>
+					<Text style={styles.buttonText}>ExoPlayer</Text>
+				</Pressable>
+			</View>
+
+			<Text style={styles.sectionTitle}>Start time</Text>
+			<Text style={styles.cardText}>
+				Applied when a media is (re)loaded. Picking a new value while something
+				is loaded reloads the source at that position.
+			</Text>
+			<View style={styles.row}>
+				{START_TIMES.map((seconds) => (
+					<Pressable
+						key={`start-${seconds}`}
+						style={[
+							styles.button,
+							seconds === startTime && styles.buttonSelected,
+						]}
+						onPress={() => onSetStartTime(seconds)}
+					>
+						<Text style={styles.buttonText}>
+							{seconds === 0 ? "Off" : formatTime(seconds)}
+						</Text>
+					</Pressable>
+				))}
+			</View>
+
+			<Text style={styles.sectionTitle}>Library</Text>
+			{PLAYLIST.map((item, index) => (
+				<Pressable
+					key={item.uri}
+					style={[
+						styles.listItem,
+						hasSource && index === currentIndex && styles.listItemActive,
+					]}
+					onPress={() => onPlayIndex(index)}
+				>
+					<Text style={styles.listTitle}>{item.title}</Text>
+					<Text style={styles.listSubtitle}>
+						{item.artist} · {item.album}
+					</Text>
+				</Pressable>
+			))}
+
+			<Text style={styles.sectionTitle}>Logs</Text>
+			<View style={styles.card}>
+				{logs.length === 0 ? (
+					<Text style={styles.cardText}>Event log will appear here.</Text>
+				) : (
+					logs.map((entry) => (
+						<Text key={entry.id} style={styles.cardText}>
+							{entry.message}
+						</Text>
+					))
+				)}
+			</View>
+		</ScrollView>
+	);
+}
+
+function Shell({
+	backend,
+	onSwitchBackend,
+	currentIndex,
+	hasSource,
+	startTime,
+	onSetStartTime,
+	onPlayIndex,
+	onPrev,
+	onNext,
+	onStop,
+}: {
+	backend: AndroidBackend;
+	onSwitchBackend: (backend: AndroidBackend) => void;
+	currentIndex: number;
+	hasSource: boolean;
+	startTime: number;
+	onSetStartTime: (startTime: number) => void;
+	onPlayIndex: (index: number) => void;
+	onPrev: () => void;
+	onNext: () => void;
+	onStop: () => void;
+}): React.JSX.Element {
+	const [screen, setScreen] = useState<"home" | "player">("home");
 	const [logs, setLogs] = useState<{ id: number; message: string }[]>([]);
 	const logId = useRef(0);
-	const tracks = {
-		videos: usePlayerState("videos"),
-		audios: usePlayerState("audios"),
-		subtitles: usePlayerState("subtitles"),
-		renditions: usePlayerState("renditions"),
-	};
 
 	const pushLog = useCallback((message: string) => {
 		setLogs((prev) => {
@@ -137,325 +806,26 @@ function PlayerExample({
 			handleNext();
 		}, [handleNext, pushLog]),
 	);
-	const switchBackend = (target: AndroidBackend) => {
-		if (target === backend) return;
-		onSwitchBackend(target);
-	};
 
-	const togglePlayback = () => {
-		if (isPlaying) {
-			player.pause();
-			return;
-		}
-		player.play();
-	};
-
-	const toggleMute = () => {
-		player.muted = !muted;
-	};
-
-	const changeVolume = (delta: number) => {
-		const nextVolume = Math.max(0, Math.min(1, volume + delta));
-		player.volume = Number(nextVolume.toFixed(2));
-	};
-
-	const cyclePlaybackRate = () => {
-		const rates = [0.75, 1, 1.25, 1.5, 2];
-		const index = rates.indexOf(playbackRate);
-		const nextIndex = (index + 1) % rates.length;
-		player.playbackRate = rates[nextIndex];
-	};
-
-	const selectVideo = (video: (typeof tracks.videos)[number]) => {
-		player.selectVideo(video);
-	};
-
-	const selectAudio = (audio: (typeof tracks.audios)[number]) => {
-		player.selectAudio(audio);
-	};
-
-	const selectSubtitle = (subtitle?: (typeof tracks.subtitles)[number]) => {
-		player.selectSubtitle(subtitle);
-	};
-
+	if (screen === "player") {
+		return <Player onBack={() => setScreen("home")} />;
+	}
 	return (
-		<ScrollView style={styles.container}>
-			<Text style={styles.heading}>react-native-omni</Text>
-			<Text style={styles.subheading}>
-				{hasSource ? trackLabel : "No media loaded"}
-			</Text>
-
-			<View style={styles.row}>
-				<Pressable
-					style={[styles.button, hasSource && styles.selectedTrackButton]}
-					onPress={onLoad}
-				>
-					<Text style={styles.buttonText}>
-						{hasSource ? "Unload media" : "Load media"}
-					</Text>
-				</Pressable>
-			</View>
-
-			<View style={styles.row}>
-				<Pressable
-					style={[
-						styles.button,
-						backend === "vlc" && styles.selectedTrackButton,
-					]}
-					onPress={() => switchBackend("vlc")}
-				>
-					<Text style={styles.buttonText}>VLC</Text>
-				</Pressable>
-				<Pressable
-					style={[
-						styles.button,
-						backend === "exoplayer" && styles.selectedTrackButton,
-					]}
-					onPress={() => switchBackend("exoplayer")}
-				>
-					<Text style={styles.buttonText}>ExoPlayer</Text>
-				</Pressable>
-			</View>
-
-			<OmniView
-				style={styles.video}
-				autoplay={true}
-				subtitleAssets={{
-					jassub: {
-						fontUrl: "/jassub/default.woff2",
-					},
-				}}
-			/>
-
-			<View style={styles.row}>
-				<Pressable style={styles.button} onPress={togglePlayback}>
-					<Text style={styles.buttonText}>{isPlaying ? "Pause" : "Play"}</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={() => player.seekBy(-10)}>
-					<Text style={styles.buttonText}>-10s</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={() => player.seekBy(10)}>
-					<Text style={styles.buttonText}>+10s</Text>
-				</Pressable>
-			</View>
-
-			<View style={styles.row}>
-				<Pressable style={styles.button} onPress={() => player.playPrev()}>
-					<Text style={styles.buttonText}>Prev</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={() => player.playNext()}>
-					<Text style={styles.buttonText}>Next</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={toggleMute}>
-					<Text style={styles.buttonText}>{muted ? "Unmute" : "Mute"}</Text>
-				</Pressable>
-			</View>
-
-			<View style={styles.row}>
-				<Pressable style={styles.button} onPress={() => changeVolume(-0.1)}>
-					<Text style={styles.buttonText}>Vol -</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={() => changeVolume(0.1)}>
-					<Text style={styles.buttonText}>Vol +</Text>
-				</Pressable>
-				<Pressable style={styles.button} onPress={cyclePlaybackRate}>
-					<Text style={styles.buttonText}>{playbackRate.toFixed(2)}x</Text>
-				</Pressable>
-			</View>
-
-			<View style={styles.row}>
-				<Pressable
-					style={styles.button}
-					disabled={castStatus === "unsupported"}
-					onPress={() => player.toggleCastStatus()}
-				>
-					<Text style={styles.buttonText}>
-						{castStatus === "connected" || castStatus === "connecting"
-							? "Stop cast"
-							: "Cast"}
-					</Text>
-				</Pressable>
-				<Text style={styles.buttonText}>Cast: {castStatus}</Text>
-			</View>
-
-			<View style={styles.statsCard}>
-				<Text style={styles.statText}>Status: {status}</Text>
-				<Text style={styles.statText}>
-					Time: {formatTime(currentTime)} / {formatTime(duration)}
-				</Text>
-				<Text style={styles.statText}>
-					Volume: {(volume * 100).toFixed(0)}%
-				</Text>
-				<Text style={styles.statText}>
-					Source: {source?.metadata?.title ?? "(none)"}
-				</Text>
-			</View>
-
-			<View style={styles.selectorCard}>
-				<Text style={styles.selectorHeading}>Tracks & Renditions</Text>
-				<Text style={styles.selectorTitle}>Video</Text>
-				<View style={styles.selectorRow}>
-					{tracks.videos.length === 0 ? (
-						<Text style={styles.emptyTrackText}>No video tracks</Text>
-					) : (
-						tracks.videos.map((video) => (
-							<Pressable
-								key={`video-${video.id}`}
-								style={[
-									styles.trackButton,
-									video.selected && styles.selectedTrackButton,
-								]}
-								onPress={() => selectVideo(video)}
-							>
-								<Text
-									style={[
-										styles.trackButtonText,
-										video.selected && styles.selectedTrackButtonText,
-									]}
-								>
-									{video.label ?? video.language ?? video.id}
-								</Text>
-							</Pressable>
-						))
-					)}
-				</View>
-
-				<Text style={styles.selectorTitle}>Audio</Text>
-				<View style={styles.selectorRow}>
-					{tracks.audios.length === 0 ? (
-						<Text style={styles.emptyTrackText}>No audio tracks</Text>
-					) : (
-						tracks.audios.map((audio) => (
-							<Pressable
-								key={`audio-${audio.id}`}
-								style={[
-									styles.trackButton,
-									audio.selected && styles.selectedTrackButton,
-								]}
-								onPress={() => selectAudio(audio)}
-							>
-								<Text
-									style={[
-										styles.trackButtonText,
-										audio.selected && styles.selectedTrackButtonText,
-									]}
-								>
-									{audio.label ?? audio.language ?? audio.id}
-								</Text>
-							</Pressable>
-						))
-					)}
-				</View>
-
-				<Text style={styles.selectorTitle}>Subtitles</Text>
-				<View style={styles.selectorRow}>
-					<Pressable
-						style={[
-							styles.trackButton,
-							!tracks.subtitles.some((subtitle) => subtitle.selected) &&
-								styles.selectedTrackButton,
-						]}
-						onPress={() => selectSubtitle(undefined)}
-					>
-						<Text
-							style={[
-								styles.trackButtonText,
-								!tracks.subtitles.some((subtitle) => subtitle.selected) &&
-									styles.selectedTrackButtonText,
-							]}
-						>
-							Off
-						</Text>
-					</Pressable>
-					{tracks.subtitles.length === 0 ? (
-						<Text style={styles.emptyTrackText}>No subtitles</Text>
-					) : (
-						tracks.subtitles.map((subtitle) => (
-							<Pressable
-								key={`subtitle-${subtitle.id}`}
-								style={[
-									styles.trackButton,
-									subtitle.selected && styles.selectedTrackButton,
-								]}
-								onPress={() => selectSubtitle(subtitle)}
-							>
-								<Text
-									style={[
-										styles.trackButtonText,
-										subtitle.selected && styles.selectedTrackButtonText,
-									]}
-								>
-									{subtitle.label ?? subtitle.language ?? subtitle.id}
-								</Text>
-							</Pressable>
-						))
-					)}
-				</View>
-
-				<Text style={styles.selectorTitle}>Renditions</Text>
-				<View style={styles.selectorRow}>
-					<Pressable
-						style={[
-							styles.trackButton,
-							isAutoQuality && styles.selectedTrackButton,
-						]}
-						onPress={() => player.selectRendition(undefined)}
-					>
-						<Text
-							style={[
-								styles.trackButtonText,
-								isAutoQuality && styles.selectedTrackButtonText,
-							]}
-						>
-							Auto
-							{isAutoQuality && tracks.renditions.find((r) => r.selected)
-								? ` (${tracks.renditions.find((r) => r.selected)!.height}p)`
-								: ""}
-						</Text>
-					</Pressable>
-					{tracks.renditions.length === 0 ? (
-						<Text style={styles.emptyTrackText}>No renditions</Text>
-					) : (
-						tracks.renditions.map((rendition) => (
-							<Pressable
-								key={`rendition-${rendition.id}`}
-								style={[
-									styles.trackButton,
-									rendition.selected && styles.selectedTrackButton,
-								]}
-								onPress={() => player.selectRendition(rendition)}
-							>
-								<Text
-									style={[
-										styles.trackButtonText,
-										rendition.selected && styles.selectedTrackButtonText,
-									]}
-								>
-									{rendition.width}x{rendition.height} (
-									{Math.round(rendition.bitrate / 1000)} kbps)
-								</Text>
-							</Pressable>
-						))
-					)}
-				</View>
-			</View>
-
-			<ScrollView
-				style={styles.logCard}
-				contentContainerStyle={styles.logContent}
-			>
-				<Text style={styles.selectorTitle}>Logs</Text>
-				{logs.length === 0 ? (
-					<Text style={styles.logText}>Event log will appear here.</Text>
-				) : (
-					logs.map((entry) => (
-						<Text key={entry.id} style={styles.logText}>
-							{entry.message}
-						</Text>
-					))
-				)}
-			</ScrollView>
-		</ScrollView>
+		<Home
+			backend={backend}
+			onSwitchBackend={onSwitchBackend}
+			currentIndex={currentIndex}
+			hasSource={hasSource}
+			startTime={startTime}
+			onSetStartTime={onSetStartTime}
+			onPlayIndex={(index) => {
+				onPlayIndex(index);
+				setScreen("player");
+			}}
+			onOpenPlayer={() => setScreen("player")}
+			onStop={onStop}
+			logs={logs}
+		/>
 	);
 }
 
@@ -465,6 +835,8 @@ function App(): React.JSX.Element {
 	// notification stays hidden) before any source is set.
 	const [hasSource, setHasSource] = useState(false);
 	const [backend, setBackend] = useState<AndroidBackend>("vlc");
+	// position the next loaded source starts at (0 = don't send startTime at all)
+	const [startTime, setStartTime] = useState(0);
 
 	// Switching the backend just updates the prop: OmniProvider recreates (and
 	// disposes) the native player internally, so the change applies live.
@@ -480,25 +852,23 @@ function App(): React.JSX.Element {
 		setCurrentIndex((index) => (index + 1) % PLAYLIST.length);
 	}, []);
 
+	const handlePlayIndex = useCallback((index: number) => {
+		setCurrentIndex(index);
+		setHasSource(true);
+	}, []);
+
+	const handleStop = useCallback(() => {
+		setHasSource(false);
+	}, []);
+
 	const source = useMemo(
 		() => ({
 			src: {
 				uri: PLAYLIST[currentIndex].uri,
 				headers: {},
 			},
-			subtitles: [
-				{
-					id: "kusu",
-					link: "https://jassub.pages.dev/subtitles/Kusriya%20S2%20OP1v3.ass",
-					label: "ass test",
-					language: "jp",
-				},
-				{
-					id: "pgs",
-					link: "https://raw.githubusercontent.com/Arcus92/libpgs-js/main/tests/files/test.sup",
-					label: "PGS test",
-				},
-			],
+			startTime: startTime || undefined,
+			subtitles: SUBTITLES,
 			fonts: [
 				"https://jassub.pages.dev/fonts/FOT-TsukuCOldMinPr6NR.OTF",
 				"https://jassub.pages.dev/fonts/arial.ttf",
@@ -512,7 +882,7 @@ function App(): React.JSX.Element {
 				hasNext: true,
 			},
 		}),
-		[currentIndex],
+		[currentIndex, startTime],
 	);
 
 	return (
@@ -525,26 +895,297 @@ function App(): React.JSX.Element {
 			}}
 			showNotification
 		>
-			<PlayerExample
-				onPrev={handlePrev}
-				onNext={handleNext}
-				trackLabel={PLAYLIST[currentIndex].title}
+			<Shell
 				backend={backend}
 				onSwitchBackend={handleSwitchBackend}
+				currentIndex={currentIndex}
 				hasSource={hasSource}
-				onLoad={() => setHasSource((v) => !v)}
+				startTime={startTime}
+				onSetStartTime={setStartTime}
+				onPlayIndex={handlePlayIndex}
+				onPrev={handlePrev}
+				onNext={handleNext}
+				onStop={handleStop}
 			/>
 		</OmniProvider>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
+	// player
+	playerRoot: {
+		flex: 1,
+		backgroundColor: "#000000",
+	},
+	video: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+	},
+	tapZones: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		flexDirection: "row",
+	},
+	tapZone: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	hintBubble: {
+		backgroundColor: "rgba(0,0,0,0.55)",
+		paddingHorizontal: 18,
+		paddingVertical: 12,
+		borderRadius: 999,
+	},
+	hintText: {
+		color: "#ffffff",
+		fontSize: 18,
+		fontWeight: "700",
+	},
+	controls: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		justifyContent: "space-between",
+	},
+	scrim: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		backgroundColor: "rgba(0,0,0,0.35)",
+	},
+	topBar: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 12,
+		paddingHorizontal: 16,
+		paddingTop: 16,
+	},
+	topTitles: {
+		flex: 1,
+	},
+	topTitle: {
+		color: "#ffffff",
+		fontSize: 16,
+		fontWeight: "700",
+	},
+	topSubtitle: {
+		color: "#c9d2ee",
+		fontSize: 12,
+	},
+	iconButton: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: "rgba(255,255,255,0.12)",
+	},
+	iconText: {
+		color: "#ffffff",
+		fontSize: 20,
+		fontWeight: "700",
+	},
+	centerRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 28,
+	},
+	roundButton: {
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: "rgba(255,255,255,0.12)",
+	},
+	roundText: {
+		color: "#ffffff",
+		fontSize: 16,
+		fontWeight: "700",
+	},
+	playButton: {
+		width: 76,
+		height: 76,
+		borderRadius: 38,
+		backgroundColor: "rgba(255,255,255,0.2)",
+	},
+	playText: {
+		color: "#ffffff",
+		fontSize: 26,
+		fontWeight: "700",
+	},
+	bottomBar: {
+		paddingHorizontal: 16,
+		// leave room for the logbox snack bar (dev builds) at the bottom
+		paddingBottom: 120,
+		gap: 6,
+	},
+	timeRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+	},
+	timeText: {
+		color: "#e8ecff",
+		fontSize: 12,
+		fontVariant: ["tabular-nums"],
+	},
+	progressHitbox: {
+		justifyContent: "center",
+		paddingVertical: 12,
+	},
+	progressTrack: {
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: "rgba(255,255,255,0.25)",
+		overflow: "hidden",
+	},
+	progressBuffered: {
+		position: "absolute",
+		top: 0,
+		bottom: 0,
+		left: 0,
+		backgroundColor: "rgba(255,255,255,0.4)",
+	},
+	progressFill: {
+		position: "absolute",
+		top: 0,
+		bottom: 0,
+		left: 0,
+		backgroundColor: "#6e93f9",
+	},
+	progressThumb: {
+		position: "absolute",
+		width: 12,
+		height: 12,
+		borderRadius: 6,
+		marginLeft: -6,
+		backgroundColor: "#ffffff",
+	},
+	progressThumbActive: {
+		width: 18,
+		height: 18,
+		borderRadius: 9,
+		marginLeft: -9,
+	},
+	actionRow: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		gap: 8,
+	},
+	pill: {
+		backgroundColor: "rgba(255,255,255,0.12)",
+		paddingHorizontal: 12,
+		paddingVertical: 8,
+		borderRadius: 999,
+	},
+	pillActive: {
+		backgroundColor: "#2f4fa0",
+	},
+	pillText: {
+		color: "#f2f4ff",
+		fontSize: 12,
+		fontWeight: "600",
+	},
+	sheetBackdrop: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		backgroundColor: "rgba(0,0,0,0.4)",
+	},
+	sheet: {
+		position: "absolute",
+		left: 0,
+		right: 0,
+		bottom: 0,
+		maxHeight: "60%",
+		backgroundColor: "#0d1326",
+		borderTopLeftRadius: 16,
+		borderTopRightRadius: 16,
+		paddingBottom: 12,
+	},
+	sheetHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		paddingHorizontal: 16,
+		paddingVertical: 14,
+	},
+	sheetTitle: {
+		color: "#e8ecff",
+		fontSize: 15,
+		fontWeight: "700",
+	},
+	sheetClose: {
+		color: "#a7b4df",
+		fontSize: 16,
+		fontWeight: "700",
+	},
+	sheetContent: {
+		paddingHorizontal: 12,
+		paddingBottom: 12,
+		gap: 6,
+	},
+	option: {
+		paddingHorizontal: 14,
+		paddingVertical: 12,
+		borderRadius: 10,
+		backgroundColor: "#151f3c",
+	},
+	optionSelected: {
+		backgroundColor: "#2f4fa0",
+	},
+	optionText: {
+		color: "#cfd9ff",
+		fontSize: 14,
+	},
+	optionTextSelected: {
+		color: "#ffffff",
+		fontWeight: "700",
+	},
+	emptyText: {
+		color: "#8fa1d8",
+		fontSize: 13,
+		paddingHorizontal: 14,
+		paddingVertical: 12,
+	},
+	overlayCenter: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	errorText: {
+		color: "#ff9d9d",
+		fontSize: 16,
+		fontWeight: "700",
+	},
+
+	// home
+	home: {
 		flex: 1,
 		backgroundColor: "#0b1020",
+	},
+	homeContent: {
 		paddingHorizontal: 16,
-		marginTop: 64,
-		paddingVertical: 12,
+		paddingTop: 64,
+		paddingBottom: 32,
 		gap: 12,
 	},
 	heading: {
@@ -553,17 +1194,29 @@ const styles = StyleSheet.create({
 		color: "#e8ecff",
 	},
 	subheading: {
-		fontSize: 14,
+		fontSize: 13,
 		color: "#a7b4df",
 	},
-	video: {
-		width: "100%",
-		// Intentionally wider than the 16:9 sample videos so the view's aspect
-		// ratio differs from the video's. This surfaces the PIP aspect-ratio bug
-		// where PIP would otherwise inherit the view's shape, not the video's.
-		aspectRatio: 21 / 9,
-		borderRadius: 14,
-		overflow: "hidden",
+	sectionTitle: {
+		color: "#cfd9ff",
+		fontSize: 12,
+		fontWeight: "700",
+		marginTop: 8,
+	},
+	card: {
+		backgroundColor: "#101833",
+		borderRadius: 10,
+		padding: 12,
+		gap: 6,
+	},
+	cardTitle: {
+		color: "#e8ecff",
+		fontSize: 15,
+		fontWeight: "700",
+	},
+	cardText: {
+		color: "#9fb0e8",
+		fontSize: 12,
 	},
 	row: {
 		flexDirection: "row",
@@ -578,77 +1231,33 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: "#2d3f74",
 	},
+	buttonSelected: {
+		backgroundColor: "#2f4fa0",
+		borderColor: "#6e93f9",
+	},
 	buttonText: {
 		color: "#f2f4ff",
 		fontSize: 14,
 		fontWeight: "600",
 	},
-	statsCard: {
+	listItem: {
 		backgroundColor: "#101833",
 		borderRadius: 10,
-		padding: 12,
-		gap: 4,
-	},
-	statText: {
-		color: "#cfd9ff",
-		fontSize: 13,
-	},
-	selectorCard: {
-		backgroundColor: "#101833",
-		borderRadius: 10,
-		padding: 12,
-		gap: 8,
-	},
-	selectorHeading: {
-		color: "#e8ecff",
-		fontSize: 14,
-		fontWeight: "700",
-	},
-	selectorTitle: {
-		color: "#cfd9ff",
-		fontSize: 12,
-		fontWeight: "600",
-	},
-	selectorRow: {
-		flexDirection: "row",
-		flexWrap: "wrap",
-		gap: 8,
-	},
-	trackButton: {
-		backgroundColor: "#1a2442",
-		paddingVertical: 8,
-		paddingHorizontal: 10,
-		borderRadius: 8,
+		padding: 14,
 		borderWidth: 1,
-		borderColor: "#2d3f74",
+		borderColor: "#1d2a4f",
+		gap: 2,
 	},
-	selectedTrackButton: {
-		backgroundColor: "#2f4fa0",
+	listItemActive: {
 		borderColor: "#6e93f9",
 	},
-	trackButtonText: {
-		color: "#cfd9ff",
-		fontSize: 12,
+	listTitle: {
+		color: "#e8ecff",
+		fontSize: 15,
+		fontWeight: "600",
 	},
-	selectedTrackButtonText: {
-		color: "#f4f7ff",
-		fontWeight: "700",
-	},
-	emptyTrackText: {
+	listSubtitle: {
 		color: "#8fa1d8",
-		fontSize: 12,
-	},
-	logCard: {
-		flex: 1,
-		backgroundColor: "#101833",
-		borderRadius: 10,
-	},
-	logContent: {
-		padding: 12,
-		gap: 6,
-	},
-	logText: {
-		color: "#9fb0e8",
 		fontSize: 12,
 	},
 });
