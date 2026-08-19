@@ -51,6 +51,9 @@ import java.security.MessageDigest
 // marks a sideloaded sub that is listed but not fetched by vlc yet
 private const val PENDING_SLAVE_PREFIX = "vlc-pending-sub:"
 
+// how often a seek vlc has not honored yet is asked for again (see retrySeek)
+private const val SEEK_RETRY_DELAY = 500L
+
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
     BasePlayer(),
@@ -126,6 +129,7 @@ class VlcPlayer(ctx: Context) :
 
     @Volatile
     private var seekOriginPosition: Long = 0L
+    private var seekAttempts = 0
     private var boundSurfaceView: SurfaceView? = null
     private var videoOutputStale = false
     private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
@@ -247,10 +251,9 @@ class VlcPlayer(ctx: Context) :
             // this improves perf & battery life (native -> js bridge is expensive)
             MediaPlayer.Event.TimeChanged -> {
                 val pending = pendingSeekPosition
-                if (pending != TIME_UNSET &&
-                    (Math.abs(event.timeChanged - seekOriginPosition) > 1_000 || Math.abs(event.timeChanged - pending) < 1_000)
-                ) {
+                if (pending != TIME_UNSET && seekLanded(event.timeChanged, pending)) {
                     pendingSeekPosition = TIME_UNSET
+                    applicationHandler.removeCallbacks(retrySeek)
                 }
             }
 
@@ -610,9 +613,12 @@ class VlcPlayer(ctx: Context) :
 
         val from = getCurrentPosition()
         val target = positionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
+        applicationHandler.removeCallbacks(retrySeek)
         if (player.isSeekable) {
             seekOriginPosition = player.time.coerceAtLeast(0L)
             pendingSeekPosition = target
+            seekAttempts = 0
+            applicationHandler.postDelayed(retrySeek, SEEK_RETRY_DELAY)
         }
         player.time = target
         // since vlc reports progress events every few ms they don't have a seek finished event.
@@ -622,6 +628,25 @@ class VlcPlayer(ctx: Context) :
                 positionInfo(target),
                 DISCONTINUITY_REASON_SEEK
             )
+        }
+    }
+
+    private fun seekLanded(time: Long, target: Long): Boolean =
+        Math.abs(time - target) <= Math.abs(time - seekOriginPosition)
+
+    // vlc ignore seeks while loading at the new seek position. retry while not done
+    private val retrySeek = object : Runnable {
+        override fun run() {
+            val target = pendingSeekPosition
+            if (released || target == TIME_UNSET) return
+            val time = player.time.coerceAtLeast(0L)
+            if (seekLanded(time, target)) {
+                pendingSeekPosition = TIME_UNSET
+                return
+            }
+            player.time = target
+            if (seekAttempts++ < 20) applicationHandler.postDelayed(this, SEEK_RETRY_DELAY)
+            else pendingSeekPosition = TIME_UNSET
         }
     }
 
@@ -658,6 +683,7 @@ class VlcPlayer(ctx: Context) :
         if (released) return
         released = true
         applicationHandler.removeCallbacks(giveUpOnSlave)
+        applicationHandler.removeCallbacks(retrySeek)
         player.setEventListener(null)
         listeners.release()
         abandonAudioFocus()
