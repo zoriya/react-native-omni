@@ -617,6 +617,16 @@ class VlcPlayer(ctx: Context) :
         return description.substringAfter(' ')
     }
 
+    // tracks sharing a key are renditions of one logical track. for adaptive streams only the
+    // name can be keyed on: once vlc opens the rendition it actually reads, it adds one more es
+    // for it, described by the segments themselves instead of the playlist - no group-id to
+    // strip, and the container's language (`chi`) rather than the playlist's (`zh`). keying on
+    // the language too left that one in a group of its own, listing the track twice.
+    // media3's own hls source groups renditions by name alone as well.
+    private fun trackKey(track: IMedia.Track): Any =
+        if (track.id.contains("/auto/")) trackName(track) ?: track.id
+        else listOf(track.language, track.name)
+
     override fun getCurrentTracks(): Tracks {
         if (released) return Tracks.EMPTY
         val result = ArrayList<Group>()
@@ -625,7 +635,7 @@ class VlcPlayer(ctx: Context) :
         val selectedSubtitle = player.getSelectedTrack(IMedia.Track.Type.Text)
 
         player.getTracks(IMedia.Track.Type.Video).orEmpty()
-            .groupBy { listOf(it.language, trackName(it)) }
+            .groupBy { trackKey(it) }
             .values.forEach { videoTracks ->
                 val videoFormats = videoTracks.map { track ->
                     val videoTrack = track as? VideoTrack
@@ -656,7 +666,7 @@ class VlcPlayer(ctx: Context) :
             }
 
         player.getTracks(IMedia.Track.Type.Audio).orEmpty()
-            .groupBy { listOf(it.language, trackName(it)) }
+            .groupBy { trackKey(it) }
             .values.forEach { audioTracks ->
                 val audioFormats = audioTracks.map { track ->
                     Format.Builder()
@@ -686,7 +696,7 @@ class VlcPlayer(ctx: Context) :
                 .setLanguage(slave?.language ?: track.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
-            val group = TrackGroup("vlc-sub-${track.id}", format)
+            val group = TrackGroup(slave?.id ?: "vlc-sub-${track.id}", format)
             val selected =
                 booleanArrayOf(selectedSubtitle != null && selectedSubtitle.id == track.id)
             val support = intArrayOf(FORMAT_HANDLED)
