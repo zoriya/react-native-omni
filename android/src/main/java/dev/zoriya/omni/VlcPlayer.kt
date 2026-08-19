@@ -103,6 +103,7 @@ class VlcPlayer(ctx: Context) :
     private var mediaItems: List<MediaItem> = emptyList()
     private var subtitleSlavesByHash: Map<String, MediaItem.SubtitleConfiguration> = emptyMap()
     private var pendingSlaveHash: String? = null
+    private var loadingSlave = false
     private var currentMediaItemIndex: Int = INDEX_UNSET
     private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
 
@@ -192,6 +193,8 @@ class VlcPlayer(ctx: Context) :
             }
 
             MediaPlayer.Event.Paused -> {
+                // waiting on a slave is buffering, not a pause: we still intend to play
+                if (loadingSlave) return
                 notifyListeners(
                     arrayOf(EVENT_PLAY_WHEN_READY_CHANGED, EVENT_IS_PLAYING_CHANGED)
                 ) {
@@ -264,7 +267,11 @@ class VlcPlayer(ctx: Context) :
                 pendingSlaveHash?.let { hash ->
                     player.getTracks(IMedia.Track.Type.Text).orEmpty()
                         .firstOrNull { it.id.startsWith("$hash/spu/") }
-                        ?.let { pendingSlaveHash = null; player.selectTrack(it.id) }
+                        ?.let {
+                            pendingSlaveHash = null
+                            player.selectTrack(it.id)
+                            resumeAfterSlaveLoad()
+                        }
                 }
                 notifyListeners(EVENT_TRACKS_CHANGED) {
                     it.onTracksChanged(getCurrentTracks())
@@ -392,6 +399,7 @@ class VlcPlayer(ctx: Context) :
         playerError = null
         pendingSeekPosition = TIME_UNSET
         pendingSlaveHash = null
+        loadingSlave = false
         subtitleSlavesByHash = mediaItems.getOrNull(targetIndex)
             ?.localConfiguration?.subtitleConfigurations.orEmpty()
             .associateBy { md5(it.uri.toString()) }
@@ -438,6 +446,7 @@ class VlcPlayer(ctx: Context) :
         val slaveUri = trackId.substringAfter(PENDING_SLAVE_PREFIX, "")
         if (slaveUri.isEmpty()) {
             pendingSlaveHash = null
+            resumeAfterSlaveLoad()
             player.selectTrack(trackId)
             return
         }
@@ -448,13 +457,41 @@ class VlcPlayer(ctx: Context) :
             .firstOrNull { it.id.startsWith("$hash/spu/") }
         if (es != null) {
             pendingSlaveHash = null
+            resumeAfterSlaveLoad()
             player.selectTrack(es.id)
             return
         }
 
         if (hash == pendingSlaveHash) return
+
+        // playback waits on the fetch like on any buffering, and the ui already shows the
+        // sub as selected (getCurrentTracks). vlc fetches on its input thread, so pause
+        // first: a pause queued behind the fetch would only land once it is over
         pendingSlaveHash = hash
+        if (player.isPlaying) {
+            loadingSlave = true
+            player.pause()
+            // a sub that never loads (dead url) must not leave playback paused forever
+            applicationHandler.postDelayed(giveUpOnSlave, 15_000)
+        }
         player.addSlave(IMedia.Slave.Type.Subtitle, slaveUri.toUri(), true)
+        notifyListeners(arrayOf(EVENT_TRACKS_CHANGED, EVENT_PLAYBACK_STATE_CHANGED)) {
+            it.onTracksChanged(getCurrentTracks())
+            it.onPlaybackStateChanged(playbackState)
+        }
+    }
+
+    private val giveUpOnSlave = Runnable {
+        pendingSlaveHash = null
+        resumeAfterSlaveLoad()
+        notifyListeners(EVENT_TRACKS_CHANGED) { it.onTracksChanged(getCurrentTracks()) }
+    }
+
+    private fun resumeAfterSlaveLoad() {
+        applicationHandler.removeCallbacks(giveUpOnSlave)
+        if (!loadingSlave) return
+        loadingSlave = false
+        player.play()
     }
 
     private fun md5(value: String): String =
@@ -522,6 +559,7 @@ class VlcPlayer(ctx: Context) :
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
             player.media?.also { it.release() } == null -> STATE_IDLE
             player.playerState == IMedia.State.Opening -> STATE_BUFFERING
+            loadingSlave -> STATE_BUFFERING
             player.isPlaying -> STATE_READY
             player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
             else -> STATE_READY
@@ -536,7 +574,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getPlayWhenReady(): Boolean =
-        !released && (player.isPlaying || player.playerState == IMedia.State.Opening)
+        !released && (player.isPlaying || player.playerState == IMedia.State.Opening || loadingSlave)
 
     override fun setRepeatMode(repeatMode: Int) = Unit
 
@@ -618,6 +656,7 @@ class VlcPlayer(ctx: Context) :
     override fun release() {
         if (released) return
         released = true
+        applicationHandler.removeCallbacks(giveUpOnSlave)
         player.setEventListener(null)
         listeners.release()
         abandonAudioFocus()
@@ -656,7 +695,10 @@ class VlcPlayer(ctx: Context) :
         val result = ArrayList<Group>()
         val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
         val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
-        val selectedSubtitle = player.getSelectedTrack(IMedia.Track.Type.Text)
+        // the sub being fetched is the selected one, vlc still has the previous es
+        val pendingSlaveUri = pendingSlaveHash?.let { subtitleSlavesByHash[it]?.uri }
+        val selectedSubtitle =
+            if (pendingSlaveUri != null) null else player.getSelectedTrack(IMedia.Track.Type.Text)
 
         player.getTracks(IMedia.Track.Type.Video).orEmpty()
             .groupBy { trackKey(it) }
@@ -743,7 +785,9 @@ class VlcPlayer(ctx: Context) :
                 .setSampleMimeType("text/x-unknown")
                 .build()
             val group = TrackGroup(config.id ?: "vlc-sub-${config.uri}", format)
-            val selected = booleanArrayOf(track != null && selectedSubtitle?.id == track.id)
+            val selected = booleanArrayOf(
+                config.uri == pendingSlaveUri || (track != null && selectedSubtitle?.id == track.id)
+            )
             result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
         }
 
@@ -763,6 +807,7 @@ class VlcPlayer(ctx: Context) :
         if (audioDisabled) player.unselectTrackType(IMedia.Track.Type.Audio)
         if (textDisabled) {
             pendingSlaveHash = null
+            resumeAfterSlaveLoad()
             player.unselectTrackType(IMedia.Track.Type.Text)
         }
 
