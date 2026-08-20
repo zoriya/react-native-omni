@@ -251,10 +251,7 @@ class VlcPlayer(ctx: Context) :
             // this improves perf & battery life (native -> js bridge is expensive)
             MediaPlayer.Event.TimeChanged -> {
                 val pending = pendingSeekPosition
-                if (pending != TIME_UNSET && seekLanded(event.timeChanged, pending)) {
-                    pendingSeekPosition = TIME_UNSET
-                    applicationHandler.removeCallbacks(retrySeek)
-                }
+                if (pending != TIME_UNSET && seekLanded(event.timeChanged, pending)) seekSettled()
             }
 
             // vlc has no video-size event, Vout event still has unknown size.
@@ -564,6 +561,7 @@ class VlcPlayer(ctx: Context) :
             player.media?.also { it.release() } == null -> STATE_IDLE
             player.playerState == IMedia.State.Opening -> STATE_BUFFERING
             loadingSlave -> STATE_BUFFERING
+            pendingSeekPosition != TIME_UNSET -> STATE_BUFFERING
             player.isPlaying -> STATE_READY
             player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
             else -> STATE_READY
@@ -622,12 +620,13 @@ class VlcPlayer(ctx: Context) :
         }
         player.time = target
         // since vlc reports progress events every few ms they don't have a seek finished event.
-        notifyListeners(EVENT_POSITION_DISCONTINUITY) {
+        notifyListeners(arrayOf(EVENT_POSITION_DISCONTINUITY, EVENT_PLAYBACK_STATE_CHANGED)) {
             it.onPositionDiscontinuity(
                 positionInfo(from),
                 positionInfo(target),
                 DISCONTINUITY_REASON_SEEK
             )
+            it.onPlaybackStateChanged(playbackState)
         }
     }
 
@@ -641,12 +640,20 @@ class VlcPlayer(ctx: Context) :
             if (released || target == TIME_UNSET) return
             val time = player.time.coerceAtLeast(0L)
             if (seekLanded(time, target)) {
-                pendingSeekPosition = TIME_UNSET
+                seekSettled()
                 return
             }
             player.time = target
             if (seekAttempts++ < 20) applicationHandler.postDelayed(this, SEEK_RETRY_DELAY)
-            else pendingSeekPosition = TIME_UNSET
+            else seekSettled()
+        }
+    }
+
+    private fun seekSettled() {
+        pendingSeekPosition = TIME_UNSET
+        applicationHandler.removeCallbacks(retrySeek)
+        notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
+            it.onPlaybackStateChanged(playbackState)
         }
     }
 
