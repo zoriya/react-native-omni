@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -1104,6 +1105,15 @@ class VlcPlayer(ctx: Context) :
 
     override fun clearVideoSurface() {
         boundSurfaceView = null
+        if (!released && vlcVout.areViewsAttached()) {
+            player.setVideoTrackEnabled(false)
+            val deadline = SystemClock.uptimeMillis() + 250
+            while (player.getSelectedTrack(IMedia.Track.Type.Video) != null &&
+                SystemClock.uptimeMillis() < deadline
+            ) {
+                Thread.sleep(2)
+            }
+        }
         vlcVout.detachViews()
     }
 
