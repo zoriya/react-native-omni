@@ -104,6 +104,7 @@ class OmniPlayer(
     private val castStateListener = CastStateListener {
         eventMap.emitCastStatus(computeCastStatus())
         listenToReceiver()
+        syncNotificationService()
         // we were only kept alive to hold this cast, it is over now
         if (abandoned && !isCasting) release()
     }
@@ -182,8 +183,8 @@ class OmniPlayer(
     private var serviceRunning = false
 
     private fun syncNotificationService() {
-        if (abandoned) return
-        val shouldShow = showNotification == true && source != null
+        val shouldShow = runOnMainThreadSync { isCasting } ||
+            (!abandoned && showNotification == true && source != null)
         when {
             shouldShow && !serviceRunning -> {
                 val otherIsPlaying = notificationPlayer?.let { other ->
@@ -195,8 +196,14 @@ class OmniPlayer(
                     throw Error("Two players can't display notifications at the same time.")
                 }
                 notificationPlayer = this
-                ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
-                serviceRunning = true
+                // output switcher when app is closed can't startForeground
+                try {
+                    ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
+                    serviceRunning = true
+                } catch (e: Throwable) {
+                    android.util.Log.w("OmniPlayer", "could not start the playback service", e)
+                    notificationPlayer = null
+                }
             }
 
             !shouldShow && serviceRunning -> {
@@ -485,6 +492,7 @@ class OmniPlayer(
             })
             // check for cast rejoin
             followMedia(player.currentMediaItem)
+            syncNotificationService()
         }
     }
 
@@ -770,15 +778,20 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        super.onUpdateNotification(session, startInForegroundRequired || isCasting())
+    }
+
+    private fun isCasting() = try {
+        CastContext.getSharedInstance(this)
+            .sessionManager.currentCastSession?.isConnected == true
+    } catch (_: Throwable) {
+        false
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val casting = try {
-            CastContext.getSharedInstance(this)
-                .sessionManager.currentCastSession?.isConnected == true
-        } catch (_: Throwable) {
-            false
-        }
         // keep service open if casting
-        if (!casting) pauseAllPlayersAndStopSelf()
+        if (!isCasting()) pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {

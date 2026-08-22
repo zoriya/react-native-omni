@@ -20,6 +20,7 @@ class OmniCastOptionsProvider : OptionsProvider {
 
         return CastOptions.Builder()
             .setReceiverApplicationId(appId)
+            .setStopReceiverApplicationWhenEndingSession(true)
             .setShowSystemOutputSwitcherOnCastIconClick(true)
             .setCastMediaOptions(mediaOptions)
             .setEnableReconnectionService(true)
