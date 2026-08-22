@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.media.CastMediaOptions
+import com.google.android.gms.cast.framework.media.NotificationOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 
@@ -14,13 +15,15 @@ class OmniCastOptionsProvider : OptionsProvider {
 
         val mediaOptions = CastMediaOptions.Builder()
             .setMediaSessionEnabled(false)
-            .setNotificationOptions(null)
+            .setNotificationOptions(NotificationOptions.Builder().build())
             .build()
 
         return CastOptions.Builder()
             .setReceiverApplicationId(appId)
             .setShowSystemOutputSwitcherOnCastIconClick(true)
             .setCastMediaOptions(mediaOptions)
+            .setEnableReconnectionService(true)
+            .setResumeSavedSession(true)
             .build()
     }
 
