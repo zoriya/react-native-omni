@@ -148,6 +148,20 @@ class OmniPlayer(
             CastPlayer.Builder(ctx)
                 .setLocalPlayer(localPlayer)
                 .setRemotePlayer(remote)
+                // a receiver that never loaded our media (error) leaves an empty playlist.
+                // with default transfer behavior, the next cast would not trigger a `LOAD`
+                // request.
+                .setTransferCallback { from, to ->
+                    val playable = (0 until from.mediaItemCount).count { i ->
+                        val uri = from.getMediaItemAt(i).localConfiguration?.uri?.toString()
+                        !uri.isNullOrEmpty()
+                    }
+                    if (playable > 0) {
+                        CastPlayer.TransferCallback.DEFAULT.transferState(from, to)
+                    } else {
+                        to.playWhenReady = from.playWhenReady
+                    }
+                }
                 .build()
         }
         NavigationPlayer(
