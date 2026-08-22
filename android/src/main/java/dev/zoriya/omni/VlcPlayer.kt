@@ -129,6 +129,10 @@ class VlcPlayer(ctx: Context) :
     private var seekAttempts = -1
     private var lastSeekPoll = 0L
 
+    // where the media should start playing, until we managed to seek there
+    @Volatile
+    private var pendingStartPosition: Long = TIME_UNSET
+
     private var boundSurfaceView: SurfaceView? = null
     private var videoOutputStale = false
     private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
@@ -187,7 +191,8 @@ class VlcPlayer(ctx: Context) :
                 ) {
                     it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
                     it.onMediaMetadataChanged(mediaMetadata)
-                    it.onPlaybackStateChanged(STATE_READY)
+                    // not always ready (subtitle load, seek, start time seek...)
+                    it.onPlaybackStateChanged(playbackState)
                     it.onIsPlayingChanged(true)
                     it.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
                     it.onTracksChanged(getCurrentTracks())
@@ -249,6 +254,7 @@ class VlcPlayer(ctx: Context) :
             // progress is polled instead of pushed dozens of times per seconds.
             // this improves perf & battery life (native -> js bridge is expensive)
             MediaPlayer.Event.TimeChanged -> {
+                applyStartPosition()
                 val pending = pendingSeekPosition
                 if (pending != TIME_UNSET && seekLanded(event.timeChanged, pending)) seekSettled()
             }
@@ -397,6 +403,8 @@ class VlcPlayer(ctx: Context) :
         playlistMetadata = mediaItems.getOrNull(targetIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
         playerError = null
         pendingSeekPosition = TIME_UNSET
+        // vlc's `:start-time` trims the media instead of starting further in 
+        pendingStartPosition = startPositionMs.takeIf { it != TIME_UNSET && it > 0L } ?: TIME_UNSET
         pendingSlaveHash = null
         loadingSlave = false
         trackOrders.clear()
@@ -413,9 +421,6 @@ class VlcPlayer(ctx: Context) :
                 val media = Media(libVLC, uri.toUri())
                 media.setHWDecoderEnabled(true, false)
                 applyRequestHeaders(media, item.requestMetadata.extras)
-
-                val targetMs = startPositionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
-                media.addOption(":start-time=${targetMs / 1000.0}")
 
                 player.setMedia(media)
                 media.release()
@@ -528,6 +533,7 @@ class VlcPlayer(ctx: Context) :
         currentMediaItemIndex = INDEX_UNSET
         playlistMetadata = MediaMetadata.EMPTY
         pendingSeekPosition = TIME_UNSET
+        pendingStartPosition = TIME_UNSET
         player.stop()
 
         val events = mutableListOf(
@@ -561,6 +567,7 @@ class VlcPlayer(ctx: Context) :
             player.playerState == IMedia.State.Opening -> STATE_BUFFERING
             loadingSlave -> STATE_BUFFERING
             pendingSeekPosition != TIME_UNSET -> STATE_BUFFERING
+            pendingStartPosition != TIME_UNSET -> STATE_BUFFERING
             player.isPlaying -> STATE_READY
             player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
             else -> STATE_READY
@@ -631,6 +638,17 @@ class VlcPlayer(ctx: Context) :
             )
             it.onPlaybackStateChanged(playbackState)
         }
+    }
+
+    // vlc only takes seeks once its input is up, so a source's start position waits for the
+    // first seekable/playing event.
+    private fun applyStartPosition() {
+        val target = pendingStartPosition
+        if (released || target == TIME_UNSET || !player.isSeekable) return
+        pendingStartPosition = TIME_UNSET
+        // manual seek takes priority
+        if (pendingSeekPosition != TIME_UNSET) return
+        seekTo(currentMediaItemIndex, target, COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM, false)
     }
 
     private fun seekLanded(time: Long, target: Long): Boolean =
@@ -1053,6 +1071,8 @@ class VlcPlayer(ctx: Context) :
         if (released) return 0L
         val pending = pendingSeekPosition
         if (pending != TIME_UNSET) return pending
+        val start = pendingStartPosition
+        if (start != TIME_UNSET) return start
         return player.time.coerceAtLeast(0L)
     }
 
