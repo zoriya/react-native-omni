@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.os.SystemClock
 import android.view.Surface
@@ -61,6 +62,11 @@ class VlcPlayer(ctx: Context) :
     AudioManager.OnAudioFocusChangeListener {
     private val applicationLooper: Looper = Looper.getMainLooper()
     private val applicationHandler = Handler(applicationLooper)
+
+    // libvlc run networks and stop requests on the same thread, we need a
+    // second thread for long commands
+    private val vlcThread = HandlerThread("vlc-commands").apply { start() }
+    private val vlcHandler = Handler(vlcThread.looper)
 
     private val audioManager =
         ContextCompat.getSystemService(ctx.applicationContext, AudioManager::class.java)
@@ -412,11 +418,13 @@ class VlcPlayer(ctx: Context) :
             ?.localConfiguration?.subtitleConfigurations.orEmpty()
             .associateBy { md5(it.uri.toString()) }
 
-        player.stop()
         videoOutputStale = false
 
-        mediaItems.getOrNull(targetIndex)?.let { item ->
-            val uri = item.localConfiguration?.uri?.toString()
+        val item = mediaItems.getOrNull(targetIndex)
+        vlcHandler.post {
+            if (released) return@post
+            player.stop()
+            val uri = item?.localConfiguration?.uri?.toString()
             if (!uri.isNullOrEmpty()) {
                 val media = Media(libVLC, uri.toUri())
                 media.setHWDecoderEnabled(true, false)
@@ -534,7 +542,7 @@ class VlcPlayer(ctx: Context) :
         playlistMetadata = MediaMetadata.EMPTY
         pendingSeekPosition = TIME_UNSET
         pendingStartPosition = TIME_UNSET
-        player.stop()
+        vlcHandler.post { if (!released) player.stop() }
 
         val events = mutableListOf(
             EVENT_TIMELINE_CHANGED,
@@ -555,7 +563,7 @@ class VlcPlayer(ctx: Context) :
     override fun getAvailableCommands(): Player.Commands = availableCommands
 
     override fun prepare() {
-        player.play()
+        vlcHandler.post { if (!released) player.play() }
     }
 
     override fun getPlaybackState(): Int =
@@ -578,7 +586,10 @@ class VlcPlayer(ctx: Context) :
     override fun getPlayerError(): PlaybackException? = playerError
 
     override fun setPlayWhenReady(playWhenReady: Boolean) {
-        if (playWhenReady) player.play() else player.pause()
+        vlcHandler.post {
+            if (released) return@post
+            if (playWhenReady) player.play() else player.pause()
+        }
     }
 
     override fun getPlayWhenReady(): Boolean =
@@ -611,7 +622,7 @@ class VlcPlayer(ctx: Context) :
         if (targetIndex != currentMediaItemIndex) {
             userInitiatedTransition = true
             setMediaItems(mediaItems, targetIndex, positionMs)
-            player.play()
+            vlcHandler.post { if (!released) player.play() }
             return
         }
 
@@ -711,22 +722,23 @@ class VlcPlayer(ctx: Context) :
         else PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
 
     override fun stop() {
-        player.stop()
+        vlcHandler.post { if (!released) player.stop() }
     }
 
     override fun release() {
         if (released) return
-        released = true
         applicationHandler.removeCallbacks(giveUpOnSlave)
         applicationHandler.removeCallbacks(retrySeek)
         player.setEventListener(null)
         listeners.release()
         abandonAudioFocus()
-        player.stop()
         clearVideoSurface()
-        applicationHandler.post {
+        released = true
+        vlcHandler.post {
+            player.stop()
             player.release()
             libVLC.release()
+            vlcThread.quitSafely()
         }
     }
 
