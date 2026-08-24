@@ -172,6 +172,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun onEvent(event: MediaPlayer.Event) {
+        if (released) return
         when (event.type) {
             MediaPlayer.Event.Opening -> {
                 lastVideoSize = VideoSize.UNKNOWN
@@ -299,6 +300,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun onAudioFocusChange(focusChange: Int) {
+        if (released) return
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
@@ -455,6 +457,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     private fun selectTextTrack(trackId: String) {
+        if (released) return
         // embedded subs
         val slaveUri = trackId.substringAfter(PENDING_SLAVE_PREFIX, "")
         if (slaveUri.isEmpty()) {
@@ -502,7 +505,7 @@ class VlcPlayer(ctx: Context) :
 
     private fun resumeAfterSlaveLoad() {
         applicationHandler.removeCallbacks(giveUpOnSlave)
-        if (!loadingSlave) return
+        if (released || !loadingSlave) return
         loadingSlave = false
         player.play()
     }
@@ -604,6 +607,7 @@ class VlcPlayer(ctx: Context) :
     override fun getShuffleModeEnabled(): Boolean = false
 
     override fun isLoading(): Boolean {
+        if (released) return false
         val state = playbackState
         if (state == STATE_IDLE || state == STATE_ENDED) return false
         return player.playerState == IMedia.State.Opening
@@ -615,6 +619,7 @@ class VlcPlayer(ctx: Context) :
         seekCommand: Int,
         isRepeatingCurrentItem: Boolean
     ) {
+        if (released) return
         val targetIndex =
             if (mediaItemIndex == INDEX_UNSET) currentMediaItemIndex else mediaItemIndex
         if (targetIndex == INDEX_UNSET || targetIndex !in mediaItems.indices) return
@@ -714,6 +719,7 @@ class VlcPlayer(ctx: Context) :
     override fun getSeekForwardIncrement(): Long = 15_000L
 
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
+        if (released) return
         player.rate = playbackParameters.speed.coerceAtLeast(0.01f)
     }
 
@@ -888,6 +894,7 @@ class VlcPlayer(ctx: Context) :
 
     override fun setTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters) {
         currentTrackSelectionParameters = trackSelectionParameters
+        if (released) return
         val videoDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_VIDEO)
         val audioDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_AUDIO)
         val textDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)
@@ -1113,6 +1120,7 @@ class VlcPlayer(ctx: Context) :
     private var volumeBeforeMute: Float = 1f
 
     override fun setVolume(volume: Float) {
+        if (released) return
         player.volume = (volume.coerceIn(0f, 1f) * 100).toInt()
         notifyVolumeChanged()
     }
@@ -1121,6 +1129,7 @@ class VlcPlayer(ctx: Context) :
         if (released) 1f else (player.volume / 100f).coerceIn(0f, 1f)
 
     override fun mute() {
+        if (released) return
         val current = getVolume()
         if (current > 0f) volumeBeforeMute = current
         player.volume = 0
@@ -1158,12 +1167,14 @@ class VlcPlayer(ctx: Context) :
             clearVideoSurface()
             return
         }
+        if (released) return
         vlcVout.setVideoSurface(surface, null)
         vlcVout.attachViews()
     }
 
     override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
         if (surfaceHolder == null) return clearVideoSurface()
+        if (released) return
         val surface = surfaceHolder.surface
         if (surface != null && surface.isValid && !vlcVout.areViewsAttached()) {
             vlcVout.setVideoSurface(surface, surfaceHolder)
@@ -1177,6 +1188,7 @@ class VlcPlayer(ctx: Context) :
 
     override fun setVideoSurfaceView(surfaceView: SurfaceView?) {
         if (surfaceView == null) return clearVideoSurface()
+        if (released) return
         if (vlcVout.areViewsAttached() && boundSurfaceView === surfaceView) return
         boundSurfaceView = surfaceView
         videoOutputStale = (
@@ -1188,6 +1200,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     fun rebuildVideoOutput() {
+        if (released) return
         if (!videoOutputStale || !player.isPlaying || !vlcVout.areViewsAttached()) return
         videoOutputStale = false
         player.setVideoTrackEnabled(false)
@@ -1196,6 +1209,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     fun updateVideoLayout(width: Int, height: Int) {
+        if (released) return
         if (!vlcVout.areViewsAttached()) return
         if (width > 0 && height > 0) vlcVout.setWindowSize(width, height)
         player.updateVideoSurfaces()
@@ -1271,6 +1285,7 @@ class VlcPlayer(ctx: Context) :
     override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) {
         mediaAudioAttributes = audioAttributes
         this.handleAudioFocus = handleAudioFocus
+        if (released) return
         if (!handleAudioFocus) {
             abandonAudioFocus()
         } else if (player.isPlaying && !requestAudioFocus()) {
