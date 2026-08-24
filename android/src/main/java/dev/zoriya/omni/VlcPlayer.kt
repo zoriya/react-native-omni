@@ -124,6 +124,10 @@ class VlcPlayer(ctx: Context) :
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
     private var userInitiatedTransition: Boolean = false
 
+    // stop() only queues the real one on the vlc thread
+    @Volatile
+    private var stopped = false
+
     // vlc handles seeks on its input thread and keeps reporting the pre-seek time
     // until it decoded the new position, so remember where we asked to go and
     // report that instead
@@ -172,6 +176,7 @@ class VlcPlayer(ctx: Context) :
         if (released) return
         when (event.type) {
             MediaPlayer.Event.Opening -> {
+                stopped = false
                 lastVideoSize = VideoSize.UNKNOWN
                 notifyListeners(
                     arrayOf(EVENT_PLAYBACK_STATE_CHANGED, EVENT_PLAY_WHEN_READY_CHANGED)
@@ -182,6 +187,7 @@ class VlcPlayer(ctx: Context) :
             }
 
             MediaPlayer.Event.Playing -> {
+                stopped = false
                 if (!requestAudioFocus()) applicationHandler.post { player.pause() }
                 notifyListeners(
                     arrayOf(
@@ -565,6 +571,7 @@ class VlcPlayer(ctx: Context) :
     override fun getPlaybackState(): Int =
         when {
             released -> STATE_IDLE
+            stopped -> STATE_IDLE
             playerError != null -> STATE_IDLE
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
             player.media?.also { it.release() } == null -> STATE_IDLE
@@ -589,7 +596,8 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun getPlayWhenReady(): Boolean =
-        !released && (player.isPlaying || player.playerState == IMedia.State.Opening || loadingSlave)
+        !released && !stopped &&
+            (player.isPlaying || player.playerState == IMedia.State.Opening || loadingSlave)
 
     override fun setRepeatMode(repeatMode: Int) = Unit
 
@@ -721,7 +729,12 @@ class VlcPlayer(ctx: Context) :
         else PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
 
     override fun stop() {
+        stopped = true
         vlcHandler.post { if (!released) player.stop() }
+        // media3 calls stop() from inside its cast handoff, do not notify back into it here
+        applicationHandler.post {
+            notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) { it.onPlaybackStateChanged(STATE_IDLE) }
+        }
     }
 
     override fun release() {
