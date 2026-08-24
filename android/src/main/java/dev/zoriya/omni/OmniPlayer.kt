@@ -710,29 +710,35 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        startForeground(1, createImmediateNotification())
+
         val available = OmniPlayer.notificationPlayer?.player
         if (available == null) {
-            startForeground(1, createImmediateNotification())
             stopSelf()
             return
         }
         player = available
         val sessionActivity = openIntent()
-        mediaSession = MediaSession.Builder(this, player)
-            .apply {
-                sessionActivity?.let { setSessionActivity(it) }
-            }
-            .build()
+        mediaSession = try {
+            MediaSession.Builder(this, player)
+                .apply {
+                    sessionActivity?.let { setSessionActivity(it) }
+                }
+                .build()
+        } catch (e: Throwable) {
+            android.util.Log.w("OmniPlayerService", "could not open a media session", e)
+            stopSelf()
+            return
+        }
 
         addSession(mediaSession)
         setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)
-
-        val notification = createImmediateNotification()
-        startForeground(1, notification)
         triggerNotificationUpdate()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, createImmediateNotification())
+
         val current = OmniPlayer.notificationPlayer?.player
         if (current != null && ::mediaSession.isInitialized && mediaSession.player !== current) {
             player = current
@@ -776,7 +782,8 @@ class OmniPlayerService : MediaSessionService() {
         )
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) =
+        if (::mediaSession.isInitialized) mediaSession else null
 
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
         super.onUpdateNotification(session, startInForegroundRequired || isCasting())
