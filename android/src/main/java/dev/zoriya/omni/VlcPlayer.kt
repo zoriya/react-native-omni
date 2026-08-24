@@ -124,9 +124,6 @@ class VlcPlayer(ctx: Context) :
     private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
     private var userInitiatedTransition: Boolean = false
 
-    @Volatile
-    private var cachedBufferedPosition: Long = 0L
-
     // vlc handles seeks on its input thread and keeps reporting the pre-seek time
     // until it decoded the new position, so remember where we asked to go and
     // report that instead
@@ -235,10 +232,6 @@ class VlcPlayer(ctx: Context) :
             }
 
             MediaPlayer.Event.Buffering -> {
-                val dur = getDuration()
-                if (dur != TIME_UNSET) {
-                    cachedBufferedPosition = (event.buffering / 100.0 * dur).toLong()
-                }
                 notifyListeners(arrayOf(EVENT_IS_LOADING_CHANGED, EVENT_PLAYBACK_STATE_CHANGED)) {
                     it.onIsLoadingChanged(true)
                     it.onPlaybackStateChanged(STATE_BUFFERING)
@@ -1095,13 +1088,9 @@ class VlcPlayer(ctx: Context) :
         return player.time.coerceAtLeast(0L)
     }
 
-    override fun getBufferedPosition(): Long {
-        val duration = getDuration()
-        if (duration == TIME_UNSET) return getCurrentPosition()
-        return cachedBufferedPosition.coerceAtMost(duration)
-    }
+    override fun getBufferedPosition(): Long = getCurrentPosition()
 
-    override fun getTotalBufferedDuration() = bufferedPosition
+    override fun getTotalBufferedDuration(): Long = 0L
 
     override fun isPlayingAd(): Boolean = false
 
