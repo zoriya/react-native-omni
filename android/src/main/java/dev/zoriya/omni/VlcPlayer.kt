@@ -127,6 +127,8 @@ class VlcPlayer(ctx: Context) :
     // stop() only queues the real one on the vlc thread
     @Volatile
     private var stopped = false
+    @Volatile
+    private var ended = false
 
     // vlc handles seeks on its input thread and keeps reporting the pre-seek time
     // until it decoded the new position, so remember where we asked to go and
@@ -177,6 +179,7 @@ class VlcPlayer(ctx: Context) :
         when (event.type) {
             MediaPlayer.Event.Opening -> {
                 stopped = false
+                ended = false
                 lastVideoSize = VideoSize.UNKNOWN
                 notifyListeners(
                     arrayOf(EVENT_PLAYBACK_STATE_CHANGED, EVENT_PLAY_WHEN_READY_CHANGED)
@@ -188,6 +191,7 @@ class VlcPlayer(ctx: Context) :
 
             MediaPlayer.Event.Playing -> {
                 stopped = false
+                ended = false
                 if (!requestAudioFocus()) applicationHandler.post { player.pause() }
                 notifyListeners(
                     arrayOf(
@@ -231,6 +235,9 @@ class VlcPlayer(ctx: Context) :
 
             MediaPlayer.Event.EndReached -> {
                 abandonAudioFocus()
+                // this also fires when vlc gives up on a stream it never managed to read:
+                // its state is the only thing telling a failure from an end
+                ended = player.playerState == IMedia.State.Ended
                 pendingSeekPosition = TIME_UNSET
                 notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_ENDED)
@@ -575,12 +582,11 @@ class VlcPlayer(ctx: Context) :
             playerError != null -> STATE_IDLE
             currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
             player.media?.also { it.release() } == null -> STATE_IDLE
+            ended -> STATE_ENDED
             player.playerState == IMedia.State.Opening -> STATE_BUFFERING
             loadingSlave -> STATE_BUFFERING
             pendingSeekPosition != TIME_UNSET -> STATE_BUFFERING
             pendingStartPosition != TIME_UNSET -> STATE_BUFFERING
-            player.isPlaying -> STATE_READY
-            player.isSeekable && player.time >= player.length && player.length > 0 -> STATE_ENDED
             else -> STATE_READY
         }
 
