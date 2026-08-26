@@ -235,10 +235,12 @@ class VlcPlayer(ctx: Context) :
 
             MediaPlayer.Event.EndReached -> {
                 abandonAudioFocus()
+                pendingSeekPosition = TIME_UNSET
+                // stopping leaves the media on Ended too
+                if (stopped) return
                 // this also fires when vlc gives up on a stream it never managed to read:
                 // its state is the only thing telling a failure from an end
                 ended = player.playerState == IMedia.State.Ended
-                pendingSeekPosition = TIME_UNSET
                 notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
                     it.onPlaybackStateChanged(STATE_ENDED)
                 }
@@ -431,7 +433,6 @@ class VlcPlayer(ctx: Context) :
         val item = mediaItems.getOrNull(targetIndex)
         vlcHandler.post {
             if (released) return@post
-            player.stop()
             val uri = item?.localConfiguration?.uri?.toString()
             if (!uri.isNullOrEmpty()) {
                 val media = Media(libVLC, uri.toUri())
@@ -440,6 +441,9 @@ class VlcPlayer(ctx: Context) :
 
                 player.setMedia(media)
                 media.release()
+            } else {
+                stopped = true
+                player.stop()
             }
         }
 
@@ -551,6 +555,7 @@ class VlcPlayer(ctx: Context) :
         playlistMetadata = MediaMetadata.EMPTY
         pendingSeekPosition = TIME_UNSET
         pendingStartPosition = TIME_UNSET
+        stopped = true
         vlcHandler.post { if (!released) player.stop() }
 
         val events = mutableListOf(
