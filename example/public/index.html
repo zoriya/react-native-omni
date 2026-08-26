@@ -3,12 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- no favicon; keeps the browser from 404ing on /favicon.ico -->
+    <link rel="icon" href="data:," />
     <title>React Native Omni Example</title>
     <style>
       html, body, #root {
         height: 100%;
         margin: 0;
         padding: 0;
+        background-color: #0b1020;
+      }
+      /* react-native-web mounts a `flex: 1` container into #root, which only
+         fills the viewport if #root is itself a flex container. Without this the
+         app is sized by its content and the player (all absolute children)
+         collapses to 0px. */
+      #root {
+        display: flex;
+        flex-direction: column;
       }
     </style>
   </head>

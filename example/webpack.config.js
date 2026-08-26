@@ -18,8 +18,9 @@ module.exports = {
 		alias: {
 			"react-native$": "react-native-web",
 			"react-native-omni": path.resolve(rootDirectory, "src"),
-			react: path.resolve(appDirectory, "node_modules", "react"),
-			"react-dom": path.resolve(appDirectory, "node_modules", "react-dom"),
+			// react/react-dom are hoisted to the workspace root, not example/node_modules
+			react: path.dirname(require.resolve("react/package.json")),
+			"react-dom": path.dirname(require.resolve("react-dom/package.json")),
 		},
 	},
 	module: {
@@ -30,25 +31,11 @@ module.exports = {
 					/node_modules\/(?!(react-native|@react-native|react-native-web|react-native-omni)\/).*/,
 				use: {
 					loader: "babel-loader",
-					options: {
-						presets: [
-							"@babel/preset-env",
-							"@babel/preset-react",
-							"@babel/preset-typescript",
-						],
-						plugins: [
-							["@babel/plugin-transform-react-jsx", { runtime: "automatic" }],
-							[
-								"module-resolver",
-								{
-									extensions: [".js", ".ts", ".json", ".jsx", ".tsx"],
-									alias: {
-										"react-native-omni": path.resolve(rootDirectory, "src"),
-									},
-								},
-							],
-						],
-					},
+					// presets/plugins come from example/babel.config.js
+					// (@react-native/babel-preset). Stacking @babel/preset-env on top of
+					// it enables class-properties twice with conflicting `loose` values,
+					// which babel warns about once per file.
+					options: { cacheDirectory: true },
 				},
 			},
 			{

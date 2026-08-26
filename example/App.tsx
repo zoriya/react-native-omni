@@ -4,6 +4,7 @@ import {
 	ActivityIndicator,
 	Animated,
 	PanResponder,
+	Platform,
 	Pressable,
 	ScrollView,
 	StatusBar,
@@ -174,7 +175,8 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 		Animated.timing(fade, {
 			toValue: visible ? 1 : 0,
 			duration: 180,
-			useNativeDriver: true,
+			// react-native-web has no RCTAnimation module, so the native driver warns
+			useNativeDriver: Platform.OS !== "web",
 		}).start();
 	}, [visible, fade]);
 
@@ -307,10 +309,12 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 			</View>
 
 			<Animated.View
-				pointerEvents={visible ? "box-none" : "none"}
-				style={[styles.controls, { opacity: fade }]}
+				style={[
+					styles.controls,
+					{ opacity: fade, pointerEvents: visible ? "box-none" : "none" },
+				]}
 			>
-				<View pointerEvents="none" style={styles.scrim} />
+				<View style={styles.scrim} />
 
 				<View style={styles.topBar}>
 					{/* unmounts the OmniView but keeps the provider (and playback) alive */}
@@ -345,7 +349,7 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 					)}
 				</View>
 
-				<View pointerEvents="box-none" style={styles.centerRow}>
+				<View style={styles.centerRow}>
 					<Pressable
 						style={styles.roundButton}
 						onPress={() => player.playPrev()}
@@ -382,21 +386,18 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 						}}
 						{...pan.panHandlers}
 					>
-						<View pointerEvents="none" style={styles.progressTrack}>
+						<View style={styles.progressTrack}>
 							<View
-								pointerEvents="none"
 								style={[
 									styles.progressBuffered,
 									{ width: `${bufferedProgress}%` },
 								]}
 							/>
 							<View
-								pointerEvents="none"
 								style={[styles.progressFill, { width: `${progress}%` }]}
 							/>
 						</View>
 						<View
-							pointerEvents="none"
 							style={[
 								styles.progressThumb,
 								{ left: `${progress}%` },
@@ -447,7 +448,7 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 			</Animated.View>
 
 			{hint && (
-				<View pointerEvents="none" style={styles.tapZones}>
+				<View style={[styles.tapZones, { pointerEvents: "none" }]}>
 					<View style={styles.tapZone}>
 						{hint.side === "left" && (
 							<View style={styles.hintBubble}>
@@ -577,12 +578,12 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 			)}
 
 			{status === "loading" && (
-				<View pointerEvents="none" style={styles.overlayCenter}>
+				<View style={styles.overlayCenter}>
 					<ActivityIndicator size="large" color="#ffffff" />
 				</View>
 			)}
 			{status === "error" && (
-				<View pointerEvents="none" style={styles.overlayCenter}>
+				<View style={styles.overlayCenter}>
 					<Text style={styles.errorText}>Playback error</Text>
 				</View>
 			)}
@@ -661,24 +662,28 @@ function Home({
 				</View>
 			)}
 
-			<Text style={styles.sectionTitle}>Backend (android)</Text>
-			<View style={styles.row}>
-				<Pressable
-					style={[styles.button, backend === "vlc" && styles.buttonSelected]}
-					onPress={() => onSwitchBackend("vlc")}
-				>
-					<Text style={styles.buttonText}>VLC</Text>
-				</Pressable>
-				<Pressable
-					style={[
-						styles.button,
-						backend === "exoplayer" && styles.buttonSelected,
-					]}
-					onPress={() => onSwitchBackend("exoplayer")}
-				>
-					<Text style={styles.buttonText}>ExoPlayer</Text>
-				</Pressable>
-			</View>
+			{Platform.OS === "android" && (
+				<>
+					<Text style={styles.sectionTitle}>Backend</Text>
+					<View style={styles.row}>
+						<Pressable
+							style={[styles.button, backend === "vlc" && styles.buttonSelected]}
+							onPress={() => onSwitchBackend("vlc")}
+						>
+							<Text style={styles.buttonText}>VLC</Text>
+						</Pressable>
+						<Pressable
+							style={[
+								styles.button,
+								backend === "exoplayer" && styles.buttonSelected,
+							]}
+							onPress={() => onSwitchBackend("exoplayer")}
+						>
+							<Text style={styles.buttonText}>ExoPlayer</Text>
+						</Pressable>
+					</View>
+				</>
+			)}
 
 			<Text style={styles.sectionTitle}>Start time</Text>
 			<Text style={styles.cardText}>
@@ -963,6 +968,7 @@ const styles = StyleSheet.create({
 		right: 0,
 		bottom: 0,
 		backgroundColor: "rgba(0,0,0,0.35)",
+		pointerEvents: "none",
 	},
 	topBar: {
 		flexDirection: "row",
@@ -1001,6 +1007,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 28,
+		pointerEvents: "box-none",
 	},
 	roundButton: {
 		width: 56,
@@ -1050,6 +1057,7 @@ const styles = StyleSheet.create({
 		borderRadius: 2,
 		backgroundColor: "rgba(255,255,255,0.25)",
 		overflow: "hidden",
+		pointerEvents: "none",
 	},
 	progressBuffered: {
 		position: "absolute",
@@ -1057,6 +1065,7 @@ const styles = StyleSheet.create({
 		bottom: 0,
 		left: 0,
 		backgroundColor: "rgba(255,255,255,0.4)",
+		pointerEvents: "none",
 	},
 	progressFill: {
 		position: "absolute",
@@ -1064,6 +1073,7 @@ const styles = StyleSheet.create({
 		bottom: 0,
 		left: 0,
 		backgroundColor: "#6e93f9",
+		pointerEvents: "none",
 	},
 	progressThumb: {
 		position: "absolute",
@@ -1072,6 +1082,7 @@ const styles = StyleSheet.create({
 		borderRadius: 6,
 		marginLeft: -6,
 		backgroundColor: "#ffffff",
+		pointerEvents: "none",
 	},
 	progressThumbActive: {
 		width: 18,
@@ -1170,6 +1181,7 @@ const styles = StyleSheet.create({
 		bottom: 0,
 		alignItems: "center",
 		justifyContent: "center",
+		pointerEvents: "none",
 	},
 	errorText: {
 		color: "#ff9d9d",
