@@ -62,6 +62,10 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     private var lastRenditions: Array<Rendition>? = null
     private var lastIsAutoQuality: Boolean? = null
 
+    // manually track if we send the end event for chromecast (we don't have
+    // a builtin way to track this)
+    private var ended = false
+
     // swapped on cast start/end
     private var _player: Player? = null
     var player: Player
@@ -202,19 +206,33 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
         renditionsListeners.forEach { it(renditions) }
     }
 
+    private fun emitEnd() {
+        if (ended) return
+        ended = true
+        onEndListeners.forEach { it() }
+    }
+
     override fun onPlaybackStateChanged(playbackState: Int) {
         val state = when (player.playbackState) {
             STATE_IDLE -> {
                 // cast doesn't have STATE_ENDED, so handle this manually
                 if (remote?.mediaStatus?.idleReason == MediaStatus.IDLE_REASON_FINISHED)
-                    onEndListeners.forEach { it() }
+                    emitEnd()
                 PlayerStatus.IDLE
             }
 
-            STATE_BUFFERING -> PlayerStatus.LOADING
-            STATE_READY -> PlayerStatus.READYTOPLAY
+            STATE_BUFFERING -> {
+                ended = false
+                PlayerStatus.LOADING
+            }
+
+            STATE_READY -> {
+                ended = false
+                PlayerStatus.READYTOPLAY
+            }
+
             STATE_ENDED -> {
-                onEndListeners.forEach { it() }
+                emitEnd()
                 PlayerStatus.IDLE
             }
 
