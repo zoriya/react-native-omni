@@ -17,12 +17,14 @@ import type { OmniViewProps } from "./types/view";
 
 const SubtitleOverlay = ({
 	video,
+	autoplay,
 	assets,
 	fonts,
 }: {
 	// not a ref: the overlay is re-created when the element is swapped (which
 	// happens when the tech changes, ie. going from/to hls)
 	video: HTMLVideoElement | null;
+	autoplay?: boolean;
 	assets?: SubtitleAssets;
 	fonts?: string[];
 }) => {
@@ -45,6 +47,10 @@ const SubtitleOverlay = ({
 			if (cancelled) created.destroy();
 			else renderer = created;
 		};
+		player.beginSubtitleLoad(!!autoplay);
+		const loaded = () => {
+			if (!cancelled) player.endSubtitleLoad();
+		};
 
 		if (getSubtitleFormat(subtitle) === "ass") {
 			const jassub = assetsRef.current?.jassub;
@@ -57,7 +63,7 @@ const SubtitleOverlay = ({
 			const videoWidth = Math.max(0, ...renditions.map((r) => r.width));
 			const videoHeight = Math.max(0, ...renditions.map((r) => r.height));
 			import("jassub")
-				.then(({ default: JASSUB }) => {
+				.then(async ({ default: JASSUB }) => {
 					const instance = new JASSUB({
 						video,
 						subUrl: subtitle.link,
@@ -75,12 +81,17 @@ const SubtitleOverlay = ({
 						}),
 					});
 					attach({ destroy: () => instance.destroy() });
+					await instance.ready;
+					loaded();
 				})
-				.catch((e) => console.error("[omni] failed to render ass subtitle", e));
+				.catch((e) => {
+					console.error("[omni] failed to render ass subtitle", e);
+					loaded();
+				});
 		} else {
 			const pgs = assetsRef.current?.pgs;
 			import("libpgs")
-				.then(({ PgsRenderer }) => {
+				.then(async ({ PgsRenderer }) => {
 					const instance = new PgsRenderer({
 						video,
 						subUrl: subtitle.link,
@@ -89,15 +100,21 @@ const SubtitleOverlay = ({
 							new URL("libpgs/dist/libpgs.worker.js", import.meta.url).href,
 					});
 					attach({ destroy: () => instance.dispose() });
+					await instance.ready;
+					loaded();
 				})
-				.catch((e) => console.error("[omni] failed to render pgs subtitle", e));
+				.catch((e) => {
+					console.error("[omni] failed to render pgs subtitle", e);
+					loaded();
+				});
 		}
 
 		return () => {
 			cancelled = true;
 			renderer?.destroy();
+			player.endSubtitleLoad();
 		};
-	}, [video, subtitle, player]);
+	}, [video, subtitle, player, autoplay]);
 
 	return null;
 };
@@ -169,6 +186,7 @@ export const OmniView = ({
 			{castStatus !== "connected" && castStatus !== "connecting" && (
 				<SubtitleOverlay
 					video={video}
+					autoplay={autoplay}
 					assets={subtitleAssets}
 					fonts={source?.fonts}
 				/>

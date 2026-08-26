@@ -13,7 +13,7 @@
         "@videojs/store": "github:zoriya/v10#build26-store",
         "@videojs/utils": "github:zoriya/v10#build26-utils",
         "jassub": "^2.5.7",
-        "libpgs": "^0.8.1",
+        "libpgs": "github:zoriya/libpgs-js#build",
       },
       "devDependencies": {
         "@biomejs/biome": "2.5.3",
@@ -1580,7 +1580,7 @@
 
     "lfa-ponyfill": ["lfa-ponyfill@1.1.1", "", {}, "sha512-Had4tsGEHtIj58MRtf6SlubNDltxinxMSdxIn1GdwrWbye8TD+pZ+D6qKETnJ9+vQOfG9q/Ds4WUPskhyAMp5Q=="],
 
-    "libpgs": ["libpgs@0.8.1", "", {}, "sha512-Z8WCvHRYr37QjU8b2WqiJpCvnoojbYPtoE4FktwdI+m+b1QkNIKqrYQrlPKG1xvYyQWgV1j+16xjFOhun4nBUA=="],
+    "libpgs": ["libpgs@github:zoriya/libpgs-js#bfd15e6", {}, "zoriya-libpgs-js-bfd15e6", "sha512-zU62Vh/q0QQP7MSmcPI5phh/DpzHMLuzh92TjU62dmqpMHrG3Y92H+bFjhkhucioprowznv/6bQTVZ4jYnyP1A=="],
 
     "lie": ["lie@3.1.1", "", { "dependencies": { "immediate": "~3.0.5" } }, "sha512-RiNhHysUjhrDQntfYSfY4MU24coXXdEOgw9WGcKHNeEwffDYbF//u87M1EWaMGzuFoSbqW0C9C6lEEhDOAswfw=="],
 

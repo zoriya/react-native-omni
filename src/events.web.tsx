@@ -270,6 +270,18 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			);
 			return player.subtitles as OmniPlayerState[Key];
 		}
+		case "status":
+		case "isPlaying": {
+			// the player fakes both while a subtitle renderer comes up
+			const player = usePlayer() as WebOmniPlayer;
+			useStoreSelector(stateMapper.status.selector);
+			useSyncExternalStore(
+				player.subscribeSubtitleLoading,
+				player.getSubtitleLoadingVersion,
+				() => 0,
+			);
+			return player[key as "status" | "isPlaying"] as OmniPlayerState[Key];
+		}
 		default: {
 			const config = stateMapper[key as keyof typeof stateMapper];
 			const ret = useStoreSelector(config?.selector as Selector<any, any>);

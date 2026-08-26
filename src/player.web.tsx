@@ -12,7 +12,7 @@ import type {
 	Rendition,
 	Track,
 } from "./types/player";
-import type { CastOptions, Source, Subtitle } from "./types/source";
+import type { Source, Subtitle } from "./types/source";
 
 export type SubtitleFormat = "vtt" | "ass" | "pgs" | "native";
 
@@ -101,11 +101,13 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get status(): PlayerStatus {
+		if (this.subtitleLoading) return "loading";
 		const state = this._store.state;
 		return stateMapper.status.mapper(state);
 	}
 
 	get isPlaying(): boolean {
+		if (this.subtitleLoading) return this.resumeAfterSubtitleLoad;
 		return !this._store.state.paused && !this._store.state.ended;
 	}
 
@@ -161,12 +163,18 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	play(): void {
-		this._store.play();
+		if (this.subtitleLoading) {
+			this.resumeAfterSubtitleLoad = true;
+			this.notifySubtitleLoading();
+		} else this._store.play();
 		this.setPlaybackState("playing");
 	}
 
 	pause(): void {
-		this._store.pause();
+		if (this.subtitleLoading) {
+			this.resumeAfterSubtitleLoad = false;
+			this.notifySubtitleLoading();
+		} else this._store.pause();
 		this.setPlaybackState("paused");
 	}
 
@@ -256,6 +264,44 @@ export class WebOmniPlayer implements OmniPlayer {
 	};
 
 	getOverlaySubtitle = (): Subtitle | null => this.overlaySubtitle;
+
+	// custom subtitles takes time to load, load (and do not play) while waiting
+	private subtitleLoading = false;
+	private resumeAfterSubtitleLoad = false;
+	private subtitleLoadingListeners = new Set<() => void>();
+	private subtitleLoadingVersion = 0;
+
+	subscribeSubtitleLoading = (callback: () => void): (() => void) => {
+		this.subtitleLoadingListeners.add(callback);
+		return () => this.subtitleLoadingListeners.delete(callback);
+	};
+
+	getSubtitleLoadingVersion = (): number => this.subtitleLoadingVersion;
+
+	private notifySubtitleLoading(): void {
+		this.subtitleLoadingVersion++;
+		for (const listener of this.subtitleLoadingListeners) listener();
+	}
+
+	// `autoplay` tells whether a video that has not started yet is meant to:
+	// pausing it clears the element's autoplay, so we start it ourselves after.
+	beginSubtitleLoad(autoplay: boolean): void {
+		const state = this._store.state;
+		if (!this.subtitleLoading)
+			this.resumeAfterSubtitleLoad =
+				!state.paused || (!state.started && autoplay);
+		this.subtitleLoading = true;
+		this._store.pause();
+		this.notifySubtitleLoading();
+	}
+
+	endSubtitleLoad(): void {
+		if (!this.subtitleLoading) return;
+		this.subtitleLoading = false;
+		if (this.resumeAfterSubtitleLoad) this._store.play();
+		this.resumeAfterSubtitleLoad = false;
+		this.notifySubtitleLoading();
+	}
 
 	get renditions(): Rendition[] {
 		return stateMapper.renditions.mapper(selectQuality(this._store.state));
