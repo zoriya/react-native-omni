@@ -70,7 +70,7 @@
 		"@videojs/store": "github:zoriya/v10#build26-store",
 		"@videojs/utils": "github:zoriya/v10#build26-utils",
 		"jassub": "^2.5.7",
-		"libpgs": "github:zoriya/libpgs-js#build"
+		"libpgs": "^0.9.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.3",
