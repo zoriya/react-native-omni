@@ -3,11 +3,13 @@ package dev.zoriya.omni
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Looper
+import android.view.KeyEvent
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
@@ -724,6 +726,26 @@ class OmniPlayerService : MediaSessionService() {
                 .apply {
                     sessionActivity?.let { setSessionActivity(it) }
                 }
+                .setCallback(object : MediaSession.Callback {
+                    override fun onMediaButtonEvent(
+                        session: MediaSession,
+                        controllerInfo: MediaSession.ControllerInfo,
+                        intent: Intent,
+                    ): Boolean {
+                        @Suppress("DEPRECATION")
+                        val key = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        // media3 hangs a synthetic MEDIA_STOP off the notification's delete
+                        // intent, so that swiping the notification away ends playback. A tv has
+                        // nowhere to put a media notification and drops ours the moment it is
+                        // posted, firing that intent and tearing the player down a few hundred
+                        // ms in. A stop we actually want - a headset, the assistant - comes from
+                        // an input device; this one has none.
+                        if (isTv && key?.keyCode == KeyEvent.KEYCODE_MEDIA_STOP && key.deviceId == -1) {
+                            return true
+                        }
+                        return false
+                    }
+                })
                 .build()
         } catch (e: Throwable) {
             android.util.Log.w("OmniPlayerService", "could not open a media session", e)
@@ -787,6 +809,10 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
         super.onUpdateNotification(session, startInForegroundRequired || isCasting())
+    }
+
+    private val isTv by lazy {
+        packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
 
     private fun isCasting() = try {
