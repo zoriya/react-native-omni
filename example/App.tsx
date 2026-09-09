@@ -55,6 +55,13 @@ const PLAYLIST = [
 
 const SUBTITLES = [
 	{
+		id: "styletest",
+		link: "data:text/vtt;base64,V0VCVlRUCgowMDowMDowMC4wMDAgLS0+IDAwOjEwOjAwLjAwMApTdHlsZSB0ZXN0IOKAlCB3aGl0ZSB0ZXh0LCBibGFjayBvdXRsaW5lLCBubyBib3gsIGFuZCBhIGxpbmUgbG9uZyBlbm91Z2ggdG8gd3JhcCBzbyB0aGUgbWFyZ2lucyBzaG93Lgo=",
+		mimeType: "text/vtt",
+		label: "style test",
+		language: "en",
+	},
+	{
 		id: "kusu",
 		link: "https://jassub.pages.dev/subtitles/Kusriya%20S2%20OP1v3.ass",
 		label: "ass test",
