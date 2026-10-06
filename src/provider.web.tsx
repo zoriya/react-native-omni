@@ -1,5 +1,5 @@
 import { createPlayer } from "@videojs/react";
-import { GoogleCast } from "@videojs/react/media/google-cast";
+import { GoogleCast } from "@videojs/react/extensions/google-cast";
 import { videoFeatures } from "@videojs/react/video";
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { usePlayerState } from "./events";
@@ -27,7 +27,7 @@ export const OmniProvider = ({
 	showNotification?: boolean;
 }) => {
 	return (
-		<VideoPlayer.Provider>
+		<VideoPlayer.Player>
 			<PlayerInitializer
 				source={source}
 				cast={cast}
@@ -35,7 +35,7 @@ export const OmniProvider = ({
 			>
 				{children}
 			</PlayerInitializer>
-		</VideoPlayer.Provider>
+		</VideoPlayer.Player>
 	);
 };
 

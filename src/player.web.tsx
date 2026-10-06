@@ -2,7 +2,9 @@ import type { VideoPlayerStore } from "@videojs/core/dom";
 import {
 	selectAudioTrack,
 	selectQuality,
+	selectRemotePlayback,
 	selectTextTrack,
+	selectVolume,
 } from "@videojs/react";
 import { stateMapper } from "./events.web";
 import type {
@@ -56,7 +58,7 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	toggleCastStatus(): void {
-		this._store.state.toggleRemotePlayback();
+		selectRemotePlayback(this._store.state)?.promptRemotePlayback();
 	}
 
 	_source: Source | undefined = undefined;
@@ -150,9 +152,7 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	set muted(value: boolean) {
-		if (value !== this.muted) {
-			this._store.toggleMuted();
-		}
+		selectVolume(this._store.state)?.setMuted(value);
 	}
 
 	get isAutoQuality(): boolean {

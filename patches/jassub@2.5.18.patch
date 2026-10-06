@@ -27,7 +27,7 @@ index 8b09b107be84ebde02961eb63637128bfb62f1a9..01f3792bb0e6532d782659b240aeb34e
      _canvas: HTMLCanvasElement;
      _ro: ResizeObserver;
 diff --git a/dist/jassub.js b/dist/jassub.js
-index bbdaa8d4dcb5269617c53652c0702968093dc922..66cfdac4168e004ff9bb047da7e6ee6b53e02ce4 100644
+index 0edca8e9c5eb94eda728cb283f07302a793b2940..df54c601285c25e5eb9d9f6582d9ddf64e6c5507 100644
 --- a/dist/jassub.js
 +++ b/dist/jassub.js
 @@ -21,6 +21,13 @@ export default class JASSUB {
@@ -53,17 +53,17 @@ index bbdaa8d4dcb5269617c53652c0702968093dc922..66cfdac4168e004ff9bb047da7e6ee6b
          this._canvas = opts.canvas ?? document.createElement('canvas');
          if (this._video && !opts.canvas) {
              this._canvas.className = 'JASSUB';
-@@ -119,7 +128,7 @@ export default class JASSUB {
-             this._canvas.style.top = videoSize.y + 'px';
-             this._canvas.style.left = videoSize.x + 'px';
-         }
--        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._videoWidth || renderWidth, this._videoHeight || renderHeight);
-+        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._storageWidth || this._videoWidth || renderWidth, this._storageHeight || this._videoHeight || renderHeight);
+@@ -139,7 +148,7 @@ export default class JASSUB {
+         // rendering. If it is set to the render size, libass scales blur, borders
+         // and shadows by the render size instead of the script resolution
+         // (libass issue #591).
+-        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._video ? (this._videoWidth || renderWidth) : 0, this._video ? (this._videoHeight || renderHeight) : 0);
++        await this.renderer._resizeCanvas(renderWidth, renderHeight, this._video ? (this._storageWidth || this._videoWidth || renderWidth) : 0, this._video ? (this._storageHeight || this._videoHeight || renderHeight) : 0);
          if (this._lastDemandTime)
              await this._demandRender(forceRepaint);
      }
 diff --git a/src/jassub.ts b/src/jassub.ts
-index 65d290d6a5134aca26caf30c1720a2fbbe881430..c5c0596ec0db35b0607124cbb2045d4312c94259 100644
+index 41bb4ff1a2feaa02494192f2dd4cad8039a385f4..1aa49319ce7e31814e5e47c3dc9249f7d5eb8f6d 100644
 --- a/src/jassub.ts
 +++ b/src/jassub.ts
 @@ -37,6 +37,14 @@ export type JASSUBOptions = {
@@ -73,8 +73,8 @@ index 65d290d6a5134aca26caf30c1720a2fbbe881430..c5c0596ec0db35b0607124cbb2045d43
 +  /**
 +   * The video's native/source resolution, used as libass' storage size. Set
 +   * this on adaptive (MSE/HLS) streams — where `video.videoWidth` follows the
-+   * currently-decoded rendition — so subtitles keep full quality regardless of
-+   * the active bitrate. Defaults to the decoded video size.
++   * currently-decoded rendition — so subtitles keep full quality regardless
++   * of the active bitrate. Defaults to the decoded video size.
 +   */
 +  videoWidth?: number
 +  videoHeight?: number
@@ -104,14 +104,14 @@ index 65d290d6a5134aca26caf30c1720a2fbbe881430..c5c0596ec0db35b0607124cbb2045d43
      this._canvas = opts.canvas ?? document.createElement('canvas')
      if (this._video && !opts.canvas) {
        this._canvas.className = 'JASSUB'
-@@ -183,8 +200,8 @@ export default class JASSUB {
+@@ -208,8 +225,8 @@ export default class JASSUB {
      await this.renderer._resizeCanvas(
        renderWidth,
        renderHeight,
--      this._videoWidth || renderWidth,
--      this._videoHeight || renderHeight
-+      this._storageWidth || this._videoWidth || renderWidth,
-+      this._storageHeight || this._videoHeight || renderHeight
+-      this._video ? (this._videoWidth || renderWidth) : 0,
+-      this._video ? (this._videoHeight || renderHeight) : 0
++      this._video ? (this._storageWidth || this._videoWidth || renderWidth) : 0,
++      this._video ? (this._storageHeight || this._videoHeight || renderHeight) : 0
      )
  
      if (this._lastDemandTime) await this._demandRender(forceRepaint)

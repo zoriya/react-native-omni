@@ -1,4 +1,5 @@
-import type { HlsMediaConfig } from "@videojs/media/dom/hls-js";
+import type { HlsSource } from "@videojs/hlsjs-video";
+import { Container } from "@videojs/react";
 import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
 import { Video } from "@videojs/react/video";
 import {
@@ -11,7 +12,7 @@ import {
 } from "react";
 import { usePlayerState } from "./events";
 import { getSubtitleFormat, type WebOmniPlayer } from "./player.web";
-import { usePlayer, VideoPlayer } from "./provider.web";
+import { usePlayer } from "./provider.web";
 import type { SubtitleAssets } from "./types/subtitles";
 import type { OmniViewProps } from "./types/view";
 
@@ -138,20 +139,27 @@ export const OmniView = ({
 	headersRef.current = source?.src?.headers;
 
 	const startTime = source?.startTime;
-	const config = useMemo<HlsMediaConfig>(
+	const url =
+		source && startTime
+			? `${source.src.uri}#t=${startTime}`
+			: source?.src.uri;
+	const hlsSource = useMemo<HlsSource>(
 		() => ({
-			hlsJs: {
-				...(startTime && { startPosition: startTime }),
-				xhrSetup: (xhr: XMLHttpRequest) => {
-					const headers = headersRef.current;
-					if (!headers) return;
-					for (const [key, value] of Object.entries(headers)) {
-						if (value) xhr.setRequestHeader(key, value);
-					}
+			src: url,
+			engine: {
+				hlsJs: {
+					...(startTime && { startPosition: startTime }),
+					xhrSetup: (xhr: XMLHttpRequest) => {
+						const headers = headersRef.current;
+						if (!headers) return;
+						for (const [key, value] of Object.entries(headers)) {
+							if (value) xhr.setRequestHeader(key, value);
+						}
+					},
 				},
 			},
 		}),
-		[startTime],
+		[url, startTime],
 	);
 
 	// While casting, the receiver renders subtitles (the player forwards the
@@ -159,14 +167,13 @@ export const OmniView = ({
 	const castStatus = usePlayerState("castStatus");
 
 	return (
-		<VideoPlayer.Container
+		<Container
 			ref={containerRef}
 			style={{ position: "relative", ...style }}
 		>
 			<Tech
 				ref={setVideo}
-				src={source && startTime ? `${source.src.uri}#t=${startTime}` : source?.src.uri}
-				config={config}
+				{...(isHls ? { source: hlsSource } : { src: url })}
 				autoPlay={autoplay}
 				playsInline
 				crossOrigin="anonymous"
@@ -191,6 +198,6 @@ export const OmniView = ({
 					fonts={source?.fonts}
 				/>
 			)}
-		</VideoPlayer.Container>
+		</Container>
 	);
 };
