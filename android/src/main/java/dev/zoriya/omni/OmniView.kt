@@ -189,6 +189,8 @@ class OmniView(val context: ThemedReactContext) :
         if (autoplay == true && !omniPlayer.isPlaying) {
             omniPlayer.play()
         }
+
+        syncKeepScreenOn()
     }
 
     override fun onDropView() {
@@ -198,6 +200,7 @@ class OmniView(val context: ThemedReactContext) :
             clearPictureInPictureParams()
         }
         surfaceView.removeOnLayoutChangeListener(this)
+        surfaceView.keepScreenOn = false
         context.removeLifecycleEventListener(this)
 
         if (!::player.isInitialized) return
@@ -245,7 +248,12 @@ class OmniView(val context: ThemedReactContext) :
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) scheduleVideoRebuild()
+        syncKeepScreenOn()
         updatePictureInPictureParams()
+    }
+
+    private fun syncKeepScreenOn() {
+        surfaceView.keepScreenOn = boundPlayer?.localPlayer?.isPlaying == true
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
