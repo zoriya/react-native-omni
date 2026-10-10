@@ -153,7 +153,9 @@ object OmniCastReceiver :
         for (promise in promises) {
             promise
                 .then { loaded ->
-                    loaded
+                    // https://github.com/margelo/nitro/pull/1678
+                    @Suppress("UNCHECKED_CAST")
+                    (loaded as Promise<Any?>)
                         .then { if (remaining.decrementAndGet() == 0) result.trySetResult(request) }
                         .catch(failed)
                 }
