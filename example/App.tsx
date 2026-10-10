@@ -16,6 +16,7 @@ import {
 	type AndroidBackend,
 	OmniProvider,
 	OmniView,
+	useCastLoad,
 	useEvent,
 	usePlayer,
 	usePlayerState,
@@ -781,6 +782,15 @@ function Shell({
 		});
 	}, []);
 
+	useCastLoad(({ castId, startTime }) => {
+		pushLog(`Cast received: ${castId}`);
+		const index = PLAYLIST.findIndex((item) => item.uri === castId);
+		if (index === -1) throw new Error(`unknown cast: ${castId}`);
+		onSetStartTime(startTime ?? 0);
+		onPlayIndex(index);
+		setScreen("player");
+	});
+
 	const handlePrev = useCallback(() => {
 		pushLog("Prev selected");
 		onPrev();
@@ -902,7 +912,7 @@ function App(): React.JSX.Element {
 			source={hasSource ? source : undefined}
 			backend={{ android: backend }}
 			cast={{
-				receiverApplicationId: "D8FB0FC1",
+				receiverApplicationId: "A621AE1F",
 				notificationUrl: "omniexample://remote",
 			}}
 			showNotification
