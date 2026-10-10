@@ -26,6 +26,8 @@ import com.margelo.nitro.omni.Rendition
 import com.margelo.nitro.omni.Source
 import com.margelo.nitro.omni.Track
 import com.margelo.nitro.omni.TrackProperty
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Source of the current track/rendition lists. Implemented by [OmniPlayer] so
@@ -39,24 +41,26 @@ interface TrackProvider {
     val renditions: Array<Rendition>
 }
 
+// listeners are added & removed from the js thread while events are emitted from the
+// main thread.
 @SuppressLint("UnsafeOptInUsageError")
 class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Player.Listener {
-    private val onPrevListeners = mutableSetOf<() -> Unit>()
-    private val onNextListeners = mutableSetOf<() -> Unit>()
-    private val onEndListeners = mutableSetOf<() -> Unit>()
-    private val onErrorListeners = mutableSetOf<(type: String, message: String) -> Unit>()
-    private val onAudioFocusChangeListeners = mutableSetOf<(status: String) -> Unit>()
-    private val onVideoTrackChangeListeners = mutableSetOf<(track: Track) -> Unit>()
-    private val onAudioTrackChangeListeners = mutableSetOf<(track: Track) -> Unit>()
-    private val onSubtitleChangeListeners = mutableSetOf<(track: Track?) -> Unit>()
-    private val onRenditionChangeListeners = mutableSetOf<(rendition: Rendition) -> Unit>()
-    private val tracksListeners = mutableMapOf<TrackProperty, MutableSet<(Array<Track>) -> Unit>>()
-    private val renditionsListeners = mutableSetOf<(Array<Rendition>) -> Unit>()
-    private val stateListeners = mutableMapOf<NumberProperty, MutableSet<(Double) -> Unit>>()
-    private val stateBoolListeners = mutableMapOf<BoolProperty, MutableSet<(Boolean) -> Unit>>()
-    private val playerStatusListeners = mutableSetOf<(PlayerStatus) -> Unit>()
-    private val castStatusListeners = mutableSetOf<(CastStatus) -> Unit>()
-    private val sourceListeners = mutableSetOf<(Source?) -> Unit>()
+    private val onPrevListeners = CopyOnWriteArraySet<() -> Unit>()
+    private val onNextListeners = CopyOnWriteArraySet<() -> Unit>()
+    private val onEndListeners = CopyOnWriteArraySet<() -> Unit>()
+    private val onErrorListeners = CopyOnWriteArraySet<(type: String, message: String) -> Unit>()
+    private val onAudioFocusChangeListeners = CopyOnWriteArraySet<(status: String) -> Unit>()
+    private val onVideoTrackChangeListeners = CopyOnWriteArraySet<(track: Track) -> Unit>()
+    private val onAudioTrackChangeListeners = CopyOnWriteArraySet<(track: Track) -> Unit>()
+    private val onSubtitleChangeListeners = CopyOnWriteArraySet<(track: Track?) -> Unit>()
+    private val onRenditionChangeListeners = CopyOnWriteArraySet<(rendition: Rendition) -> Unit>()
+    private val tracksListeners = ConcurrentHashMap<TrackProperty, CopyOnWriteArraySet<(Array<Track>) -> Unit>>()
+    private val renditionsListeners = CopyOnWriteArraySet<(Array<Rendition>) -> Unit>()
+    private val stateListeners = ConcurrentHashMap<NumberProperty, CopyOnWriteArraySet<(Double) -> Unit>>()
+    private val stateBoolListeners = ConcurrentHashMap<BoolProperty, CopyOnWriteArraySet<(Boolean) -> Unit>>()
+    private val playerStatusListeners = CopyOnWriteArraySet<(PlayerStatus) -> Unit>()
+    private val castStatusListeners = CopyOnWriteArraySet<(CastStatus) -> Unit>()
+    private val sourceListeners = CopyOnWriteArraySet<(Source?) -> Unit>()
 
     private var lastRendition: Rendition? = null
     private var lastRenditions: Array<Rendition>? = null
@@ -329,13 +333,13 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     }
 
     override fun addStateListener(key: NumberProperty, cb: (value: Double) -> Unit): () -> Unit {
-        val listeners = stateListeners.getOrPut(key) { mutableSetOf() }
+        val listeners = stateListeners.getOrPut(key) { CopyOnWriteArraySet() }
         listeners.add(cb)
         return { listeners.remove(cb) }
     }
 
     override fun addStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit): () -> Unit {
-        val listeners = stateBoolListeners.getOrPut(key) { mutableSetOf() }
+        val listeners = stateBoolListeners.getOrPut(key) { CopyOnWriteArraySet() }
         listeners.add(cb)
         return { listeners.remove(cb) }
     }
@@ -401,7 +405,7 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     }
 
     override fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): () -> Unit {
-        val listeners = tracksListeners.getOrPut(key) { mutableSetOf() }
+        val listeners = tracksListeners.getOrPut(key) { CopyOnWriteArraySet() }
         listeners.add(cb)
         return { listeners.remove(cb) }
     }
