@@ -15,6 +15,7 @@ import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.DeviceInfo
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
@@ -48,6 +49,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.SystemOutputSwitcherDialogController
+import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
@@ -130,6 +132,35 @@ class OmniPlayer(
         }
     }
 
+    // media3's `RemoteCastPlayer` loads with a `LOAD` that only holds a `queueData`.
+    // on android tv (cast connect), the tv hands a `LOAD` to the app as an intent built
+    // from its top-level `media` and silently drops it when there is none: the app is
+    // launched but never receives the media. `RemoteCastPlayer` is final and gives no
+    // hook on the request, so we send a regular `LOAD` ourselves (web receivers take it
+    // too). media3 still follows the receiver's queue from its status.
+    // see: https://github.com/androidx/media/issues/3462
+    private fun castLoad(item: MediaItem, positionMs: Long, autoplay: Boolean) {
+        val remote = castContext?.sessionManager?.currentCastSession?.remoteMediaClient ?: return
+        remote.load(
+            MediaLoadRequestData.Builder()
+                .setMediaInfo(OmniMediaItemConverter().toMediaQueueItem(item).media)
+                .setAutoplay(autoplay)
+                .setCurrentTime(positionMs)
+                .build()
+        )
+    }
+
+    // media3 rebuilds the receiver's items with `OmniMediaItemConverter.toMediaItem`,
+    // match them with ours by their cast content id.
+    private fun isOwnItem(item: MediaItem?): Boolean {
+        val own = ownItem ?: return false
+        if (item == null) return false
+        if (item == own) return true
+        val ownId = own.requestMetadata.extras?.getString(CAST_ID_EXTRA)
+            ?: own.localConfiguration?.uri?.toString()
+        return item.mediaId == ownId
+    }
+
     val player: Player = runOnMainThreadSync {
         castOptions?.receiverApplicationId?.let { receiverApplicationId = it }
         notificationUrl = castOptions?.notificationUrl
@@ -151,18 +182,23 @@ class OmniPlayer(
             CastPlayer.Builder(ctx)
                 .setLocalPlayer(localPlayer)
                 .setRemotePlayer(remote)
-                // a receiver that never loaded our media (error) leaves an empty playlist.
-                // with default transfer behavior, the next cast would not trigger a `LOAD`
-                // request.
                 .setTransferCallback { from, to ->
-                    val playable = (0 until from.mediaItemCount).count { i ->
-                        val uri = from.getMediaItemAt(i).localConfiguration?.uri?.toString()
-                        !uri.isNullOrEmpty()
-                    }
-                    if (playable > 0) {
-                        CastPlayer.TransferCallback.DEFAULT.transferState(from, to)
-                    } else {
-                        to.playWhenReady = from.playWhenReady
+                    val item = ownItem
+                    // a cast that ends (stopped, tv turned off...) leaves the media paused
+                    val play = from.playWhenReady && to !== localPlayer
+                    when {
+                        item == null -> to.playWhenReady = play
+                        to === localPlayer -> {
+                            // keep our item (headers, subtitles...) over the rebuilt one
+                            if (isOwnItem(from.currentMediaItem)) {
+                                to.setMediaItems(listOf(item), 0, from.currentPosition)
+                                to.prepare()
+                            } else {
+                                CastPlayer.TransferCallback.DEFAULT.transferState(from, to)
+                            }
+                            to.playWhenReady = play
+                        }
+                        else -> castLoad(item, from.currentPosition, from.playWhenReady)
                     }
                 }
                 .build()
@@ -510,7 +546,7 @@ class OmniPlayer(
             if (!isCasting || !dropped) return
             ownItem = null
         }
-        if (item != null && item == ownItem) return
+        if (isOwnItem(item)) return
         val source = item?.let { sourceOf(it) }
         if (source == _source) return
         _source = source
@@ -554,8 +590,12 @@ class OmniPlayer(
 
             runOnMainThreadSync {
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
-                player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
-                player.prepare()
+                if (player.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE) {
+                    castLoad(currentItem, startPositionMs.toLong(), player.playWhenReady)
+                } else {
+                    player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
+                    player.prepare()
+                }
                 OmniCastReceiver.setMedia(
                     currentItem,
                     hasPrev = value.metadata?.hasPrev == true,
