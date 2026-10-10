@@ -32,11 +32,12 @@ namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
 namespace margelo::nitro::omni { struct Rendition; }
 
+#include <functional>
+#include "JFunc_void.hpp"
+#include <NitroModules/JNICallable.hpp>
 #include "NumberProperty.hpp"
 #include "JNumberProperty.hpp"
-#include <functional>
 #include "JFunc_void_double.hpp"
-#include <NitroModules/JNICallable.hpp>
 #include "BoolProperty.hpp"
 #include "JBoolProperty.hpp"
 #include "JFunc_void_bool.hpp"
@@ -69,7 +70,6 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "Rendition.hpp"
 #include "JFunc_void_std__vector_Rendition_.hpp"
 #include "JRendition.hpp"
-#include "JFunc_void.hpp"
 #include "JFunc_void_std__string_std__string.hpp"
 #include "JFunc_void_std__string.hpp"
 #include "JFunc_void_Track.hpp"
@@ -109,133 +109,213 @@ namespace margelo::nitro::omni {
   
 
   // Methods
-  void JHybridOmniEventMapSpec::addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JNumberProperty> /* key */, jni::alias_ref<JFunc_void_double::javaobject> /* cb */)>("addStateListener_cxx");
-    method(_javaPart, JNumberProperty::fromCpp(key), JFunc_void_double_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JNumberProperty> /* key */, jni::alias_ref<JFunc_void_double::javaobject> /* cb */)>("addStateListener_cxx");
+    auto __result = method(_javaPart, JNumberProperty::fromCpp(key), JFunc_void_double_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JNumberProperty> /* key */, jni::alias_ref<JFunc_void_double::javaobject> /* cb */)>("removeStateListener_cxx");
-    method(_javaPart, JNumberProperty::fromCpp(key), JFunc_void_double_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JBoolProperty> /* key */, jni::alias_ref<JFunc_void_bool::javaobject> /* cb */)>("addStateBoolListener_cxx");
+    auto __result = method(_javaPart, JBoolProperty::fromCpp(key), JFunc_void_bool_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JBoolProperty> /* key */, jni::alias_ref<JFunc_void_bool::javaobject> /* cb */)>("addStateBoolListener_cxx");
-    method(_javaPart, JBoolProperty::fromCpp(key), JFunc_void_bool_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_PlayerStatus::javaobject> /* cb */)>("addPlayerStatusListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_PlayerStatus_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JBoolProperty> /* key */, jni::alias_ref<JFunc_void_bool::javaobject> /* cb */)>("removeStateBoolListener_cxx");
-    method(_javaPart, JBoolProperty::fromCpp(key), JFunc_void_bool_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_CastStatus::javaobject> /* cb */)>("addCastStatusListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_CastStatus_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_PlayerStatus::javaobject> /* cb */)>("addPlayerStatusListener_cxx");
-    method(_javaPart, JFunc_void_PlayerStatus_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("addSourceListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removePlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_PlayerStatus::javaobject> /* cb */)>("removePlayerStatusListener_cxx");
-    method(_javaPart, JFunc_void_PlayerStatus_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JTrackProperty> /* key */, jni::alias_ref<JFunc_void_std__vector_Track_::javaobject> /* cb */)>("addTracksListener_cxx");
+    auto __result = method(_javaPart, JTrackProperty::fromCpp(key), JFunc_void_std__vector_Track__cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_CastStatus::javaobject> /* cb */)>("addCastStatusListener_cxx");
-    method(_javaPart, JFunc_void_CastStatus_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__vector_Rendition_::javaobject> /* cb */)>("addRenditionsListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_std__vector_Rendition__cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_CastStatus::javaobject> /* cb */)>("removeCastStatusListener_cxx");
-    method(_javaPart, JFunc_void_CastStatus_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnEndListener(const std::function<void()>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnEndListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("addSourceListener_cxx");
-    method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnPrevListener(const std::function<void()>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnPrevListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Source_::javaobject> /* cb */)>("removeSourceListener_cxx");
-    method(_javaPart, JFunc_void_std__optional_Source__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnNextListener(const std::function<void()>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnNextListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrackProperty> /* key */, jni::alias_ref<JFunc_void_std__vector_Track_::javaobject> /* cb */)>("addTracksListener_cxx");
-    method(_javaPart, JTrackProperty::fromCpp(key), JFunc_void_std__vector_Track__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__string_std__string::javaobject> /* cb */)>("addOnErrorListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_std__string_std__string_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTrackProperty> /* key */, jni::alias_ref<JFunc_void_std__vector_Track_::javaobject> /* cb */)>("removeTracksListener_cxx");
-    method(_javaPart, JTrackProperty::fromCpp(key), JFunc_void_std__vector_Track__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__string::javaobject> /* cb */)>("addOnAudioFocusChangeListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_std__string_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__vector_Rendition_::javaobject> /* cb */)>("addRenditionsListener_cxx");
-    method(_javaPart, JFunc_void_std__vector_Rendition__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("addOnVideoTrackChangeListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__vector_Rendition_::javaobject> /* cb */)>("removeRenditionsListener_cxx");
-    method(_javaPart, JFunc_void_std__vector_Rendition__cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("addOnAudioTrackChangeListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::addOnEndListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnEndListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__optional_Track_::javaobject> /* cb */)>("addOnSubtitleChangeListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_std__optional_Track__cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
-  void JHybridOmniEventMapSpec::removeOnEndListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("removeOnEndListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnPrevListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnPrevListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnPrevListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("removeOnPrevListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnNextListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("addOnNextListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnNextListener(const std::function<void()>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* cb */)>("removeOnNextListener_cxx");
-    method(_javaPart, JFunc_void_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string_std__string::javaobject> /* cb */)>("addOnErrorListener_cxx");
-    method(_javaPart, JFunc_void_std__string_std__string_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string_std__string::javaobject> /* cb */)>("removeOnErrorListener_cxx");
-    method(_javaPart, JFunc_void_std__string_std__string_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string::javaobject> /* cb */)>("addOnAudioFocusChangeListener_cxx");
-    method(_javaPart, JFunc_void_std__string_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string::javaobject> /* cb */)>("removeOnAudioFocusChangeListener_cxx");
-    method(_javaPart, JFunc_void_std__string_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("addOnVideoTrackChangeListener_cxx");
-    method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("removeOnVideoTrackChangeListener_cxx");
-    method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("addOnAudioTrackChangeListener_cxx");
-    method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Track::javaobject> /* cb */)>("removeOnAudioTrackChangeListener_cxx");
-    method(_javaPart, JFunc_void_Track_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Track_::javaobject> /* cb */)>("addOnSubtitleChangeListener_cxx");
-    method(_javaPart, JFunc_void_std__optional_Track__cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__optional_Track_::javaobject> /* cb */)>("removeOnSubtitleChangeListener_cxx");
-    method(_javaPart, JFunc_void_std__optional_Track__cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Rendition::javaobject> /* cb */)>("addOnRenditionChangeListener_cxx");
-    method(_javaPart, JFunc_void_Rendition_cxx::fromCpp(cb));
-  }
-  void JHybridOmniEventMapSpec::removeOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_Rendition::javaobject> /* cb */)>("removeOnRenditionChangeListener_cxx");
-    method(_javaPart, JFunc_void_Rendition_cxx::fromCpp(cb));
+  std::function<void()> JHybridOmniEventMapSpec::addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_Rendition::javaobject> /* cb */)>("addOnRenditionChangeListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_Rendition_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
 
 } // namespace margelo::nitro::omni

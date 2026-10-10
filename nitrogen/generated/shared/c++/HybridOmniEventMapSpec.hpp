@@ -30,8 +30,8 @@ namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
 namespace margelo::nitro::omni { struct Rendition; }
 
-#include "NumberProperty.hpp"
 #include <functional>
+#include "NumberProperty.hpp"
 #include "BoolProperty.hpp"
 #include "PlayerStatus.hpp"
 #include "CastStatus.hpp"
@@ -74,38 +74,22 @@ namespace margelo::nitro::omni {
 
     public:
       // Methods
-      virtual void addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) = 0;
-      virtual void removeStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) = 0;
-      virtual void addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) = 0;
-      virtual void removeStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) = 0;
-      virtual void addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
-      virtual void removePlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
-      virtual void addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
-      virtual void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
-      virtual void addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
-      virtual void removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
-      virtual void addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
-      virtual void removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
-      virtual void addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;
-      virtual void removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;
-      virtual void addOnEndListener(const std::function<void()>& cb) = 0;
-      virtual void removeOnEndListener(const std::function<void()>& cb) = 0;
-      virtual void addOnPrevListener(const std::function<void()>& cb) = 0;
-      virtual void removeOnPrevListener(const std::function<void()>& cb) = 0;
-      virtual void addOnNextListener(const std::function<void()>& cb) = 0;
-      virtual void removeOnNextListener(const std::function<void()>& cb) = 0;
-      virtual void addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) = 0;
-      virtual void removeOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) = 0;
-      virtual void addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) = 0;
-      virtual void removeOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) = 0;
-      virtual void addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
-      virtual void removeOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
-      virtual void addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
-      virtual void removeOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
-      virtual void addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) = 0;
-      virtual void removeOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) = 0;
-      virtual void addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) = 0;
-      virtual void removeOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) = 0;
+      virtual std::function<void()> addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) = 0;
+      virtual std::function<void()> addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) = 0;
+      virtual std::function<void()> addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
+      virtual std::function<void()> addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
+      virtual std::function<void()> addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
+      virtual std::function<void()> addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
+      virtual std::function<void()> addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;
+      virtual std::function<void()> addOnEndListener(const std::function<void()>& cb) = 0;
+      virtual std::function<void()> addOnPrevListener(const std::function<void()>& cb) = 0;
+      virtual std::function<void()> addOnNextListener(const std::function<void()>& cb) = 0;
+      virtual std::function<void()> addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) = 0;
+      virtual std::function<void()> addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) = 0;
+      virtual std::function<void()> addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
+      virtual std::function<void()> addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) = 0;
+      virtual std::function<void()> addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) = 0;
+      virtual std::function<void()> addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) = 0;
 
     protected:
       // Hybrid Setup

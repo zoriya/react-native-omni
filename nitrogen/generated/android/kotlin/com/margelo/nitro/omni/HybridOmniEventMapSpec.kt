@@ -28,292 +28,148 @@ abstract class HybridOmniEventMapSpec: HybridObject() {
   
 
   // Methods
-  abstract fun addStateListener(key: NumberProperty, cb: (value: Double) -> Unit): Unit
+  abstract fun addStateListener(key: NumberProperty, cb: (value: Double) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun addStateListener_cxx(key: NumberProperty, cb: Func_void_double): Unit {
+  private fun addStateListener_cxx(key: NumberProperty, cb: Func_void_double): Func_void {
     val __result = addStateListener(key, cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeStateListener(key: NumberProperty, cb: (value: Double) -> Unit): Unit
+  abstract fun addStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeStateListener_cxx(key: NumberProperty, cb: Func_void_double): Unit {
-    val __result = removeStateListener(key, cb)
-    return __result
-  }
-  
-  abstract fun addStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addStateBoolListener_cxx(key: BoolProperty, cb: Func_void_bool): Unit {
+  private fun addStateBoolListener_cxx(key: BoolProperty, cb: Func_void_bool): Func_void {
     val __result = addStateBoolListener(key, cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit): Unit
+  abstract fun addPlayerStatusListener(cb: (value: PlayerStatus) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeStateBoolListener_cxx(key: BoolProperty, cb: Func_void_bool): Unit {
-    val __result = removeStateBoolListener(key, cb)
-    return __result
-  }
-  
-  abstract fun addPlayerStatusListener(cb: (value: PlayerStatus) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addPlayerStatusListener_cxx(cb: Func_void_PlayerStatus): Unit {
+  private fun addPlayerStatusListener_cxx(cb: Func_void_PlayerStatus): Func_void {
     val __result = addPlayerStatusListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removePlayerStatusListener(cb: (value: PlayerStatus) -> Unit): Unit
+  abstract fun addCastStatusListener(cb: (value: CastStatus) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removePlayerStatusListener_cxx(cb: Func_void_PlayerStatus): Unit {
-    val __result = removePlayerStatusListener(cb)
-    return __result
-  }
-  
-  abstract fun addCastStatusListener(cb: (value: CastStatus) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addCastStatusListener_cxx(cb: Func_void_CastStatus): Unit {
+  private fun addCastStatusListener_cxx(cb: Func_void_CastStatus): Func_void {
     val __result = addCastStatusListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeCastStatusListener(cb: (value: CastStatus) -> Unit): Unit
+  abstract fun addSourceListener(cb: (value: Source?) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeCastStatusListener_cxx(cb: Func_void_CastStatus): Unit {
-    val __result = removeCastStatusListener(cb)
-    return __result
-  }
-  
-  abstract fun addSourceListener(cb: (value: Source?) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addSourceListener_cxx(cb: Func_void_std__optional_Source_): Unit {
+  private fun addSourceListener_cxx(cb: Func_void_std__optional_Source_): Func_void {
     val __result = addSourceListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeSourceListener(cb: (value: Source?) -> Unit): Unit
+  abstract fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeSourceListener_cxx(cb: Func_void_std__optional_Source_): Unit {
-    val __result = removeSourceListener(cb)
-    return __result
-  }
-  
-  abstract fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addTracksListener_cxx(key: TrackProperty, cb: Func_void_std__vector_Track_): Unit {
+  private fun addTracksListener_cxx(key: TrackProperty, cb: Func_void_std__vector_Track_): Func_void {
     val __result = addTracksListener(key, cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): Unit
+  abstract fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeTracksListener_cxx(key: TrackProperty, cb: Func_void_std__vector_Track_): Unit {
-    val __result = removeTracksListener(key, cb)
-    return __result
-  }
-  
-  abstract fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addRenditionsListener_cxx(cb: Func_void_std__vector_Rendition_): Unit {
+  private fun addRenditionsListener_cxx(cb: Func_void_std__vector_Rendition_): Func_void {
     val __result = addRenditionsListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeRenditionsListener(cb: (value: Array<Rendition>) -> Unit): Unit
+  abstract fun addOnEndListener(cb: () -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeRenditionsListener_cxx(cb: Func_void_std__vector_Rendition_): Unit {
-    val __result = removeRenditionsListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnEndListener(cb: () -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnEndListener_cxx(cb: Func_void): Unit {
+  private fun addOnEndListener_cxx(cb: Func_void): Func_void {
     val __result = addOnEndListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnEndListener(cb: () -> Unit): Unit
+  abstract fun addOnPrevListener(cb: () -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnEndListener_cxx(cb: Func_void): Unit {
-    val __result = removeOnEndListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnPrevListener(cb: () -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnPrevListener_cxx(cb: Func_void): Unit {
+  private fun addOnPrevListener_cxx(cb: Func_void): Func_void {
     val __result = addOnPrevListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnPrevListener(cb: () -> Unit): Unit
+  abstract fun addOnNextListener(cb: () -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnPrevListener_cxx(cb: Func_void): Unit {
-    val __result = removeOnPrevListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnNextListener(cb: () -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnNextListener_cxx(cb: Func_void): Unit {
+  private fun addOnNextListener_cxx(cb: Func_void): Func_void {
     val __result = addOnNextListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnNextListener(cb: () -> Unit): Unit
+  abstract fun addOnErrorListener(cb: (type: String, message: String) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnNextListener_cxx(cb: Func_void): Unit {
-    val __result = removeOnNextListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnErrorListener(cb: (type: String, message: String) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnErrorListener_cxx(cb: Func_void_std__string_std__string): Unit {
+  private fun addOnErrorListener_cxx(cb: Func_void_std__string_std__string): Func_void {
     val __result = addOnErrorListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnErrorListener(cb: (type: String, message: String) -> Unit): Unit
+  abstract fun addOnAudioFocusChangeListener(cb: (status: String) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnErrorListener_cxx(cb: Func_void_std__string_std__string): Unit {
-    val __result = removeOnErrorListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnAudioFocusChangeListener(cb: (status: String) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnAudioFocusChangeListener_cxx(cb: Func_void_std__string): Unit {
+  private fun addOnAudioFocusChangeListener_cxx(cb: Func_void_std__string): Func_void {
     val __result = addOnAudioFocusChangeListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnAudioFocusChangeListener(cb: (status: String) -> Unit): Unit
+  abstract fun addOnVideoTrackChangeListener(cb: (track: Track) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnAudioFocusChangeListener_cxx(cb: Func_void_std__string): Unit {
-    val __result = removeOnAudioFocusChangeListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnVideoTrackChangeListener(cb: (track: Track) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnVideoTrackChangeListener_cxx(cb: Func_void_Track): Unit {
+  private fun addOnVideoTrackChangeListener_cxx(cb: Func_void_Track): Func_void {
     val __result = addOnVideoTrackChangeListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnVideoTrackChangeListener(cb: (track: Track) -> Unit): Unit
+  abstract fun addOnAudioTrackChangeListener(cb: (track: Track) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnVideoTrackChangeListener_cxx(cb: Func_void_Track): Unit {
-    val __result = removeOnVideoTrackChangeListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnAudioTrackChangeListener(cb: (track: Track) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnAudioTrackChangeListener_cxx(cb: Func_void_Track): Unit {
+  private fun addOnAudioTrackChangeListener_cxx(cb: Func_void_Track): Func_void {
     val __result = addOnAudioTrackChangeListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnAudioTrackChangeListener(cb: (track: Track) -> Unit): Unit
+  abstract fun addOnSubtitleChangeListener(cb: (track: Track?) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnAudioTrackChangeListener_cxx(cb: Func_void_Track): Unit {
-    val __result = removeOnAudioTrackChangeListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnSubtitleChangeListener(cb: (track: Track?) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnSubtitleChangeListener_cxx(cb: Func_void_std__optional_Track_): Unit {
+  private fun addOnSubtitleChangeListener_cxx(cb: Func_void_std__optional_Track_): Func_void {
     val __result = addOnSubtitleChangeListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
   
-  abstract fun removeOnSubtitleChangeListener(cb: (track: Track?) -> Unit): Unit
+  abstract fun addOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun removeOnSubtitleChangeListener_cxx(cb: Func_void_std__optional_Track_): Unit {
-    val __result = removeOnSubtitleChangeListener(cb)
-    return __result
-  }
-  
-  abstract fun addOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun addOnRenditionChangeListener_cxx(cb: Func_void_Rendition): Unit {
+  private fun addOnRenditionChangeListener_cxx(cb: Func_void_Rendition): Func_void {
     val __result = addOnRenditionChangeListener(cb)
-    return __result
-  }
-  
-  abstract fun removeOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit): Unit
-  
-  @DoNotStrip
-  @Keep
-  private fun removeOnRenditionChangeListener_cxx(cb: Func_void_Rendition): Unit {
-    val __result = removeOnRenditionChangeListener(cb)
-    return __result
+    return Func_void_java(__result)
   }
 
   // Default implementation of `HybridObject.toString()`

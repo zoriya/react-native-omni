@@ -15,37 +15,21 @@ namespace margelo::nitro::omni {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("addStateListener", &HybridOmniEventMapSpec::addStateListener);
-      prototype.registerHybridMethod("removeStateListener", &HybridOmniEventMapSpec::removeStateListener);
       prototype.registerHybridMethod("addStateBoolListener", &HybridOmniEventMapSpec::addStateBoolListener);
-      prototype.registerHybridMethod("removeStateBoolListener", &HybridOmniEventMapSpec::removeStateBoolListener);
       prototype.registerHybridMethod("addPlayerStatusListener", &HybridOmniEventMapSpec::addPlayerStatusListener);
-      prototype.registerHybridMethod("removePlayerStatusListener", &HybridOmniEventMapSpec::removePlayerStatusListener);
       prototype.registerHybridMethod("addCastStatusListener", &HybridOmniEventMapSpec::addCastStatusListener);
-      prototype.registerHybridMethod("removeCastStatusListener", &HybridOmniEventMapSpec::removeCastStatusListener);
       prototype.registerHybridMethod("addSourceListener", &HybridOmniEventMapSpec::addSourceListener);
-      prototype.registerHybridMethod("removeSourceListener", &HybridOmniEventMapSpec::removeSourceListener);
       prototype.registerHybridMethod("addTracksListener", &HybridOmniEventMapSpec::addTracksListener);
-      prototype.registerHybridMethod("removeTracksListener", &HybridOmniEventMapSpec::removeTracksListener);
       prototype.registerHybridMethod("addRenditionsListener", &HybridOmniEventMapSpec::addRenditionsListener);
-      prototype.registerHybridMethod("removeRenditionsListener", &HybridOmniEventMapSpec::removeRenditionsListener);
       prototype.registerHybridMethod("addOnEndListener", &HybridOmniEventMapSpec::addOnEndListener);
-      prototype.registerHybridMethod("removeOnEndListener", &HybridOmniEventMapSpec::removeOnEndListener);
       prototype.registerHybridMethod("addOnPrevListener", &HybridOmniEventMapSpec::addOnPrevListener);
-      prototype.registerHybridMethod("removeOnPrevListener", &HybridOmniEventMapSpec::removeOnPrevListener);
       prototype.registerHybridMethod("addOnNextListener", &HybridOmniEventMapSpec::addOnNextListener);
-      prototype.registerHybridMethod("removeOnNextListener", &HybridOmniEventMapSpec::removeOnNextListener);
       prototype.registerHybridMethod("addOnErrorListener", &HybridOmniEventMapSpec::addOnErrorListener);
-      prototype.registerHybridMethod("removeOnErrorListener", &HybridOmniEventMapSpec::removeOnErrorListener);
       prototype.registerHybridMethod("addOnAudioFocusChangeListener", &HybridOmniEventMapSpec::addOnAudioFocusChangeListener);
-      prototype.registerHybridMethod("removeOnAudioFocusChangeListener", &HybridOmniEventMapSpec::removeOnAudioFocusChangeListener);
       prototype.registerHybridMethod("addOnVideoTrackChangeListener", &HybridOmniEventMapSpec::addOnVideoTrackChangeListener);
-      prototype.registerHybridMethod("removeOnVideoTrackChangeListener", &HybridOmniEventMapSpec::removeOnVideoTrackChangeListener);
       prototype.registerHybridMethod("addOnAudioTrackChangeListener", &HybridOmniEventMapSpec::addOnAudioTrackChangeListener);
-      prototype.registerHybridMethod("removeOnAudioTrackChangeListener", &HybridOmniEventMapSpec::removeOnAudioTrackChangeListener);
       prototype.registerHybridMethod("addOnSubtitleChangeListener", &HybridOmniEventMapSpec::addOnSubtitleChangeListener);
-      prototype.registerHybridMethod("removeOnSubtitleChangeListener", &HybridOmniEventMapSpec::removeOnSubtitleChangeListener);
       prototype.registerHybridMethod("addOnRenditionChangeListener", &HybridOmniEventMapSpec::addOnRenditionChangeListener);
-      prototype.registerHybridMethod("removeOnRenditionChangeListener", &HybridOmniEventMapSpec::removeOnRenditionChangeListener);
     });
   }
 

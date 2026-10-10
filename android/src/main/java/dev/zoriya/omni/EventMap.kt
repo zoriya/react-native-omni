@@ -328,132 +328,87 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
         }
     }
 
-    override fun addStateListener(key: NumberProperty, cb: (value: Double) -> Unit) {
-        stateListeners.getOrPut(key) { mutableSetOf() }.add(cb)
+    override fun addStateListener(key: NumberProperty, cb: (value: Double) -> Unit): () -> Unit {
+        val listeners = stateListeners.getOrPut(key) { mutableSetOf() }
+        listeners.add(cb)
+        return { listeners.remove(cb) }
     }
 
-    override fun removeStateListener(key: NumberProperty, cb: (value: Double) -> Unit) {
-        stateListeners[key]?.remove(cb)
+    override fun addStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit): () -> Unit {
+        val listeners = stateBoolListeners.getOrPut(key) { mutableSetOf() }
+        listeners.add(cb)
+        return { listeners.remove(cb) }
     }
 
-    override fun addStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit) {
-        stateBoolListeners.getOrPut(key) { mutableSetOf() }.add(cb)
-    }
-
-    override fun removeStateBoolListener(key: BoolProperty, cb: (value: Boolean) -> Unit) {
-        stateBoolListeners[key]?.remove(cb)
-    }
-
-    override fun addPlayerStatusListener(cb: (value: PlayerStatus) -> Unit) {
+    override fun addPlayerStatusListener(cb: (value: PlayerStatus) -> Unit): () -> Unit {
         playerStatusListeners.add(cb)
+        return { playerStatusListeners.remove(cb) }
     }
 
-    override fun removePlayerStatusListener(cb: (value: PlayerStatus) -> Unit) {
-        playerStatusListeners.remove(cb)
-    }
-
-    override fun addCastStatusListener(cb: (value: CastStatus) -> Unit) {
+    override fun addCastStatusListener(cb: (value: CastStatus) -> Unit): () -> Unit {
         castStatusListeners.add(cb)
+        return { castStatusListeners.remove(cb) }
     }
 
-    override fun removeCastStatusListener(cb: (value: CastStatus) -> Unit) {
-        castStatusListeners.remove(cb)
-    }
-
-    override fun addSourceListener(cb: (value: Source?) -> Unit) {
+    override fun addSourceListener(cb: (value: Source?) -> Unit): () -> Unit {
         sourceListeners.add(cb)
+        return { sourceListeners.remove(cb) }
     }
 
-    override fun removeSourceListener(cb: (value: Source?) -> Unit) {
-        sourceListeners.remove(cb)
-    }
-
-    override fun addOnEndListener(cb: () -> Unit) {
+    override fun addOnEndListener(cb: () -> Unit): () -> Unit {
         onEndListeners.add(cb)
+        return { onEndListeners.remove(cb) }
     }
 
-    override fun removeOnEndListener(cb: () -> Unit) {
-        onEndListeners.remove(cb)
-    }
-
-    override fun addOnPrevListener(cb: () -> Unit) {
+    override fun addOnPrevListener(cb: () -> Unit): () -> Unit {
         onPrevListeners.add(cb)
+        return { onPrevListeners.remove(cb) }
     }
 
-    override fun removeOnPrevListener(cb: () -> Unit) {
-        onPrevListeners.remove(cb)
-    }
-
-    override fun addOnNextListener(cb: () -> Unit) {
+    override fun addOnNextListener(cb: () -> Unit): () -> Unit {
         onNextListeners.add(cb)
+        return { onNextListeners.remove(cb) }
     }
 
-    override fun removeOnNextListener(cb: () -> Unit) {
-        onNextListeners.remove(cb)
-    }
-
-    override fun addOnErrorListener(cb: (type: String, message: String) -> Unit) {
+    override fun addOnErrorListener(cb: (type: String, message: String) -> Unit): () -> Unit {
         onErrorListeners.add(cb)
+        return { onErrorListeners.remove(cb) }
     }
 
-    override fun removeOnErrorListener(cb: (type: String, message: String) -> Unit) {
-        onErrorListeners.remove(cb)
-    }
-
-    override fun addOnAudioFocusChangeListener(cb: (status: String) -> Unit) {
+    override fun addOnAudioFocusChangeListener(cb: (status: String) -> Unit): () -> Unit {
         onAudioFocusChangeListeners.add(cb)
+        return { onAudioFocusChangeListeners.remove(cb) }
     }
 
-    override fun removeOnAudioFocusChangeListener(cb: (status: String) -> Unit) {
-        onAudioFocusChangeListeners.remove(cb)
-    }
-
-    override fun addOnVideoTrackChangeListener(cb: (track: Track) -> Unit) {
+    override fun addOnVideoTrackChangeListener(cb: (track: Track) -> Unit): () -> Unit {
         onVideoTrackChangeListeners.add(cb)
+        return { onVideoTrackChangeListeners.remove(cb) }
     }
 
-    override fun removeOnVideoTrackChangeListener(cb: (track: Track) -> Unit) {
-        onVideoTrackChangeListeners.remove(cb)
-    }
-
-    override fun addOnAudioTrackChangeListener(cb: (track: Track) -> Unit) {
+    override fun addOnAudioTrackChangeListener(cb: (track: Track) -> Unit): () -> Unit {
         onAudioTrackChangeListeners.add(cb)
+        return { onAudioTrackChangeListeners.remove(cb) }
     }
 
-    override fun removeOnAudioTrackChangeListener(cb: (track: Track) -> Unit) {
-        onAudioTrackChangeListeners.remove(cb)
-    }
-
-    override fun addOnSubtitleChangeListener(cb: (track: Track?) -> Unit) {
+    override fun addOnSubtitleChangeListener(cb: (track: Track?) -> Unit): () -> Unit {
         onSubtitleChangeListeners.add(cb)
+        return { onSubtitleChangeListeners.remove(cb) }
     }
 
-    override fun removeOnSubtitleChangeListener(cb: (track: Track?) -> Unit) {
-        onSubtitleChangeListeners.remove(cb)
-    }
-
-    override fun addOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit) {
+    override fun addOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit): () -> Unit {
         onRenditionChangeListeners.add(cb)
+        return { onRenditionChangeListeners.remove(cb) }
     }
 
-    override fun removeOnRenditionChangeListener(cb: (rendition: Rendition) -> Unit) {
-        onRenditionChangeListeners.remove(cb)
+    override fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit): () -> Unit {
+        val listeners = tracksListeners.getOrPut(key) { mutableSetOf() }
+        listeners.add(cb)
+        return { listeners.remove(cb) }
     }
 
-    override fun addTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit) {
-        tracksListeners.getOrPut(key) { mutableSetOf() }.add(cb)
-    }
-
-    override fun removeTracksListener(key: TrackProperty, cb: (value: Array<Track>) -> Unit) {
-        tracksListeners[key]?.remove(cb)
-    }
-
-    override fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit) {
+    override fun addRenditionsListener(cb: (value: Array<Rendition>) -> Unit): () -> Unit {
         renditionsListeners.add(cb)
-    }
-
-    override fun removeRenditionsListener(cb: (value: Array<Rendition>) -> Unit) {
-        renditionsListeners.remove(cb)
+        return { renditionsListeners.remove(cb) }
     }
 
     override fun dispose() {

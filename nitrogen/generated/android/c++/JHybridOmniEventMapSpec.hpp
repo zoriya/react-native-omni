@@ -54,38 +54,22 @@ namespace margelo::nitro::omni {
 
   public:
     // Methods
-    void addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) override;
-    void removeStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) override;
-    void addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) override;
-    void removeStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) override;
-    void addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) override;
-    void removePlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) override;
-    void addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
-    void removeCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
-    void addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
-    void removeSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
-    void addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
-    void removeTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
-    void addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;
-    void removeRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;
-    void addOnEndListener(const std::function<void()>& cb) override;
-    void removeOnEndListener(const std::function<void()>& cb) override;
-    void addOnPrevListener(const std::function<void()>& cb) override;
-    void removeOnPrevListener(const std::function<void()>& cb) override;
-    void addOnNextListener(const std::function<void()>& cb) override;
-    void removeOnNextListener(const std::function<void()>& cb) override;
-    void addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) override;
-    void removeOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) override;
-    void addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) override;
-    void removeOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) override;
-    void addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
-    void removeOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
-    void addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
-    void removeOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
-    void addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) override;
-    void removeOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) override;
-    void addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) override;
-    void removeOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) override;
+    std::function<void()> addStateListener(NumberProperty key, const std::function<void(double /* value */)>& cb) override;
+    std::function<void()> addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) override;
+    std::function<void()> addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) override;
+    std::function<void()> addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
+    std::function<void()> addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
+    std::function<void()> addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
+    std::function<void()> addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;
+    std::function<void()> addOnEndListener(const std::function<void()>& cb) override;
+    std::function<void()> addOnPrevListener(const std::function<void()>& cb) override;
+    std::function<void()> addOnNextListener(const std::function<void()>& cb) override;
+    std::function<void()> addOnErrorListener(const std::function<void(const std::string& /* type */, const std::string& /* message */)>& cb) override;
+    std::function<void()> addOnAudioFocusChangeListener(const std::function<void(const std::string& /* status */)>& cb) override;
+    std::function<void()> addOnVideoTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
+    std::function<void()> addOnAudioTrackChangeListener(const std::function<void(const Track& /* track */)>& cb) override;
+    std::function<void()> addOnSubtitleChangeListener(const std::function<void(const std::optional<Track>& /* track */)>& cb) override;
+    std::function<void()> addOnRenditionChangeListener(const std::function<void(const Rendition& /* rendition */)>& cb) override;
 
   private:
     jni::global_ref<JHybridOmniEventMapSpec::JavaPart> _javaPart;

@@ -14,9 +14,9 @@ export const useEvent = <Event extends keyof OmniEvents>(
 ) => {
 	const player = usePlayer() as OmniPlayer;
 	useEffect(() => {
-		player.eventMap[`addOn${capitalize(event)}Listener`](callback as any);
-		return () =>
-			player.eventMap[`removeOn${capitalize(event)}Listener`](callback as any);
+		return player.eventMap[`addOn${capitalize(event)}Listener`](
+			callback as any,
+		);
 	}, [player, event, callback]);
 };
 
@@ -44,30 +44,23 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			case "duration":
 			case "playbackRate":
 			case "volume":
-				em.addStateListener(key, setState);
-				return () => em.removeStateListener(key, setState);
+				return em.addStateListener(key, setState);
 			case "isPlaying":
 			case "muted":
 			case "isAutoQuality":
-				em.addStateBoolListener(key, setState);
-				return () => em.removeStateBoolListener(key, setState);
+				return em.addStateBoolListener(key, setState);
 			case "status":
-				em.addPlayerStatusListener(setState);
-				return () => em.removePlayerStatusListener(setState);
+				return em.addPlayerStatusListener(setState);
 			case "castStatus":
-				em.addCastStatusListener(setState);
-				return () => em.removeCastStatusListener(setState);
+				return em.addCastStatusListener(setState);
 			case "source":
-				em.addSourceListener(setState);
-				return () => em.removeSourceListener(setState);
+				return em.addSourceListener(setState);
 			case "videos":
 			case "audios":
 			case "subtitles":
-				em.addTracksListener(key, setState);
-				return () => em.removeTracksListener(key, setState);
+				return em.addTracksListener(key, setState);
 			case "renditions":
-				em.addRenditionsListener(setState);
-				return () => em.removeRenditionsListener(setState);
+				return em.addRenditionsListener(setState);
 		}
 	}, [player, key]);
 

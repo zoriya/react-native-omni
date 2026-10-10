@@ -26,54 +26,31 @@ export type BoolProperty = "isPlaying" | "muted" | "isAutoQuality";
 export type TrackProperty = "videos" | "audios" | "subtitles";
 
 export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
-	addStateListener(key: NumberProperty, cb: (value: number) => void): void;
-	removeStateListener(key: NumberProperty, cb: (value: number) => void): void;
-	addStateBoolListener(key: BoolProperty, cb: (value: boolean) => void): void;
-	removeStateBoolListener(
+	addStateListener(
+		key: NumberProperty,
+		cb: (value: number) => void,
+	): () => void;
+	addStateBoolListener(
 		key: BoolProperty,
 		cb: (value: boolean) => void,
-	): void;
-	addPlayerStatusListener(cb: (value: PlayerStatus) => void): void;
-	removePlayerStatusListener(cb: (value: PlayerStatus) => void): void;
-
-	addCastStatusListener(cb: (value: CastStatus) => void): void;
-	removeCastStatusListener(cb: (value: CastStatus) => void): void;
-
-	addSourceListener(cb: (value?: Source) => void): void;
-	removeSourceListener(cb: (value?: Source) => void): void;
-
-	addTracksListener(key: TrackProperty, cb: (value: Track[]) => void): void;
-	removeTracksListener(key: TrackProperty, cb: (value: Track[]) => void): void;
-
-	addRenditionsListener(cb: (value: Rendition[]) => void): void;
-	removeRenditionsListener(cb: (value: Rendition[]) => void): void;
-
-	addOnEndListener(cb: OmniEvents["end"]): void;
-	removeOnEndListener(cb: OmniEvents["end"]): void;
-
-	addOnPrevListener(cb: OmniEvents["prev"]): void;
-	removeOnPrevListener(cb: OmniEvents["prev"]): void;
-
-	addOnNextListener(cb: OmniEvents["next"]): void;
-	removeOnNextListener(cb: OmniEvents["next"]): void;
-
-	addOnErrorListener(cb: OmniEvents["error"]): void;
-	removeOnErrorListener(cb: OmniEvents["error"]): void;
-
-	addOnAudioFocusChangeListener(cb: OmniEvents["audioFocusChange"]): void;
-	removeOnAudioFocusChangeListener(cb: OmniEvents["audioFocusChange"]): void;
-
-	addOnVideoTrackChangeListener(cb: OmniEvents["videoTrackChange"]): void;
-	removeOnVideoTrackChangeListener(cb: OmniEvents["videoTrackChange"]): void;
-
-	addOnAudioTrackChangeListener(cb: OmniEvents["audioTrackChange"]): void;
-	removeOnAudioTrackChangeListener(cb: OmniEvents["audioTrackChange"]): void;
-
-	addOnSubtitleChangeListener(cb: OmniEvents["subtitleChange"]): void;
-	removeOnSubtitleChangeListener(cb: OmniEvents["subtitleChange"]): void;
-
-	addOnRenditionChangeListener(cb: OmniEvents["renditionChange"]): void;
-	removeOnRenditionChangeListener(cb: OmniEvents["renditionChange"]): void;
+	): () => void;
+	addPlayerStatusListener(cb: (value: PlayerStatus) => void): () => void;
+	addCastStatusListener(cb: (value: CastStatus) => void): () => void;
+	addSourceListener(cb: (value?: Source) => void): () => void;
+	addTracksListener(
+		key: TrackProperty,
+		cb: (value: Track[]) => void,
+	): () => void;
+	addRenditionsListener(cb: (value: Rendition[]) => void): () => void;
+	addOnEndListener(cb: OmniEvents["end"]): () => void;
+	addOnPrevListener(cb: OmniEvents["prev"]): () => void;
+	addOnNextListener(cb: OmniEvents["next"]): () => void;
+	addOnErrorListener(cb: OmniEvents["error"]): () => void;
+	addOnAudioFocusChangeListener(cb: OmniEvents["audioFocusChange"]): () => void;
+	addOnVideoTrackChangeListener(cb: OmniEvents["videoTrackChange"]): () => void;
+	addOnAudioTrackChangeListener(cb: OmniEvents["audioTrackChange"]): () => void;
+	addOnSubtitleChangeListener(cb: OmniEvents["subtitleChange"]): () => void;
+	addOnRenditionChangeListener(cb: OmniEvents["renditionChange"]): () => void;
 }
 
 export interface OmniPlayer
