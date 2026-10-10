@@ -46,6 +46,28 @@ The plugin will:
 
 If you are not using Expo, replicate those manifest/activity changes manually.
 
+#### Receiving casts on Android TV (cast connect)
+
+Register your Android TV app for your receiver id on the cast console, then
+enable the receiver:
+
+```json
+{
+  "expo": {
+    "plugins": [["react-native-omni", { "castReceiver": true }]]
+  }
+}
+```
+
+Then, use `useCastLoad` in your app to listen to cast requests and play items.
+If you throw, the cast will return an error/rejection.
+
+```tsx
+useCastLoad(({ castId, startTime }) => {
+  router.push({ pathname: "/watch/[id]", params: { id: castId, startTime } });
+});
+```
+
 ### Web setup
 
 Most features are available out of the box, you need custom steps for advanced

@@ -15,6 +15,7 @@ namespace margelo::nitro::omni {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("createPlayer", &HybridOmniPlayerFactorySpec::createPlayer);
+      prototype.registerHybridMethod("addCastLoadListener", &HybridOmniPlayerFactorySpec::addCastLoadListener);
     });
   }
 

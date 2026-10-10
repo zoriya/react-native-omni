@@ -16,7 +16,7 @@ import {
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { WebOmniPlayer } from "./player.web";
 import { usePlayer } from "./provider.web";
-import type { OmniEvents } from "./types/events";
+import type { CastLoadRequest, OmniEvents } from "./types/events";
 import type { OmniPlayerState } from "./types/player";
 
 type EventMapperConfig = {
@@ -95,6 +95,11 @@ const eventMapper: EventMapperConfig = {
 		});
 	}),
 };
+
+// cast connect is android tv only
+export const useCastLoad = (
+	_callback: (request: CastLoadRequest) => void | Promise<void>,
+) => {};
 
 export const useEvent = <Event extends keyof OmniEvents>(
 	event: Event,

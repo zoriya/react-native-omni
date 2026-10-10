@@ -15,7 +15,7 @@ import type {
 import type { AndroidBackend, OmniPlayer, PlayerBackend } from "./types/player";
 import type { CastOptions, Source } from "./types/source";
 
-const ProviderFactory =
+export const ProviderFactory =
 	NitroModules.createHybridObject<OmniPlayerFactory>("OmniPlayerFactory");
 
 const PlayerCtx = createContext<OmniPlayer>(null!);

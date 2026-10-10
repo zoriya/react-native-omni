@@ -16,5 +16,13 @@
 				<action android:name="androidx.media3.session.MediaSessionService" />
 			</intent-filter>
 		</service>
+		<provider
+			android:name="dev.zoriya.omni.OmniInitProvider"
+			android:authorities="${applicationId}.omni-init"
+			android:exported="false" />
+		<!-- only read by play-services-cast-tv, see `Omni_castReceiver` -->
+		<meta-data
+			android:name="com.google.android.gms.cast.tv.RECEIVER_OPTIONS_PROVIDER_CLASS_NAME"
+			android:value="dev.zoriya.omni.OmniCastReceiverOptionsProvider" />
 	</application>
 </manifest>

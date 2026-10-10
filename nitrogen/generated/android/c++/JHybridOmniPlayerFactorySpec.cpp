@@ -15,10 +15,15 @@ namespace margelo::nitro::omni { struct PlayerBackend; }
 namespace margelo::nitro::omni { enum class AndroidBackend; }
 // Forward declaration of `CastOptions` to properly resolve imports.
 namespace margelo::nitro::omni { struct CastOptions; }
+// Forward declaration of `CastLoadRequest` to properly resolve imports.
+namespace margelo::nitro::omni { struct CastLoadRequest; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
 #include "JHybridOmniPlayerSpec.hpp"
+#include <functional>
+#include "JFunc_void.hpp"
+#include <NitroModules/JNICallable.hpp>
 #include "PlayerBackend.hpp"
 #include <optional>
 #include "JPlayerBackend.hpp"
@@ -27,6 +32,13 @@ namespace margelo::nitro::omni { struct CastOptions; }
 #include "CastOptions.hpp"
 #include "JCastOptions.hpp"
 #include <string>
+#include <NitroModules/Promise.hpp>
+#include "CastLoadRequest.hpp"
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest.hpp"
+#include <NitroModules/JPromise.hpp>
+#include <NitroModules/JUnit.hpp>
+#include "JCastLoadRequest.hpp"
+#include <unordered_map>
 
 namespace margelo::nitro::omni {
 
@@ -65,6 +77,19 @@ namespace margelo::nitro::omni {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JHybridOmniPlayerSpec::JavaPart>(jni::alias_ref<JPlayerBackend> /* backend */, jni::alias_ref<JCastOptions> /* cast */)>("createPlayer");
     auto __result = method(_javaPart, backend.has_value() ? JPlayerBackend::fromCpp(backend.value()) : nullptr, cast.has_value() ? JCastOptions::fromCpp(cast.value()) : nullptr);
     return __result->getJHybridOmniPlayerSpec();
+  }
+  std::function<void()> JHybridOmniPlayerFactorySpec::addCastLoadListener(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<void>>>>(const CastLoadRequest& /* request */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest::javaobject> /* cb */)>("addCastLoadListener_cxx");
+    auto __result = method(_javaPart, JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
   }
 
 } // namespace margelo::nitro::omni

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { usePlayer } from "./provider";
+import { useEffect, useEffectEvent, useState } from "react";
+import { ProviderFactory, usePlayer } from "./provider";
 import type { OmniPlayer } from "./specs/omni-player.nitro";
-import type { OmniEvents } from "./types/events";
+import type { CastLoadRequest, OmniEvents } from "./types/events";
 import type { OmniPlayerState } from "./types/player";
 
 function capitalize<T extends string>(str: T): Capitalize<T> {
@@ -18,6 +18,17 @@ export const useEvent = <Event extends keyof OmniEvents>(
 			callback as any,
 		);
 	}, [player, event, callback]);
+};
+
+// cast connect (android tv): called when a sender casts to this app. throw to
+// refuse the cast, senders show an error.
+export const useCastLoad = (
+	callback: (request: CastLoadRequest) => void | Promise<void>,
+) => {
+	const onLoad = useEffectEvent(
+		async (request: CastLoadRequest) => await callback(request),
+	);
+	useEffect(() => ProviderFactory.addCastLoadListener(onLoad), []);
 };
 
 export function usePlayerState<Key extends keyof OmniPlayerState>(

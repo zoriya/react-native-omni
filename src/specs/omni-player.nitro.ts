@@ -1,5 +1,5 @@
 import type { HybridObject } from "react-native-nitro-modules";
-import type { OmniEvents } from "../types/events";
+import type { CastLoadRequest, OmniEvents } from "../types/events";
 import type {
 	CastStatus,
 	OmniPlayerState,
@@ -64,4 +64,7 @@ export interface OmniPlayer
 
 export interface OmniPlayerFactory extends HybridObject<{ android: "kotlin" }> {
 	createPlayer(backend?: PlayerBackend, cast?: CastOptions): OmniPlayer;
+	addCastLoadListener(
+		cb: (request: CastLoadRequest) => Promise<void>,
+	): () => void;
 }

@@ -13,5 +13,12 @@ export interface OmniEvents {
 	renditionChange: (rendition: Rendition) => void;
 }
 
+export interface CastLoadRequest {
+	castId: string;
+	customData?: Record<string, string>;
+	startTime?: number;
+	autoplay: boolean;
+}
+
 export type ErrorType = string;
 export type AudioFocus = string;

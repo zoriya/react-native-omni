@@ -55,6 +55,7 @@ namespace margelo::nitro::omni {
   public:
     // Methods
     std::shared_ptr<HybridOmniPlayerSpec> createPlayer(const std::optional<PlayerBackend>& backend, const std::optional<CastOptions>& cast) override;
+    std::function<void()> addCastLoadListener(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<void>>>>(const CastLoadRequest& /* request */)>& cb) override;
 
   private:
     jni::global_ref<JHybridOmniPlayerFactorySpec::JavaPart> _javaPart;

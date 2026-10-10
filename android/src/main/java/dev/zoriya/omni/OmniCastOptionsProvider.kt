@@ -2,6 +2,7 @@ package dev.zoriya.omni
 
 import android.content.Context
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.LaunchOptions
 import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.media.CastMediaOptions
 import com.google.android.gms.cast.framework.media.NotificationOptions
@@ -20,6 +21,11 @@ class OmniCastOptionsProvider : OptionsProvider {
 
         return CastOptions.Builder()
             .setReceiverApplicationId(appId)
+            .setLaunchOptions(
+                LaunchOptions.Builder()
+                    .setAndroidReceiverCompatible(true)
+                    .build()
+            )
             .setStopReceiverApplicationWhenEndingSession(true)
             .setShowSystemOutputSwitcherOnCastIconClick(true)
             .setCastMediaOptions(mediaOptions)

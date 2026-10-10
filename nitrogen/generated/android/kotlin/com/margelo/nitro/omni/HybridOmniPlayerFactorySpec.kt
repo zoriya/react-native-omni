@@ -10,6 +10,7 @@ package com.margelo.nitro.omni
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
+import com.margelo.nitro.core.Promise
 import com.margelo.nitro.core.HybridObject
 
 /**
@@ -31,6 +32,15 @@ abstract class HybridOmniPlayerFactorySpec: HybridObject() {
   @DoNotStrip
   @Keep
   abstract fun createPlayer(backend: PlayerBackend?, cast: CastOptions?): HybridOmniPlayerSpec
+  
+  abstract fun addCastLoadListener(cb: (request: CastLoadRequest) -> Promise<Promise<Unit>>): () -> Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addCastLoadListener_cxx(cb: Func_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest): Func_void {
+    val __result = addCastLoadListener(cb)
+    return Func_void_java(__result)
+  }
 
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {

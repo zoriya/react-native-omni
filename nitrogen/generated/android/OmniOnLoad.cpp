@@ -31,6 +31,7 @@
 #include "JFunc_void_Rendition.hpp"
 #include "JHybridOmniPlayerSpec.hpp"
 #include "JHybridOmniPlayerFactorySpec.hpp"
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest.hpp"
 #include "JHybridOmniViewSpec.hpp"
 #include "views/JHybridOmniViewStateUpdater.hpp"
 #include <NitroModules/DefaultConstructableObject.hpp>
@@ -81,6 +82,7 @@ void registerAllNatives() {
   margelo::nitro::omni::JFunc_void_Rendition_cxx::registerNatives();
   margelo::nitro::omni::JHybridOmniPlayerSpec::CxxPart::registerNatives();
   margelo::nitro::omni::JHybridOmniPlayerFactorySpec::CxxPart::registerNatives();
+  margelo::nitro::omni::JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_void_____CastLoadRequest_cxx::registerNatives();
   margelo::nitro::omni::JHybridOmniViewSpec::CxxPart::registerNatives();
   margelo::nitro::omni::views::JHybridOmniViewStateUpdater::registerNatives();
 

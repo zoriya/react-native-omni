@@ -19,12 +19,17 @@ namespace margelo::nitro::omni { class HybridOmniPlayerSpec; }
 namespace margelo::nitro::omni { struct PlayerBackend; }
 // Forward declaration of `CastOptions` to properly resolve imports.
 namespace margelo::nitro::omni { struct CastOptions; }
+// Forward declaration of `CastLoadRequest` to properly resolve imports.
+namespace margelo::nitro::omni { struct CastLoadRequest; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
 #include "PlayerBackend.hpp"
 #include <optional>
 #include "CastOptions.hpp"
+#include <functional>
+#include <NitroModules/Promise.hpp>
+#include "CastLoadRequest.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -58,6 +63,7 @@ namespace margelo::nitro::omni {
     public:
       // Methods
       virtual std::shared_ptr<HybridOmniPlayerSpec> createPlayer(const std::optional<PlayerBackend>& backend, const std::optional<CastOptions>& cast) = 0;
+      virtual std::function<void()> addCastLoadListener(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<void>>>>(const CastLoadRequest& /* request */)>& cb) = 0;
 
     protected:
       // Hybrid Setup

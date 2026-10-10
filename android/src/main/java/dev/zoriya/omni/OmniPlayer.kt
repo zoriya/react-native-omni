@@ -556,6 +556,11 @@ class OmniPlayer(
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
                 player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
                 player.prepare()
+                OmniCastReceiver.setMedia(
+                    currentItem,
+                    hasPrev = value.metadata?.hasPrev == true,
+                    hasNext = value.metadata?.hasNext == true,
+                )
             }
             syncNotificationService()
         }
@@ -754,6 +759,7 @@ class OmniPlayerService : MediaSessionService() {
         }
 
         addSession(mediaSession)
+        OmniCastReceiver.setSession(mediaSession)
         setShowNotificationForIdlePlayer(SHOW_NOTIFICATION_FOR_IDLE_PLAYER_ALWAYS)
         triggerNotificationUpdate()
     }
@@ -828,7 +834,10 @@ class OmniPlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        if (::mediaSession.isInitialized) mediaSession.release()
+        if (::mediaSession.isInitialized) {
+            OmniCastReceiver.setSession(null)
+            mediaSession.release()
+        }
         super.onDestroy()
     }
 }
