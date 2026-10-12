@@ -20,6 +20,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -50,6 +51,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.SystemOutputSwitcherDialogController
 import com.google.android.gms.cast.MediaLoadRequestData
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
@@ -521,12 +523,15 @@ class OmniPlayer(
 
     private var _source: Source? = null
     private var ownItem: MediaItem? = null
+    private var ownSource: Source? = null
 
     init {
         runOnMainThreadSync {
             eventMap.player = player
             player.addListener(object : Player.Listener {
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) = followMedia(item)
+
+                override fun onTimelineChanged(timeline: Timeline, reason: Int) = followMedia(player.currentMediaItem)
             })
             // check for cast rejoin
             followMedia(player.currentMediaItem)
@@ -534,7 +539,15 @@ class OmniPlayer(
         }
     }
 
-    private fun followMedia(item: MediaItem?) {
+    private fun followMedia(media: MediaItem?) {
+        // media3 only knows the items it loaded, it has an empty one for a media the
+        // receiver loaded on its own (an android tv app playing its next episode...)
+        val info = eventMap.remote?.mediaInfo
+        val item = if (media != null && media.localConfiguration == null && isCasting && info != null) {
+            OmniMediaItemConverter().toMediaItem(MediaQueueItem.Builder(info).build())
+        } else {
+            media
+        }
         if (item == null && ownItem != null) {
             // our media only leaves the player while it is being handed over (to the
             // receiver when a cast starts, back to us when it ends), it is not gone.
@@ -545,8 +558,16 @@ class OmniPlayer(
                 idleReason == MediaStatus.IDLE_REASON_INTERRUPTED
             if (!isCasting || !dropped) return
             ownItem = null
+            ownSource = null
         }
-        if (isOwnItem(item)) return
+        if (isOwnItem(item)) {
+            // the receiver can report what it played before ours while it loads it
+            if (_source !== ownSource) {
+                _source = ownSource
+                eventMap.emitSource(ownSource)
+            }
+            return
+        }
         val source = item?.let { sourceOf(it) }
         if (source == _source) return
         _source = source
@@ -561,6 +582,7 @@ class OmniPlayer(
             eventMap.emitSource(value)
             if (value == null) {
                 ownItem = null
+                ownSource = null
                 runOnMainThreadSync {
                     player.clearMediaItems()
                 }
@@ -587,6 +609,7 @@ class OmniPlayer(
                 value.castData,
             )
             ownItem = currentItem
+            ownSource = value
 
             runOnMainThreadSync {
                 val startPositionMs = ((value.startTime ?: 0.0).coerceAtLeast(0.0)) * 1000.0
