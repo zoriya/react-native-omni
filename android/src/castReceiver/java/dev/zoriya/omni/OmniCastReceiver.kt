@@ -15,6 +15,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaSession
 import com.google.android.gms.cast.MediaError
 import com.google.android.gms.cast.MediaLoadRequestData
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.tv.CastReceiverContext
 import com.google.android.gms.cast.tv.CastReceiverOptions
@@ -182,8 +183,16 @@ object OmniCastReceiver :
     // episode, the user picking something else on the tv...)
     fun setMedia(item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {
         val manager = receiver?.mediaManager ?: return
-        val info = OmniMediaItemConverter().toMediaQueueItem(item).media
-        manager.setDataFromLoad(MediaLoadRequestData.Builder().setMediaInfo(info).build())
+        val queue = manager.mediaQueueManager
+        // media3 senders cache items by queue item id, a media reported under the
+        // previous id would keep showing the previous item there.
+        val queueItem = MediaQueueItem.Builder(OmniMediaItemConverter().toMediaQueueItem(item))
+            .setItemId(queue.autoGenerateItemId())
+            .build()
+        manager.setDataFromLoad(MediaLoadRequestData.Builder().setMediaInfo(queueItem.media).build())
+        queue.setQueueItems(listOf(queueItem))
+        queue.setCurrentItemId(queueItem.itemId)
+        queue.notifyQueueFullUpdate()
         manager.mediaStatusModifier
             .setMediaCommandSupported(MediaStatus.COMMAND_QUEUE_PREVIOUS, hasPrev)
             .setMediaCommandSupported(MediaStatus.COMMAND_QUEUE_NEXT, hasNext)
