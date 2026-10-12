@@ -285,6 +285,7 @@ function Player({ onBack }: { onBack: () => void }): React.JSX.Element {
 		<Pressable
 			key={key}
 			style={[styles.option, selected && styles.optionSelected]}
+			accessibilityState={{ selected }}
 			onPress={() => {
 				onPress();
 				setPanel("none");
@@ -756,8 +757,6 @@ function Shell({
 	startTime,
 	onSetStartTime,
 	onPlayIndex,
-	onPrev,
-	onNext,
 	onStop,
 }: {
 	backend: AndroidBackend;
@@ -767,10 +766,9 @@ function Shell({
 	startTime: number;
 	onSetStartTime: (startTime: number) => void;
 	onPlayIndex: (index: number) => void;
-	onPrev: () => void;
-	onNext: () => void;
 	onStop: () => void;
 }): React.JSX.Element {
+	const player = usePlayer();
 	const [screen, setScreen] = useState<"home" | "player">("home");
 	const [logs, setLogs] = useState<{ id: number; message: string }[]>([]);
 	const logId = useRef(0);
@@ -791,15 +789,27 @@ function Shell({
 		setScreen("player");
 	});
 
+	// relative to what plays: a receiver can switch to another media on its own
+	const playRelative = useCallback(
+		(offset: number) => {
+			const playing = PLAYLIST.findIndex(
+				(item) => item.uri === player.source?.src.uri,
+			);
+			const index = playing === -1 ? currentIndex : playing;
+			onPlayIndex((index + offset + PLAYLIST.length) % PLAYLIST.length);
+		},
+		[player, currentIndex, onPlayIndex],
+	);
+
 	const handlePrev = useCallback(() => {
 		pushLog("Prev selected");
-		onPrev();
-	}, [onPrev, pushLog]);
+		playRelative(-1);
+	}, [playRelative, pushLog]);
 
 	const handleNext = useCallback(() => {
 		pushLog("Next selected");
-		onNext();
-	}, [onNext, pushLog]);
+		playRelative(1);
+	}, [playRelative, pushLog]);
 
 	useEvent(
 		"error",
@@ -852,7 +862,10 @@ function Shell({
 }
 
 function App(): React.JSX.Element {
-	const [currentIndex, setCurrentIndex] = useState(0);
+	// an object so that picking the index we think is loaded still reloads it: a
+	// receiver could have switched to another media since.
+	const [current, setCurrent] = useState({ index: 0 });
+	const currentIndex = current.index;
 	// Start with no media loaded so we can verify the app boots (and the media
 	// notification stays hidden) before any source is set.
 	const [hasSource, setHasSource] = useState(false);
@@ -866,16 +879,8 @@ function App(): React.JSX.Element {
 		setBackend(next);
 	}, []);
 
-	const handlePrev = useCallback(() => {
-		setCurrentIndex((index) => (index === 0 ? PLAYLIST.length - 1 : index - 1));
-	}, []);
-
-	const handleNext = useCallback(() => {
-		setCurrentIndex((index) => (index + 1) % PLAYLIST.length);
-	}, []);
-
 	const handlePlayIndex = useCallback((index: number) => {
-		setCurrentIndex(index);
+		setCurrent({ index });
 		setHasSource(true);
 	}, []);
 
@@ -886,7 +891,7 @@ function App(): React.JSX.Element {
 	const source = useMemo(
 		() => ({
 			src: {
-				uri: PLAYLIST[currentIndex].uri,
+				uri: PLAYLIST[current.index].uri,
 				headers: {},
 			},
 			startTime: startTime || undefined,
@@ -896,15 +901,15 @@ function App(): React.JSX.Element {
 				"https://jassub.pages.dev/fonts/arial.ttf",
 			],
 			metadata: {
-				title: PLAYLIST[currentIndex].title,
-				artist: PLAYLIST[currentIndex].artist,
-				album: PLAYLIST[currentIndex].album,
-				imageLink: PLAYLIST[currentIndex].imageLink,
+				title: PLAYLIST[current.index].title,
+				artist: PLAYLIST[current.index].artist,
+				album: PLAYLIST[current.index].album,
+				imageLink: PLAYLIST[current.index].imageLink,
 				hasPrev: true,
 				hasNext: true,
 			},
 		}),
-		[currentIndex, startTime],
+		[current, startTime],
 	);
 
 	return (
@@ -925,8 +930,6 @@ function App(): React.JSX.Element {
 				startTime={startTime}
 				onSetStartTime={setStartTime}
 				onPlayIndex={handlePlayIndex}
-				onPrev={handlePrev}
-				onNext={handleNext}
 				onStop={handleStop}
 			/>
 		</OmniProvider>
