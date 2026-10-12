@@ -19,5 +19,7 @@ object OmniCastReceiver {
 
     fun setSession(session: MediaSession?) {}
 
-    fun setMedia(item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {}
+    fun broadcastMedia(player: OmniPlayer, item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {}
+
+    fun broadcastTracks(player: OmniPlayer) {}
 }

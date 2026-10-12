@@ -17,10 +17,13 @@ import com.google.android.gms.cast.MediaError
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.tv.CastReceiverContext
 import com.google.android.gms.cast.tv.CastReceiverOptions
 import com.google.android.gms.cast.tv.ReceiverOptionsProvider
+import com.google.android.gms.cast.tv.media.EditTracksInfoData
 import com.google.android.gms.cast.tv.media.MediaCommandCallback
+import com.google.android.gms.cast.tv.media.MediaInfoModifier
 import com.google.android.gms.cast.tv.media.MediaException
 import com.google.android.gms.cast.tv.media.MediaLoadCommandCallback
 import com.google.android.gms.cast.tv.media.QueueUpdateRequestData
@@ -181,8 +184,12 @@ object OmniCastReceiver :
 
     // keep senders in sync with what we play (it can change without them: next
     // episode, the user picking something else on the tv...)
-    fun setMedia(item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {
+    fun broadcastMedia(player: OmniPlayer, item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {
         val manager = receiver?.mediaManager ?: return
+        this.player = player
+        // the previous media's tracks, ours come with `broadcastTracks` once they are known
+        manager.mediaStatusModifier.mediaInfoModifier?.clear()
+        manager.mediaStatusModifier.mediaTracksModifier.clear()
         val queue = manager.mediaQueueManager
         // media3 senders cache items by queue item id, a media reported under the
         // previous id would keep showing the previous item there.
@@ -198,10 +205,53 @@ object OmniCastReceiver :
             .setMediaCommandSupported(MediaStatus.COMMAND_QUEUE_NEXT, hasNext)
         manager.broadcastMediaStatus()
     }
+
+    // the player of the media senders see
+    var player: OmniPlayer? = null
+        private set
+
+    // a track's cast id is its position in this list (cast ids start at 1)
+    fun tracksOf(player: OmniPlayer) =
+        player.audios.map { MediaTrack.TYPE_AUDIO to it } + player.subtitles.map { MediaTrack.TYPE_TEXT to it }
+
+    fun broadcastTracks(player: OmniPlayer) {
+        val manager = receiver?.mediaManager ?: return
+        if (player !== this.player) return
+        val tracks = tracksOf(player)
+        val status = manager.mediaStatusModifier
+        val info = status.mediaInfoModifier ?: MediaInfoModifier().also { status.setMediaInfoModifier(it) }
+        info.setMediaTracks(
+            tracks.mapIndexed { i, (type, track) ->
+                MediaTrack.Builder(i + 1L, type)
+                    .apply {
+                        if (type == MediaTrack.TYPE_TEXT) setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
+                        track.label?.let { setName(it) }
+                        track.language?.let { setLanguage(it) }
+                    }
+                    .build()
+            }
+        )
+        status.mediaTracksModifier.setActiveTrackIds(
+            tracks.indices.filter { tracks[it].second.selected }.map { it + 1L }.toLongArray()
+        )
+        manager.broadcastMediaStatus()
+    }
 }
 
-// like the web receiver, we have no queue: prev/next are handled by the app
 object OmniCastCommandCallback : MediaCommandCallback() {
+    override fun onEditTracksInfo(
+        senderId: String?,
+        request: EditTracksInfoData,
+    ): Task<Void?> {
+        val ids = request.activeTrackIds ?: return super.onEditTracksInfo(senderId, request)
+        val player = OmniCastReceiver.player ?: return Tasks.forResult(null)
+        val active = OmniCastReceiver.tracksOf(player).filterIndexed { i, _ -> i + 1L in ids }
+        active.firstOrNull { it.first == MediaTrack.TYPE_AUDIO }?.let { player.selectAudio(it.second) }
+        player.selectSubtitle(active.firstOrNull { it.first == MediaTrack.TYPE_TEXT }?.second)
+        return Tasks.forResult(null)
+    }
+
+    // like the web receiver, we have no queue: prev/next are handled by the app
     override fun onQueueUpdate(
         senderId: String?,
         request: QueueUpdateRequestData,

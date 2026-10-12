@@ -21,6 +21,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -532,6 +533,8 @@ class OmniPlayer(
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) = followMedia(item)
 
                 override fun onTimelineChanged(timeline: Timeline, reason: Int) = followMedia(player.currentMediaItem)
+
+                override fun onTracksChanged(tracks: Tracks) = OmniCastReceiver.broadcastTracks(this@OmniPlayer)
             })
             // check for cast rejoin
             followMedia(player.currentMediaItem)
@@ -619,7 +622,8 @@ class OmniPlayer(
                     player.setMediaItems(listOf(currentItem), 0, startPositionMs.toLong())
                     player.prepare()
                 }
-                OmniCastReceiver.setMedia(
+                OmniCastReceiver.broadcastMedia(
+                    this,
                     currentItem,
                     hasPrev = value.metadata?.hasPrev == true,
                     hasNext = value.metadata?.hasNext == true,
