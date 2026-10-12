@@ -192,8 +192,9 @@ class OmniPlayer(
                     when {
                         item == null -> to.playWhenReady = play
                         to === localPlayer -> {
-                            // keep our item (headers, subtitles...) over the rebuilt one
-                            if (isOwnItem(from.currentMediaItem)) {
+                            // keep our item (headers, subtitles...) over the rebuilt one. a
+                            // receiver that went away (killed, network lost) has none left.
+                            if (from.currentMediaItem == null || isOwnItem(from.currentMediaItem)) {
                                 to.setMediaItems(listOf(item), 0, from.currentPosition)
                                 to.prepare()
                             } else {
@@ -555,10 +556,8 @@ class OmniPlayer(
             // our media only leaves the player while it is being handed over (to the
             // receiver when a cast starts, back to us when it ends), it is not gone.
             // it only is when the receiver dropped it while we are still connected to
-            // it: someone stopped it (google home, the tv, ...) or took it over.
-            val idleReason = eventMap.remote?.mediaStatus?.idleReason
-            val dropped = idleReason == MediaStatus.IDLE_REASON_CANCELED ||
-                idleReason == MediaStatus.IDLE_REASON_INTERRUPTED
+            // it: someone stopped it (google home, the tv, ...)
+            val dropped = eventMap.remote?.mediaStatus?.idleReason == MediaStatus.IDLE_REASON_CANCELED
             if (!isCasting || !dropped) return
             ownItem = null
             ownSource = null
