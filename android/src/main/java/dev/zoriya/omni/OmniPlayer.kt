@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -561,6 +562,11 @@ class OmniPlayer(
             if (!isCasting || !dropped) return
             ownItem = null
             ownSource = null
+            // there is nothing left for us to drive there, leave the receiver. posted:
+            // we are in the middle of media3's status update.
+            Handler(Looper.getMainLooper()).post {
+                castContext?.sessionManager?.endCurrentSession(false)
+            }
         }
         if (isOwnItem(item)) {
             // the receiver can report what it played before ours while it loads it
@@ -586,6 +592,7 @@ class OmniPlayer(
                 ownItem = null
                 ownSource = null
                 runOnMainThreadSync {
+                    OmniCastReceiver.stopMedia(this)
                     player.clearMediaItems()
                 }
                 syncNotificationService()

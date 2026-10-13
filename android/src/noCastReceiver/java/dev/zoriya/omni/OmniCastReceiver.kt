@@ -22,4 +22,6 @@ object OmniCastReceiver {
     fun broadcastMedia(player: OmniPlayer, item: MediaItem, hasPrev: Boolean, hasNext: Boolean) {}
 
     fun broadcastTracks(player: OmniPlayer) {}
+
+    fun stopMedia(player: OmniPlayer) {}
 }

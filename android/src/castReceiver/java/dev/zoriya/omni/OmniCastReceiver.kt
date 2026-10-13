@@ -201,8 +201,23 @@ object OmniCastReceiver :
         queue.setCurrentItemId(queueItem.itemId)
         queue.notifyQueueFullUpdate()
         manager.mediaStatusModifier
+            .setPlayerState(null)
+            .setIdleReason(null)
             .setMediaCommandSupported(MediaStatus.COMMAND_QUEUE_PREVIOUS, hasPrev)
             .setMediaCommandSupported(MediaStatus.COMMAND_QUEUE_NEXT, hasNext)
+        manager.broadcastMediaStatus()
+    }
+
+    // the app stopped what senders see (the player was closed...). an idle media
+    // session is reported as FINISHED, senders would then play the next media.
+    // must run while the media session is still up: without one it is FINISHED too.
+    fun stopMedia(player: OmniPlayer) {
+        val manager = receiver?.mediaManager ?: return
+        if (player !== this.player) return
+        this.player = null
+        manager.mediaStatusModifier
+            .setPlayerState(MediaStatus.PLAYER_STATE_IDLE)
+            .setIdleReason(MediaStatus.IDLE_REASON_CANCELED)
         manager.broadcastMediaStatus()
     }
 
