@@ -1,6 +1,7 @@
 package dev.zoriya.omni
 
 import android.app.PictureInPictureParams
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
 import android.os.Build
@@ -119,6 +120,9 @@ class OmniView(val context: ThemedReactContext) :
     private var rootContent: ViewGroup? = null
     private var rootContentViews: List<View> = emptyList()
     private var movedSurfaceToRootForPip = false
+    private val isTv by lazy {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    }
 
     override lateinit var player: HybridOmniPlayerSpec
     override var autoplay: Boolean? = true
@@ -227,6 +231,13 @@ class OmniView(val context: ThemedReactContext) :
     }
 
     override fun onHostPause() {
+        // tv guidelines: a video must pause when the user leaves the app, and never auto-enter pip.
+        // see TV-NP and TV-IE in https://developer.android.com/docs/quality-guidelines/tv-app-quality
+        if (isTv) {
+            boundPlayer?.localPlayer?.pause()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || autoPip != true) {
             return
         }
@@ -283,6 +294,7 @@ class OmniView(val context: ThemedReactContext) :
 
         val autoEnterEnabled =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !isTv &&
             autoPip == true &&
             boundPlayer?.localPlayer?.isPlaying == true &&
             boundPlayer?.isCasting != true

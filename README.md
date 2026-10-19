@@ -169,7 +169,7 @@ plus:
 | Prop             | Type             | Platform | Description                                                             |
 | ---------------- | ---------------- | -------- | ----------------------------------------------------------------------- |
 | `autoplay`       | `boolean`        | all      | Start playing as soon as the media is ready.                            |
-| `autoPip`        | `boolean`        | Android  | Automatically enter Picture-in-Picture when the app is backgrounded.    |
+| `autoPip`        | `boolean`        | Android  | Automatically enter Picture-in-Picture when the app is backgrounded. Ignored on TVs. |
 | `subtitleAssets` | `SubtitleAssets` | Web      | URLs for the ASS/PGS renderer worker/wasm/font assets (see below).      |
 
 ### `usePlayer()`
