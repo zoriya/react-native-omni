@@ -49,30 +49,42 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 
 	useEffect(() => {
 		const em = player.eventMap;
+		let unsubscribe: (() => void) | undefined;
 		switch (key) {
 			case "currentTime":
 			case "buffered":
 			case "duration":
 			case "playbackRate":
 			case "volume":
-				return em.addStateListener(key, setState);
+				unsubscribe = em.addStateListener(key, setState);
+				break;
 			case "isPlaying":
 			case "muted":
 			case "isAutoQuality":
-				return em.addStateBoolListener(key, setState);
+				unsubscribe = em.addStateBoolListener(key, setState);
+				break;
 			case "status":
-				return em.addPlayerStatusListener(setState);
+				unsubscribe = em.addPlayerStatusListener(setState);
+				break;
 			case "castStatus":
-				return em.addCastStatusListener(setState);
+				unsubscribe = em.addCastStatusListener(setState);
+				break;
 			case "source":
-				return em.addSourceListener(setState);
+				unsubscribe = em.addSourceListener(setState);
+				break;
 			case "videos":
 			case "audios":
 			case "subtitles":
-				return em.addTracksListener(key, setState);
+				unsubscribe = em.addTracksListener(key, setState);
+				break;
 			case "renditions":
-				return em.addRenditionsListener(setState);
+				unsubscribe = em.addRenditionsListener(setState);
+				break;
 		}
+		// the value read on render can be stale by now: events sent between the render
+		// and this effect are lost (ex: `autoplay` starting the player on mount).
+		setState(player[key]);
+		return unsubscribe;
 	}, [player, key]);
 
 	if (key === "currentTime") refresh ??= 1;
