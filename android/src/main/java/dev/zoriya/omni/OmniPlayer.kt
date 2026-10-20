@@ -13,6 +13,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import androidx.annotation.Keep
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -31,6 +32,7 @@ import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.text.TextRenderer
+import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.omni.AndroidBackend
 import com.margelo.nitro.omni.CastStatus
@@ -64,6 +66,8 @@ import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThreadSync
 import org.json.JSONObject
 
+@Keep
+@DoNotStrip
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer(
     private val backend: AndroidBackend = AndroidBackend.VLC,

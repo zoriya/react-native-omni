@@ -12,6 +12,7 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.annotation.Keep
 import androidx.core.view.isVisible
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
@@ -19,6 +20,7 @@ import androidx.media3.common.text.CueGroup
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
+import com.facebook.proguard.annotations.DoNotStrip
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.uimanager.ThemedReactContext
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -26,6 +28,8 @@ import com.margelo.nitro.omni.HybridOmniViewSpec
 import com.margelo.nitro.omni.SubtitleAssets
 import java.lang.ref.WeakReference
 
+@Keep
+@DoNotStrip
 class OmniView(val context: ThemedReactContext) :
     HybridOmniViewSpec(),
     SurfaceHolder.Callback,

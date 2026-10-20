@@ -1,6 +1,7 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
+import androidx.annotation.Keep
 import androidx.media3.common.C
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
@@ -15,6 +16,7 @@ import androidx.media3.common.Player.STATE_READY
 import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import com.facebook.proguard.annotations.DoNotStrip
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.margelo.nitro.omni.BoolProperty
@@ -43,6 +45,8 @@ interface TrackProvider {
 
 // listeners are added & removed from the js thread while events are emitted from the
 // main thread.
+@Keep
+@DoNotStrip
 @SuppressLint("UnsafeOptInUsageError")
 class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Player.Listener {
     private val onPrevListeners = CopyOnWriteArraySet<() -> Unit>()

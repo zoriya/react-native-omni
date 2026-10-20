@@ -35,6 +35,7 @@
 		"android/fix-prefab.gradle",
 		"android/gradle.properties",
 		"android/CMakeLists.txt",
+		"android/consumer-rules.pro",
 		"android/src",
 		"ios/**/*.h",
 		"ios/**/*.m",
