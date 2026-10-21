@@ -79,7 +79,6 @@ class VlcPlayer(ctx: Context) :
 
     private val libVLC = LibVLC(
         ctx, arrayListOf(
-            "--network-caching=1500",
             "--file-caching=1500",
             "--no-stats",
             "--no-osd",
