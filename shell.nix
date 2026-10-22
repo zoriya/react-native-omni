@@ -27,12 +27,17 @@ in
     ];
 
     shellHook = ''
-      echo 'sdk.dir=${ANDROID_SDK_ROOT}' > example/android/local.properties
+      echo 'sdk.dir=${ANDROID_SDK_ROOT}' > ${toString ./.}/example/android/local.properties
+      mkdir -p ${toString ./.}/example/android/.gradle
+      echo 'java.home=${JAVA_HOME}' > ${toString ./.}/example/android/.gradle/config.properties
+      if [ -f ${toString ./.}/example/android/.idea/gradle.xml ]; then
+        sed -i 's|name="gradleJvm" value="[^"]*"|name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME"|' ${toString ./.}/example/android/.idea/gradle.xml
+      fi
     '';
 
     ANDROID_HOME = "${android.androidsdk}/libexec/android-sdk";
     ANDROID_SDK_ROOT = "${android.androidsdk}/libexec/android-sdk";
     ANDROID_NDK_ROOT = "${ANDROID_SDK_ROOT}/ndk-bundle";
     GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${ANDROID_SDK_ROOT}/build-tools/${buildToolsVersion}/aapt2";
-    JAVA_HOME = jdk;
+    JAVA_HOME = jdk.home;
   }
