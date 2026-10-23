@@ -694,20 +694,19 @@ class VlcPlayer(ctx: Context) :
         return description.substringAfter(' ')
     }
 
-    // tracks sharing a key are renditions of one logical track. for adaptive streams only the
-    // name can be keyed on: once vlc opens the rendition it actually reads, it adds one more es
-    // for it, described by the segments themselves instead of the playlist - no group-id to
-    // strip, and the container's language (`chi`) rather than the playlist's (`zh`). keying on
-    // the language too left that one in a group of its own, listing the track twice.
+    // tracks sharing a key are renditions of one logical track, only adaptive streams have some.
+    // they are keyed on the name alone: once vlc opens the rendition it actually reads, it adds one
+    // more es for it, described by the segments themselves instead of the playlist - no group-id to
+    // strip, and the container's language (`chi`) rather than the playlist's (`zh`).
     // media3's own hls source groups renditions by name alone as well.
-    private fun trackKey(track: IMedia.Track): Any =
+    private fun trackKey(track: IMedia.Track): String =
         if (track.id.contains("/auto/")) trackName(track) ?: track.id
-        else listOf(track.language, track.name)
+        else track.id
 
     // selecting a track makes vlc recreate its es with a fresh, higher id ("audio/auto/4"
     // becomes "audio/auto/7"), so its own order puts whatever was picked last and the list
     // reshuffles. order on the lowest es number a track was ever seen with instead.
-    private val trackOrders = mutableMapOf<Pair<Int, Any>, Int>()
+    private val trackOrders = mutableMapOf<Pair<Int, String>, Int>()
 
     private fun trackOrder(type: Int, tracks: List<IMedia.Track>): Int {
         val key = type to trackKey(tracks.first())
