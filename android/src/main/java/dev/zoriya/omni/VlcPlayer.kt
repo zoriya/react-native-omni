@@ -18,7 +18,6 @@ import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C.FORMAT_HANDLED
 import androidx.media3.common.C.INDEX_UNSET
-import androidx.media3.common.C.SELECTION_FLAG_DEFAULT
 import androidx.media3.common.C.TIME_UNSET
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
@@ -717,9 +716,6 @@ class VlcPlayer(ctx: Context) :
     }
 
     private fun buildTracks(): Tracks {
-        val result = ArrayList<Group>()
-        val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
-        val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
         val subtitleConfigs = currentItem?.localConfiguration?.subtitleConfigurations.orEmpty()
         val textTracks = player.getTracks(IMedia.Track.Type.Text).orEmpty()
         val subtitleSlavesByHash = subtitleConfigs.associateBy { md5(it.uri.toString()) }
@@ -731,78 +727,8 @@ class VlcPlayer(ctx: Context) :
         val selectedSubtitle =
             if (pendingSlaveUri != null) null else player.getSelectedTrack(IMedia.Track.Type.Text)
 
-        player.getTracks(IMedia.Track.Type.Video).orEmpty()
-            .groupBy { trackKey(it) }
-            .entries.sortedBy { trackOrder(TRACK_TYPE_VIDEO, it.value) }
-            .forEach { (_, videoTracks) ->
-                val videoFormats = videoTracks.map { track ->
-                    val videoTrack = track as? VideoTrack
-                    Format.Builder()
-                        .setId(track.id)
-                        .setLabel(trackName(track))
-                        .setLanguage(track.language)
-                        .setSampleMimeType("video/x-unknown")
-                        .setWidth(videoTrack?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .setHeight(videoTrack?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .setFrameRate(
-                            videoTrack?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
-                                ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
-                                ?: Format.NO_VALUE.toFloat()
-                        )
-                        .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .build()
-                }
-                val group = TrackGroup(
-                    "vlc-video-${videoTracks.minOf { it.id }}",
-                    *videoFormats.toTypedArray()
-                )
-                val selected = BooleanArray(videoFormats.size) { idx ->
-                    selectedVideo != null && selectedVideo.id == videoTracks[idx].id
-                }
-                val support = IntArray(videoFormats.size) { FORMAT_HANDLED }
-                result.add(Group(group, videoFormats.size > 1, support, selected))
-            }
-
-        player.getTracks(IMedia.Track.Type.Audio).orEmpty()
-            .groupBy { trackKey(it) }
-            .entries.sortedBy { trackOrder(TRACK_TYPE_AUDIO, it.value) }
-            .forEach { (_, audioTracks) ->
-                val audioFormats = audioTracks.map { track ->
-                    Format.Builder()
-                        .setId(track.id)
-                        .setLabel(trackName(track))
-                        .setLanguage(track.language)
-                        .setSampleMimeType("audio/x-unknown")
-                        .build()
-                }
-                val group = TrackGroup(
-                    "vlc-audio-${audioTracks.minOf { it.id }}",
-                    *audioFormats.toTypedArray()
-                )
-                val selected = BooleanArray(audioFormats.size) { idx ->
-                    selectedAudio != null && selectedAudio.id == audioTracks[idx].id
-                }
-                val support = IntArray(audioFormats.size) { FORMAT_HANDLED }
-                result.add(Group(group, audioFormats.size > 1, support, selected))
-            }
-
-        textTracks
-            .filter { it !in loadedSlaves.values }
-            .sortedBy { trackOrder(TRACK_TYPE_TEXT, listOf(it)) }
-            .forEach { track ->
-                val format = Format.Builder()
-                    .setId(track.id)
-                    .setLabel(track.name)
-                    .setLanguage(track.language)
-                    .setSampleMimeType("text/x-unknown")
-                    .build()
-                val group = TrackGroup("vlc-sub-${track.id}", format)
-                val selected = booleanArrayOf(selectedSubtitle?.id == track.id)
-                result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
-            }
-
         // sideloaded subs, listed from their config whether or not vlc fetched them yet
-        subtitleConfigs.forEach { config ->
+        val sideloaded = subtitleConfigs.map { config ->
             val track = loadedSlaves[config.uri]
             val format = Format.Builder()
                 .setId("$PENDING_SLAVE_PREFIX${config.uri}")
@@ -810,137 +736,134 @@ class VlcPlayer(ctx: Context) :
                 .setLanguage(config.language ?: track?.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
-            val group = TrackGroup(config.id ?: "vlc-sub-${config.uri}", format)
-            val selected = booleanArrayOf(
-                config.uri == pendingSlaveUri || (track != null && selectedSubtitle?.id == track.id)
+            val selected = config.uri == pendingSlaveUri || (track != null && track.id == selectedSubtitle?.id)
+            Group(
+                TrackGroup(config.id ?: "vlc-sub-${config.uri}", format),
+                false,
+                intArrayOf(FORMAT_HANDLED),
+                booleanArrayOf(selected)
             )
-            result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
         }
 
-        return if (result.isEmpty()) Tracks.EMPTY else Tracks(result)
+        return Tracks(
+            trackGroups(
+                TRACK_TYPE_VIDEO,
+                player.getTracks(IMedia.Track.Type.Video).orEmpty().groupBy { trackKey(it) }.values,
+                player.getSelectedTrack(IMedia.Track.Type.Video)
+            ) + trackGroups(
+                TRACK_TYPE_AUDIO,
+                player.getTracks(IMedia.Track.Type.Audio).orEmpty().groupBy { trackKey(it) }.values,
+                player.getSelectedTrack(IMedia.Track.Type.Audio)
+            ) + trackGroups(
+                TRACK_TYPE_TEXT,
+                textTracks.filter { it !in loadedSlaves.values }.map { listOf(it) },
+                selectedSubtitle
+            ) + sideloaded
+        )
+    }
+
+    private fun trackGroups(
+        type: Int,
+        groups: Collection<List<IMedia.Track>>,
+        selected: IMedia.Track?
+    ): List<Group> {
+        val name = when (type) {
+            TRACK_TYPE_VIDEO -> "video"
+            TRACK_TYPE_AUDIO -> "audio"
+            else -> "sub"
+        }
+        return groups.sortedBy { trackOrder(type, it) }.map { tracks ->
+            val formats = tracks.map { track ->
+                val format = Format.Builder().setId(track.id).setLanguage(track.language)
+                when (type) {
+                    TRACK_TYPE_VIDEO -> {
+                        val video = track as? VideoTrack
+                        format
+                            .setLabel(trackName(track))
+                            .setSampleMimeType("video/x-unknown")
+                            .setWidth(video?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                            .setHeight(video?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                            .setFrameRate(
+                                video?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
+                                    ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
+                                    ?: Format.NO_VALUE.toFloat()
+                            )
+                            .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
+                    }
+                    TRACK_TYPE_AUDIO -> format.setLabel(trackName(track)).setSampleMimeType("audio/x-unknown")
+                    else -> format.setLabel(track.name).setSampleMimeType("text/x-unknown")
+                }
+                format.build()
+            }
+            Group(
+                TrackGroup("vlc-$name-${tracks.minOf { it.id }}", *formats.toTypedArray()),
+                formats.size > 1,
+                IntArray(formats.size) { FORMAT_HANDLED },
+                BooleanArray(tracks.size) { tracks[it].id == selected?.id }
+            )
+        }
     }
 
     override fun handleSetTrackSelectionParameters(
         trackSelectionParameters: TrackSelectionParameters
     ): ListenableFuture<*> = vlc {
-        update { setTrackSelectionParameters(trackSelectionParameters) }
-        val videoDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_VIDEO)
-        val audioDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_AUDIO)
-        val textDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)
-
-        if (videoDisabled) player.setVideoTrackEnabled(false)
-        if (audioDisabled) player.unselectTrackType(IMedia.Track.Type.Audio)
-        if (textDisabled) {
-            dropPendingSlave()
-            player.unselectTrackType(IMedia.Track.Type.Text)
-        }
+        val params = trackSelectionParameters
+        update { setTrackSelectionParameters(params) }
 
         val tracks = buildTracks()
+        val overrides = params.overrides.values.mapNotNull { override ->
+            val index = override.trackIndices.firstOrNull() ?: return@mapNotNull null
+            override.mediaTrackGroup.getFormat(index).id?.let { override.type to it }
+        }.toMap()
+        fun pick(type: Int, languages: List<String>, labels: List<String>): String? =
+            overrides[type] ?: preferredTrack(tracks, type, languages, labels)
 
-        var hasVideoOverride = false
-        var hasAudioOverride = false
-        var hasTextOverride = false
-
-        for (override in trackSelectionParameters.overrides.values) {
-            val selectedIndex = override.trackIndices.firstOrNull() ?: continue
-            if (selectedIndex !in 0 until override.mediaTrackGroup.length) continue
-            val trackId = override.mediaTrackGroup.getFormat(selectedIndex).id ?: continue
-
-            when (override.type) {
-                TRACK_TYPE_VIDEO -> {
-                    hasVideoOverride = true
-                    player.setVideoTrackEnabled(true)
-                    player.selectTrack(trackId)
-                }
-
-                TRACK_TYPE_AUDIO -> {
-                    hasAudioOverride = true
-                    player.selectTrack(trackId)
-                }
-
-                TRACK_TYPE_TEXT -> {
-                    hasTextOverride = true
-                    selectTextTrack(trackId)
-                }
-            }
-        }
-
-        if (!videoDisabled && !hasVideoOverride) {
-            val videoPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_VIDEO,
-                trackSelectionParameters.preferredVideoLanguages,
-                trackSelectionParameters.preferredVideoLabels,
-            )
+        if (TRACK_TYPE_VIDEO in params.disabledTrackTypes) {
+            player.setVideoTrackEnabled(false)
+        } else {
             player.setVideoTrackEnabled(true)
-            videoPreference?.let { player.selectTrack(it) }
+            pick(TRACK_TYPE_VIDEO, params.preferredVideoLanguages, params.preferredVideoLabels)
+                ?.let { player.selectTrack(it) }
         }
-        if (!audioDisabled && !hasAudioOverride) {
-            val audioPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_AUDIO,
-                trackSelectionParameters.preferredAudioLanguages,
-                trackSelectionParameters.preferredAudioLabels,
-            )
-            audioPreference?.let { player.selectTrack(it) }
+
+        if (TRACK_TYPE_AUDIO in params.disabledTrackTypes) {
+            player.unselectTrackType(IMedia.Track.Type.Audio)
+        } else {
+            pick(TRACK_TYPE_AUDIO, params.preferredAudioLanguages, params.preferredAudioLabels)
+                ?.let { player.selectTrack(it) }
         }
-        if (!textDisabled && !hasTextOverride) {
-            val textPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_TEXT,
-                trackSelectionParameters.preferredTextLanguages,
-                trackSelectionParameters.preferredTextLabels,
-            )
-            textPreference?.let { selectTextTrack(it) }
+
+        if (TRACK_TYPE_TEXT in params.disabledTrackTypes) {
+            dropPendingSlave()
+            player.unselectTrackType(IMedia.Track.Type.Text)
+        } else {
+            pick(TRACK_TYPE_TEXT, params.preferredTextLanguages, params.preferredTextLabels)
+                ?.let { selectTextTrack(it) }
         }
     }
 
-    private fun selectTrackByPreference(
+    // the track matching the most preferred language, then label
+    private fun preferredTrack(
         tracks: Tracks,
-        trackType: Int,
-        languages: List<String>,
-        labels: List<String>,
+        type: Int,
+        preferredLanguages: List<String>,
+        preferredLabels: List<String>,
     ): String? {
-        val preferredLanguages = languages.filter { it.isNotEmpty() }
-        val preferredLabels = labels.filter { it.isNotEmpty() }
-        if (preferredLanguages.isEmpty() && preferredLabels.isEmpty()) return null
+        val languages = preferredLanguages.filter { it.isNotEmpty() }
+        val labels = preferredLabels.filter { it.isNotEmpty() }
+        if (languages.isEmpty() && labels.isEmpty()) return null
 
-        data class Candidate(
-            val id: String,
-            val langIndex: Int,
-            val labelIndex: Int,
-            val hasDefaultFlag: Boolean
-        )
+        // null when it matches none of the preferences
+        fun rank(preferences: List<String>, value: String?): Int? =
+            if (preferences.isEmpty()) 0
+            else preferences.indexOfFirst { it.equals(value, ignoreCase = true) }.takeIf { it >= 0 }
 
-        val candidates = tracks.groups
-            .filter { it.type == trackType }
-            .flatMap { group ->
-                (0 until group.length).mapNotNull { i ->
-                    val format = group.getTrackFormat(i)
-                    val id = format.id ?: return@mapNotNull null
-
-                    val langIndex = format.language?.let { lang ->
-                        preferredLanguages.indexOfFirst { it.equals(lang, ignoreCase = true) }
-                    } ?: -1
-                    val labelIndex = format.label?.let { label ->
-                        preferredLabels.indexOfFirst { it.equals(label, ignoreCase = true) }
-                    } ?: -1
-
-                    val matchesLang = preferredLanguages.isEmpty() || langIndex >= 0
-                    val matchesLabel = preferredLabels.isEmpty() || labelIndex >= 0
-                    if (matchesLang && matchesLabel) {
-                        Candidate(
-                            id,
-                            if (langIndex >= 0) langIndex else Int.MAX_VALUE,
-                            if (labelIndex >= 0) labelIndex else Int.MAX_VALUE,
-                            (format.selectionFlags and SELECTION_FLAG_DEFAULT) != 0
-                        )
-                    } else null
-                }
-            }
-
-        return candidates.minWithOrNull(
-            compareBy<Candidate> { it.langIndex }
-                .thenBy { it.labelIndex }
-                .thenByDescending { it.hasDefaultFlag }
-        )?.id
+        return tracks.groups
+            .filter { it.type == type }
+            .flatMap { group -> (0 until group.length).map { group.getTrackFormat(it) } }
+            .filter { rank(languages, it.language) != null && rank(labels, it.label) != null }
+            .minWithOrNull(compareBy({ rank(languages, it.language) }, { rank(labels, it.label) }))
+            ?.id
     }
 
     override fun handleSetVideoOutput(videoOutput: Any): ListenableFuture<*> {
