@@ -234,7 +234,10 @@ class VlcPlayer(ctx: Context) :
                 }
                 updateVideoSize()
                 // vlc reports a media opening paused (see loadMedia) as playing until its first frame
-                if (state.playWhenReady && !requestAudioFocus()) pauseForFocusLoss()
+                if (state.playWhenReady) {
+                    if (requestAudioFocus()) update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
+                    else pauseForFocusLoss()
+                }
             }
 
             Event.Paused -> when {
@@ -290,7 +293,8 @@ class VlcPlayer(ctx: Context) :
                 hasAudioFocus = true
                 if (state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE) return
                 update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
-                if (state.playWhenReady && !state.timeline.isEmpty) playVlc()
+                val open = state.playbackState == STATE_READY || state.playbackState == STATE_BUFFERING
+                if (state.playWhenReady && open) playVlc()
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
@@ -300,6 +304,8 @@ class VlcPlayer(ctx: Context) :
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // a play asked for meanwhile takes it back
+                hasAudioFocus = false
                 update {
                     setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
                 }
