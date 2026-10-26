@@ -407,6 +407,12 @@ class OmniView(val context: ThemedReactContext) :
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
         ))
+        // react native swallows the layout request, the surface would keep its pip size
+        contentFrame.measure(
+            View.MeasureSpec.makeMeasureSpec(contentFrame.width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(contentFrame.height, View.MeasureSpec.EXACTLY)
+        )
+        contentFrame.layout(contentFrame.left, contentFrame.top, contentFrame.right, contentFrame.bottom)
 
         movedSurfaceToRootForPip = false
     }
