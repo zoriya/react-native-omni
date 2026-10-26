@@ -240,7 +240,8 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
             }
 
             STATE_ENDED -> {
-                emitEnd()
+                // a player cleared while playing ends as well, no media did
+                if (!player.currentTimeline.isEmpty) emitEnd()
                 PlayerStatus.IDLE
             }
 
