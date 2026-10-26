@@ -78,6 +78,9 @@ class VlcPlayer(ctx: Context) :
     private val libVLC = LibVLC(
         ctx, arrayListOf(
             "--file-caching=1500",
+            // the app picks where a media starts and its tracks, vlc would resume its own history
+            "--restore-playback-pos=0",
+            "--no-restore-playback-states",
             "--no-stats",
             "--no-osd",
             "--quiet"
