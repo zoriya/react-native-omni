@@ -113,6 +113,8 @@ class VlcPlayer(ctx: Context) :
     // vlc keeps reporting its pre-seek time until it decoded the new position
     @Volatile
     private var seekTarget = TIME_UNSET
+    // the target vlc was asked for, TIME_UNSET while seekTarget waits for vlc to be able to seek
+    private var seekSent = TIME_UNSET
 
     // events vlc sends about a media we left (stopped, switched, ended, failed) until it opens the next one
     private var stale = false
@@ -210,7 +212,7 @@ class VlcPlayer(ctx: Context) :
     // vlc doesn't leave idle on its own (prepare/play do), and a seek or a sub fetch keeps it buffering
     private fun State.Builder.setVlcPlaybackState(playbackState: Int): State.Builder {
         if (state.playbackState == STATE_IDLE) return this
-        val waiting = vlcHandler.hasMessages(0, SEEK) || slavePaused
+        val waiting = seekTarget != TIME_UNSET || slavePaused
         return setPlaybackState(if (playbackState == STATE_READY && waiting) STATE_BUFFERING else playbackState)
     }
 
@@ -245,6 +247,7 @@ class VlcPlayer(ctx: Context) :
                 }
                 updateVideoSize()
                 if (videoOutputStale) rebuildVideoOutput()
+                if (seekTarget != TIME_UNSET && seekSent == TIME_UNSET) sendSeek()
                 if (!tracksSelected) {
                     tracksSelected = true
                     selectTracks(state.trackSelectionParameters)
@@ -280,7 +283,7 @@ class VlcPlayer(ctx: Context) :
 
             Event.TimeChanged -> {
                 position = event.timeChanged
-                if (seekTarget != TIME_UNSET && seekLanded(position, seekTarget)) seekSettled(position)
+                if (seekSent != TIME_UNSET && seekLanded(position, seekSent)) seekDone(position)
             }
 
             // vlc has no video size event, this is the first one where it is known
@@ -295,7 +298,10 @@ class VlcPlayer(ctx: Context) :
 
             Event.LengthChanged -> update { updateCurrentItem { setDurationUs(durationUs(event.lengthChanged)) } }
 
-            Event.SeekableChanged -> update { updateCurrentItem { setIsSeekable(event.seekable) } }
+            Event.SeekableChanged -> {
+                update { updateCurrentItem { setIsSeekable(event.seekable) } }
+                if (event.seekable && seekTarget != TIME_UNSET && seekSent == TIME_UNSET) sendSeek()
+            }
         }
     }
 
@@ -575,51 +581,59 @@ class VlcPlayer(ctx: Context) :
     }
 
     private fun seekVlc(target: Long) {
-        // in a burst of seeks (double tapping to skip a minute) vlc would restart its demuxer for
-        // each one: leave the one under way alone, the poll asks for wherever the burst ended up
-        val burst = vlcHandler.hasMessages(0, SEEK)
-        vlcHandler.removeCallbacksAndMessages(SEEK)
         seekTarget = target
-        var asked = !burst && player.isSeekable
-        if (asked) player.time = target
-        var attempts = 0
-        var lastPoll = player.time.coerceAtLeast(0L)
+        // in a burst of seeks (double tapping to skip a minute) vlc would restart its demuxer for
+        // each one, and ignores those asked for while it handles another: the last one waits for
+        // the one under way to land (see seekDone)
+        if (seekSent == TIME_UNSET) sendSeek()
+    }
 
-        // vlc silently drops a seek asked for while it handles another, but asking again while it
-        // handles ours restarts it. its clock tells which: frozen while seeking, ticking once dropped
-        val poll = object : Runnable {
-            override fun run() {
-                // vlc only seeks once its input is up. one up and still not seekable is a live stream
-                if (!player.isSeekable) {
-                    if (vlcStarted() && attempts++ >= 10) return seekSettled(player.time.coerceAtLeast(0L))
-                    postDelayed(SEEK, 100, this)
-                    return
+    // vlc only seeks once its input is up, Playing and SeekableChanged send it then
+    private fun sendSeek() {
+        val time = player.time.coerceAtLeast(0L)
+        if (!vlcHandler.hasMessages(0, STOPPING) && player.isSeekable) {
+            seekSent = seekTarget
+            player.time = seekTarget
+        }
+        vlcHandler.removeCallbacksAndMessages(SEEK)
+        watchSeek(time, 0)
+    }
+
+    // vlc reports neither a seek done nor one dropped, only its clock tells: frozen while it seeks,
+    // ticking once it dropped it. asking again while it handles one would restart it.
+    private fun watchSeek(lastPoll: Long, attempts: Int) {
+        postDelayed(SEEK, SEEK_RETRY_DELAY) {
+            val time = player.time.coerceAtLeast(0L)
+            when {
+                seekSent == TIME_UNSET -> when {
+                    !vlcStarted() -> watchSeek(time, attempts)
+                    player.isSeekable -> sendSeek()
+                    // its input is up and still not seekable, a live stream
+                    else -> seekSettled(time)
                 }
-                val time = player.time.coerceAtLeast(0L)
-                if (!asked) {
-                    player.time = target
-                    asked = true
-                    attempts = 0
-                    lastPoll = time
-                    postDelayed(SEEK, SEEK_RETRY_DELAY, this)
-                    return
-                }
-                val ticking = time - lastPoll in (SEEK_RETRY_DELAY / 2)..(SEEK_RETRY_DELAY * 2)
-                lastPoll = time
+                // TimeChanged usually sees it first
+                seekLanded(time, seekSent) -> seekDone(time)
                 // a target vlc never reaches must not mask the position forever
-                if (seekLanded(time, target) || attempts++ >= 10) return seekSettled(time)
-                if (ticking) player.time = target
-                postDelayed(SEEK, SEEK_RETRY_DELAY, this)
+                attempts >= 10 -> seekSettled(time)
+                else -> {
+                    if (time - lastPoll in (SEEK_RETRY_DELAY / 2)..(SEEK_RETRY_DELAY * 2)) player.time = seekSent
+                    watchSeek(time, attempts + 1)
+                }
             }
         }
-        postDelayed(SEEK, if (asked || burst) SEEK_RETRY_DELAY else 100L, poll)
     }
 
     private fun seekLanded(time: Long, target: Long): Boolean = abs(time - target) < 1_000
 
+    // the seek under way landed, a newer one of the burst goes next
+    private fun seekDone(time: Long) {
+        if (seekTarget != seekSent) sendSeek() else seekSettled(time)
+    }
+
     private fun cancelSeek() {
         vlcHandler.removeCallbacksAndMessages(SEEK)
         seekTarget = TIME_UNSET
+        seekSent = TIME_UNSET
     }
 
     private fun seekSettled(time: Long) {
