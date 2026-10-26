@@ -417,18 +417,6 @@ class OmniPlayer(
         )
     }
 
-    fun setVideoView(surfaceView: android.view.SurfaceView) {
-        runOnMainThread {
-            localPlayer.setVideoSurfaceView(surfaceView)
-        }
-    }
-
-    fun clearVideoView(surfaceView: android.view.SurfaceView) {
-        runOnMainThread {
-            localPlayer.clearVideoSurfaceView(surfaceView)
-        }
-    }
-
     override val hasPrev: Boolean get() = source?.metadata?.hasPrev == true
     override val hasNext: Boolean get() = source?.metadata?.hasNext == true
     override val status by mainThreadProperty {
