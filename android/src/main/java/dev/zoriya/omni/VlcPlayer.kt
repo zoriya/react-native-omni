@@ -142,8 +142,6 @@ class VlcPlayer(ctx: Context) :
                 .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
                 .add(COMMAND_SEEK_BACK)
                 .add(COMMAND_SEEK_FORWARD)
-                .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                 .add(COMMAND_SET_SPEED_AND_PITCH)
                 .add(COMMAND_GET_VOLUME)
                 .add(COMMAND_SET_VOLUME)
