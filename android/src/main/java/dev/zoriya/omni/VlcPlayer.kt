@@ -292,6 +292,7 @@ class VlcPlayer(ctx: Context) :
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
+                player.volume = (state.volume * 100).toInt()
                 if (state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE) return
                 update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
                 val open = state.playbackState == STATE_READY || state.playbackState == STATE_BUFFERING
@@ -303,13 +304,15 @@ class VlcPlayer(ctx: Context) :
                 pauseForFocusLoss()
             }
 
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 // a play asked for meanwhile takes it back
                 hasAudioFocus = false
                 update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) }
                 player.pause()
             }
+
+            // like exoplayer, a notification sound lowers the volume rather than pausing
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> player.volume = (state.volume * 20).toInt()
         }
     }
 
