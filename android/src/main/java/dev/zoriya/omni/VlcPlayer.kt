@@ -776,7 +776,7 @@ class VlcPlayer(ctx: Context) :
                 player.getSelectedTrack(IMedia.Track.Type.Audio)
             ) + trackGroups(
                 TRACK_TYPE_TEXT,
-                textTracks.filter { it !in loadedSlaves.values }.map { listOf(it) },
+                textTracks.filter { it !in loadedSlaves.values }.groupBy { trackKey(it) }.values,
                 selectedSubtitle
             ) + sideloaded
         )
@@ -816,7 +816,8 @@ class VlcPlayer(ctx: Context) :
                 format.build()
             }
             Group(
-                TrackGroup("vlc-$name-${tracks.minOf { it.id }}", *formats.toTypedArray()),
+                // vlc's es ids change when a track is selected again, the key doesn't
+                TrackGroup("vlc-$name-${trackKey(tracks.first())}", *formats.toTypedArray()),
                 formats.size > 1,
                 IntArray(formats.size) { FORMAT_HANDLED },
                 BooleanArray(tracks.size) { tracks[it].id == selected?.id }
