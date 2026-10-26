@@ -125,6 +125,8 @@ class VlcPlayer(ctx: Context) :
     private var pendingSlave: String? = null
     // hashes of the sideloaded subs vlc was asked to fetch for the current media
     private val askedSlaves = mutableSetOf<String>()
+    // the track selection parameters were applied to the opened media, they wait for vlc to list its tracks
+    private var tracksSelected = false
 
     // only written on the vlc thread
     @Volatile
@@ -243,6 +245,10 @@ class VlcPlayer(ctx: Context) :
                     setVlcPlaybackState(STATE_READY)
                 }
                 updateVideoSize()
+                if (!tracksSelected) {
+                    tracksSelected = true
+                    selectTracks(state.trackSelectionParameters)
+                }
                 // vlc reports a media opening paused (see loadMedia) as playing until its first frame
                 if (state.playWhenReady) {
                     if (requestAudioFocus()) update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
@@ -499,6 +505,8 @@ class VlcPlayer(ctx: Context) :
         vlcHandler.removeCallbacksAndMessages(SLAVE)
         vlcHandler.removeCallbacksAndMessages(SLAVE_FETCH)
         stale = true
+        // vlc opens it again with its default tracks
+        tracksSelected = false
     }
 
     // vlc stops on its own threads. a play reaching it before it is done has it keep reporting the
@@ -641,13 +649,9 @@ class VlcPlayer(ctx: Context) :
         val slaveUri = trackId.substringAfter(PENDING_SLAVE_PREFIX, "")
         if (slaveUri.isEmpty()) {
             dropPendingSlave()
-            player.selectTrack(trackId)
+            selectTrack(IMedia.Track.Type.Text, trackId)
             return
         }
-
-        // a selection kept from a previous media must not sideload its sub in this one
-        val subtitleConfigs = currentItem?.localConfiguration?.subtitleConfigurations.orEmpty()
-        if (subtitleConfigs.none { it.uri.toString() == slaveUri }) return
         if (selectLoadedSlave(slaveUri)) return
 
         pendingSlave = slaveUri
@@ -676,7 +680,7 @@ class VlcPlayer(ctx: Context) :
 
     private fun selectLoadedSlave(uri: String): Boolean {
         val es = loadedSlave(md5(uri)) ?: return false
-        player.selectTrack(es.id)
+        selectTrack(IMedia.Track.Type.Text, es.id)
         dropPendingSlave()
         return true
     }
@@ -823,14 +827,20 @@ class VlcPlayer(ctx: Context) :
     override fun handleSetTrackSelectionParameters(
         trackSelectionParameters: TrackSelectionParameters
     ): ListenableFuture<*> = vlc {
-        val params = trackSelectionParameters
-        update { setTrackSelectionParameters(params) }
+        update { setTrackSelectionParameters(trackSelectionParameters) }
+        selectTracks(trackSelectionParameters)
+    }
 
+    private fun selectTracks(params: TrackSelectionParameters) {
         val tracks = buildTracks()
-        val overrides = params.overrides.values.mapNotNull { override ->
-            val index = override.trackIndices.firstOrNull() ?: return@mapNotNull null
-            override.mediaTrackGroup.getFormat(index).id?.let { override.type to it }
-        }.toMap()
+        val groups = tracks.groups.map { it.mediaTrackGroup }
+        val overrides = params.overrides.values
+            // like exoplayer, an override only applies to the tracks it was made on, not to the next media's
+            .filter { it.mediaTrackGroup in groups }
+            .mapNotNull { override ->
+                val index = override.trackIndices.firstOrNull() ?: return@mapNotNull null
+                override.mediaTrackGroup.getFormat(index).id?.let { override.type to it }
+            }.toMap()
         fun pick(type: Int, languages: List<String>, labels: List<String>): String? =
             overrides[type] ?: preferredTrack(tracks, type, languages, labels)
 
@@ -839,14 +849,14 @@ class VlcPlayer(ctx: Context) :
         } else {
             player.setVideoTrackEnabled(true)
             pick(TRACK_TYPE_VIDEO, params.preferredVideoLanguages, params.preferredVideoLabels)
-                ?.let { player.selectTrack(it) }
+                ?.let { selectTrack(IMedia.Track.Type.Video, it) }
         }
 
         if (TRACK_TYPE_AUDIO in params.disabledTrackTypes) {
             player.unselectTrackType(IMedia.Track.Type.Audio)
         } else {
             pick(TRACK_TYPE_AUDIO, params.preferredAudioLanguages, params.preferredAudioLabels)
-                ?.let { player.selectTrack(it) }
+                ?.let { selectTrack(IMedia.Track.Type.Audio, it) }
         }
 
         if (TRACK_TYPE_TEXT in params.disabledTrackTypes) {
@@ -856,6 +866,11 @@ class VlcPlayer(ctx: Context) :
             pick(TRACK_TYPE_TEXT, params.preferredTextLanguages, params.preferredTextLabels)
                 ?.let { selectTextTrack(it) }
         }
+    }
+
+    // vlc recreates the es of a track selected again (see trackOrders), restarting its decoder
+    private fun selectTrack(type: Int, id: String) {
+        if (player.getSelectedTrack(type)?.id != id) player.selectTrack(id)
     }
 
     // the track matching the most preferred language, then label
@@ -876,10 +891,11 @@ class VlcPlayer(ctx: Context) :
 
         return tracks.groups
             .filter { it.type == type }
-            .flatMap { group -> (0 until group.length).map { group.getTrackFormat(it) } }
-            .filter { rank(languages, it.language) != null && rank(labels, it.label) != null }
-            .minWithOrNull(compareBy({ rank(languages, it.language) }, { rank(labels, it.label) }))
-            ?.id
+            .flatMap { group -> (0 until group.length).map { group.getTrackFormat(it) to group.isTrackSelected(it) } }
+            .filter { (format) -> rank(languages, format.language) != null && rank(labels, format.label) != null }
+            // among equally preferred tracks, the one playing (a rendition picked by hand) stays
+            .minWithOrNull(compareBy({ rank(languages, it.first.language) }, { rank(labels, it.first.label) }, { !it.second }))
+            ?.first?.id
     }
 
     override fun handleSetVideoOutput(videoOutput: Any): ListenableFuture<*> {
