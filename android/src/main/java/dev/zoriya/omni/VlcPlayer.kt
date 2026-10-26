@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.Message
 import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
@@ -66,16 +67,15 @@ private val STOPPING = Any()
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
     SimpleBasePlayer(Looper.getMainLooper()),
-    MediaPlayer.EventListener,
-    AudioManager.OnAudioFocusChangeListener {
+    MediaPlayer.EventListener {
     private val applicationHandler = Handler(Looper.getMainLooper())
 
     // libvlc calls block while vlc opens, seeks or flushes its decoders (seconds on tvs), they
     // all run on this thread instead of the ui's
     private val vlcThread = HandlerThread("vlc-commands").apply { start() }
-    private val vlcHandler = Handler(vlcThread.looper)
+    private val vlcHandler = VlcHandler(vlcThread.looper)
     // libvlc clears its event handler's queue when the listener changes, keep commands out of it
-    private val vlcEventHandler = Handler(vlcThread.looper)
+    private val vlcEventHandler = VlcHandler(vlcThread.looper)
 
     private val libVLC = LibVLC(
         ctx, arrayListOf(
@@ -94,6 +94,9 @@ class VlcPlayer(ctx: Context) :
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus = false
     private var handleAudioFocus = false
+    // posted rather than handed vlcHandler: the audio manager would wrap it in a handler of its own.
+    // a single one: the audio manager tells requests apart by their listener
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { vlcHandler.post { onAudioFocusChange(it) } }
 
     private var released = false
 
@@ -173,13 +176,10 @@ class VlcPlayer(ctx: Context) :
     private fun vlc(block: () -> Unit): ListenableFuture<*> {
         val done = SettableFuture.create<Unit>()
         vlcHandler.post {
-            // an uncaught throw would kill the vlc thread, and the app with it
             try {
                 block()
+            } finally {
                 done.set(Unit)
-            } catch (e: Exception) {
-                Log.e("VlcPlayer", "vlc command failed", e)
-                done.setException(e)
             }
         }
         return done
@@ -297,7 +297,7 @@ class VlcPlayer(ctx: Context) :
         }
     }
 
-    override fun onAudioFocusChange(focusChange: Int) {
+    private fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
@@ -328,7 +328,7 @@ class VlcPlayer(ctx: Context) :
         if (audioManager == null || !handleAudioFocus || hasAudioFocus) return true
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(state.audioAttributes.platformAudioAttributes)
-            .setOnAudioFocusChangeListener(this, vlcHandler)
+            .setOnAudioFocusChangeListener(audioFocusListener)
             .build()
         audioFocusRequest = request
         hasAudioFocus = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
@@ -959,6 +959,17 @@ class VlcPlayer(ctx: Context) :
         }
         val size = VideoSize(videoTrack.width, videoTrack.height, par)
         if (size != state.videoSize) update { setVideoSize(size) }
+    }
+}
+
+// an uncaught throw would kill the vlc thread, and the app with it
+private class VlcHandler(looper: Looper) : Handler(looper) {
+    override fun dispatchMessage(msg: Message) {
+        try {
+            super.dispatchMessage(msg)
+        } catch (e: Exception) {
+            Log.e("VlcPlayer", "vlc command failed", e)
+        }
     }
 }
 
