@@ -11,7 +11,6 @@ import android.os.Message
 import android.os.SystemClock
 import android.util.Log
 import android.view.SurfaceView
-import android.view.TextureView
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -89,11 +88,10 @@ class VlcPlayer(ctx: Context) :
     // a single one: the audio manager tells requests apart by their listener
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { vlcHandler.post { onAudioFocusChange(it) } }
 
-    private var boundOutput: View? = null
+    private var boundOutput: SurfaceView? = null
     // bumped for every output set, a clear reaching vlc late must leave a newer one alone
     @Volatile
     private var videoOutputGeneration = 0
-    @Volatile
     private var videoReleased: CountDownLatch? = null
     // the video track a cleared output turned off
     private var releasedVideoTrack: String? = null
@@ -108,6 +106,8 @@ class VlcPlayer(ctx: Context) :
     // waits for the one under way
     private var seekSent = TIME_UNSET
     private var seekOrigin = 0L
+    // vlc drops a seek sent while it handles another, one it never lands is sent again
+    private var seekSentAt = 0L
 
     // vlc keeps sending events about a media we left until it opens the next one
     private var stale = false
@@ -158,9 +158,6 @@ class VlcPlayer(ctx: Context) :
     override fun getState(): State = state
 
     private fun currentPosition(): Long = seekTarget.takeIf { it != TIME_UNSET } ?: position
-
-    private val currentItem: MediaItem?
-        get() = state.playlist.firstOrNull()?.mediaItem
 
     private fun vlc(block: () -> Unit): ListenableFuture<*> {
         val done = SettableFuture.create<Unit>()
@@ -235,8 +232,7 @@ class VlcPlayer(ctx: Context) :
             Event.Paused -> when {
                 slavePaused -> Unit
                 // vlc opened the media paused (see loadMedia)
-                state.playWhenReady && state.playbackState != STATE_IDLE &&
-                    state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE -> player.play()
+                state.playWhenReady && state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE -> player.play()
                 else -> update { setVlcPlaybackState(STATE_READY) }
             }
 
@@ -259,8 +255,13 @@ class VlcPlayer(ctx: Context) :
 
             Event.TimeChanged -> {
                 position = event.timeChanged
-                // vlc lands near the target (on a segment's start for hls), past the halfway point
-                if (seekSent == TIME_UNSET || abs(position - seekSent) > abs(position - seekOrigin)) return
+                if (seekSent == TIME_UNSET) return
+                // vlc lands near the target (on a segment's start for hls), past the halfway point.
+                // its clock freezes while it seeks, one still ticking from the origin was dropped
+                if (abs(position - seekSent) > abs(position - seekOrigin)) {
+                    if (SystemClock.uptimeMillis() - seekSentAt > 2_000) sendSeek()
+                    return
+                }
                 if (seekTarget != seekSent) return sendSeek()
                 seekTarget = TIME_UNSET
                 seekSent = TIME_UNSET
@@ -356,15 +357,11 @@ class VlcPlayer(ctx: Context) :
     ): ListenableFuture<*> = vlc {
         // prev/next are NavigationPlayer's
         val item = mediaItems.getOrNull(startIndex.coerceAtLeast(0))
-        val playbackState = when {
-            state.playbackState == STATE_IDLE -> STATE_IDLE
-            item == null -> STATE_ENDED
-            else -> STATE_BUFFERING
-        }
         update {
             setPlaylist(listOfNotNull(item).map { MediaItemData.Builder(Any()).setMediaItem(it).setIsSeekable(true).build() })
             setCurrentMediaItemIndex(if (item == null) INDEX_UNSET else 0)
-            setPlaybackState(playbackState)
+            // an idle player waits for prepare/play
+            if (state.playbackState != STATE_IDLE) setPlaybackState(if (item == null) STATE_ENDED else STATE_BUFFERING)
             setPlayerError(null)
             setVideoSize(VideoSize.UNKNOWN)
         }
@@ -372,7 +369,7 @@ class VlcPlayer(ctx: Context) :
         loadMedia(item)
         // TIME_UNSET is negative
         position = startPositionMs.coerceAtLeast(0L)
-        if (playbackState == STATE_BUFFERING) openMedia()
+        if (state.playbackState != STATE_IDLE) openMedia()
     }
 
     override fun handleAddMediaItems(index: Int, mediaItems: List<MediaItem>): ListenableFuture<*> =
@@ -441,11 +438,10 @@ class VlcPlayer(ctx: Context) :
         val target = positionMs.coerceAtLeast(0L)
         when (state.playbackState) {
             STATE_IDLE -> position = target
-            // like exoplayer, going back after the end plays from there if it was still playing
+            // like exoplayer, going back after the end opens the media there
             STATE_ENDED -> {
                 position = target
-                if (state.playWhenReady) openMedia()
-                else update { setPlaybackState(STATE_IDLE) }
+                openMedia()
             }
             else -> {
                 if (!state.playlist[0].isSeekable) return@vlc
@@ -471,14 +467,19 @@ class VlcPlayer(ctx: Context) :
     private fun sendSeek() {
         seekSent = seekTarget
         seekOrigin = player.time
+        seekSentAt = SystemClock.uptimeMillis()
         player.time = seekTarget
     }
 
+    // vlc opens the media again (replay, prepare after a stop) with its default tracks and no slave
     private fun leaveMedia() {
         seekTarget = TIME_UNSET
         seekSent = TIME_UNSET
         vlcHandler.removeCallbacksAndMessages(SLAVE)
         slavePaused = false
+        pendingSlave = null
+        askedSlaves.clear()
+        trackOrders.clear()
         stale = true
         started = false
     }
@@ -489,9 +490,6 @@ class VlcPlayer(ctx: Context) :
 
     private fun loadMedia(item: MediaItem?) {
         leaveMedia()
-        trackOrders.clear()
-        pendingSlave = null
-        askedSlaves.clear()
         releasedVideoTrack = null
         voutCount = 0
         player.stop()
@@ -595,16 +593,8 @@ class VlcPlayer(ctx: Context) :
     // vlc renumbers a track each time it's selected, they are ordered on the first number they had
     private val trackOrders = mutableMapOf<Pair<String, String>, Int>()
 
-    private fun trackOrder(type: String, tracks: List<IMedia.Track>): Int {
-        val key = type to trackKey(tracks.first())
-        val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
-        val order = minOf(trackOrders[key] ?: Int.MAX_VALUE, es)
-        trackOrders[key] = order
-        return order
-    }
-
     private fun buildTracks(): Tracks {
-        val subtitleConfigs = currentItem?.localConfiguration?.subtitleConfigurations.orEmpty()
+        val subtitleConfigs = state.playlist.firstOrNull()?.mediaItem?.localConfiguration?.subtitleConfigurations.orEmpty()
         val textTracks = player.getTracks(IMedia.Track.Type.Text).orEmpty()
         val subtitleSlavesByHash = subtitleConfigs.associateBy { md5(it.uri.toString()) }
         val loadedSlaves = textTracks.mapNotNull { track ->
@@ -654,7 +644,10 @@ class VlcPlayer(ctx: Context) :
         type: String,
         groups: Collection<List<IMedia.Track>>,
         selected: IMedia.Track?
-    ): List<Group> = groups.sortedBy { trackOrder(type, it) }.map { tracks ->
+    ): List<Group> = groups.sortedBy { tracks ->
+        val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
+        trackOrders.merge(type to trackKey(tracks.first()), es) { a, b -> minOf(a, b) }
+    }.map { tracks ->
         val formats = tracks.map { track ->
             val video = track as? VideoTrack
             Format.Builder()
@@ -757,11 +750,11 @@ class VlcPlayer(ctx: Context) :
     override fun handleSetVideoOutput(videoOutput: Any): ListenableFuture<*> {
         if (videoOutput === boundOutput) return Futures.immediateVoidFuture()
         // the video is laid out in a view, a bare Surface or SurfaceHolder has none
-        if (videoOutput !is SurfaceView && videoOutput !is TextureView) return Futures.immediateVoidFuture()
+        if (videoOutput !is SurfaceView) return Futures.immediateVoidFuture()
         handleClearVideoOutput(null)
-        boundOutput = videoOutput as View
+        boundOutput = videoOutput
         videoOutputGeneration++
-        if (videoOutput is SurfaceView) vlcVout.setVideoView(videoOutput) else vlcVout.setVideoView(videoOutput as TextureView)
+        vlcVout.setVideoView(videoOutput)
         vlcVout.attachViews()
         videoOutput.addOnLayoutChangeListener(layoutListener)
         updateVideoLayout(videoOutput)
