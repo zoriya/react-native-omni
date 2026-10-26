@@ -417,31 +417,6 @@ class OmniPlayer(
         )
     }
 
-    fun setVideoView(surfaceView: android.view.SurfaceView) {
-        runOnMainThread {
-            localPlayer.setVideoSurfaceView(surfaceView)
-        }
-    }
-
-    fun clearVideoView(surfaceView: android.view.SurfaceView) {
-        runOnMainThread {
-            localPlayer.clearVideoSurfaceView(surfaceView)
-        }
-    }
-
-    // rebuild video pipeline after pip, noop for exoplayer that recover on it's own.
-    fun rebuildVideoOutput() {
-        runOnMainThread {
-            (localPlayer as? VlcPlayer)?.rebuildVideoOutput()
-        }
-    }
-
-    fun updateVideoLayout(width: Int, height: Int) {
-        runOnMainThread {
-            (localPlayer as? VlcPlayer)?.updateVideoLayout(width, height)
-        }
-    }
-
     override val hasPrev: Boolean get() = source?.metadata?.hasPrev == true
     override val hasNext: Boolean get() = source?.metadata?.hasNext == true
     override val status by mainThreadProperty {

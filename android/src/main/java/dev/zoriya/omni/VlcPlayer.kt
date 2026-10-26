@@ -4,520 +4,575 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.Message
 import android.os.SystemClock
-import android.view.Surface
-import android.view.SurfaceHolder
+import android.util.Log
 import android.view.SurfaceView
-import android.view.TextureView
+import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
-import androidx.media3.common.BasePlayer
 import androidx.media3.common.C.FORMAT_HANDLED
 import androidx.media3.common.C.INDEX_UNSET
-import androidx.media3.common.C.SELECTION_FLAG_DEFAULT
 import androidx.media3.common.C.TIME_UNSET
 import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
 import androidx.media3.common.C.TRACK_TYPE_VIDEO
-import androidx.media3.common.DeviceInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.Timeline
+import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.Tracks.Group
 import androidx.media3.common.VideoSize
-import androidx.media3.common.text.CueGroup
-import androidx.media3.common.util.Clock
-import androidx.media3.common.util.ListenerSet
-import androidx.media3.common.util.Size
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.MediaPlayer.Event
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.interfaces.IMedia.VideoTrack
 import org.videolan.libvlc.interfaces.IVLCVout
 import java.security.MessageDigest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
-// marks a sideloaded sub that is listed but not fetched by vlc yet
-private const val PENDING_SLAVE_PREFIX = "vlc-pending-sub:"
+// a sideloaded sub, listed from its config whether or not vlc fetched it yet
+private const val SLAVE_PREFIX = "vlc-sub:"
 
-private const val SEEK_RETRY_DELAY = 1_000L
+// work delayed on the vlc thread: a sub being fetched, the video track restarting for a new output
+private val SLAVE = Any()
+private val REBUILD = Any()
 
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
-    BasePlayer(),
-    MediaPlayer.EventListener,
-    AudioManager.OnAudioFocusChangeListener {
-    private val applicationLooper: Looper = Looper.getMainLooper()
-    private val applicationHandler = Handler(applicationLooper)
+    SimpleBasePlayer(Looper.getMainLooper()),
+    MediaPlayer.EventListener {
+    private val applicationHandler = Handler(Looper.getMainLooper())
 
-    // libvlc run networks and stop requests on the same thread, we need a
-    // second thread for long commands
+    // libvlc calls can block for seconds (on tvs), they all run on this thread instead of the ui's
     private val vlcThread = HandlerThread("vlc-commands").apply { start() }
-    private val vlcHandler = Handler(vlcThread.looper)
-
-    private val audioManager =
-        ContextCompat.getSystemService(ctx.applicationContext, AudioManager::class.java)
-    private var audioFocusRequest: AudioFocusRequest? = null
-
-    private var hasAudioFocus = false
-    private var handleAudioFocus = false
-    private var mediaAudioAttributes: AudioAttributes = AudioAttributes.DEFAULT
-    private var playbackSuppression = PLAYBACK_SUPPRESSION_REASON_NONE
-
-    private val listeners = ListenerSet<Player.Listener>(
-        applicationLooper,
-        Clock.DEFAULT
-    ) { listener, flags ->
-        listener.onEvents(this, Player.Events(flags))
-    }
-
-    private fun notifyListeners(eventFlag: Int, callback: (Player.Listener) -> Unit) =
-        notifyListeners(arrayOf(eventFlag), callback)
-
-    private fun notifyListeners(eventFlags: Array<Int>, callback: (Player.Listener) -> Unit) {
-        val flush = {
-            eventFlags.forEach { listeners.queueEvent(it, callback) }
-            listeners.flushEvents()
-        }
-        if (Looper.myLooper() == Looper.getMainLooper()) flush() else applicationHandler.post(flush)
-    }
+    private val vlcHandler = VlcHandler(vlcThread.looper)
+    // libvlc clears its event handler's queue when the listener changes, keep commands out of it
+    private val vlcEventHandler = VlcHandler(vlcThread.looper)
 
     private val libVLC = LibVLC(
         ctx, arrayListOf(
-            "--network-caching=1500",
             "--file-caching=1500",
+            // the app picks where a media starts and its tracks, vlc would resume its own history
+            "--restore-playback-pos=0",
+            "--no-restore-playback-states",
             "--no-stats",
             "--no-osd",
             "--quiet"
         )
     )
-
-    private val player = MediaPlayer(libVLC)
-
+    private val player = EventMediaPlayer(libVLC)
     private val vlcVout: IVLCVout = player.vlcVout
 
-    private var mediaItems: List<MediaItem> = emptyList()
-    private var subtitleSlavesByHash: Map<String, MediaItem.SubtitleConfiguration> = emptyMap()
-    private var pendingSlaveHash: String? = null
-    private var loadingSlave = false
-    private var currentMediaItemIndex: Int = INDEX_UNSET
-    private var currentTrackSelectionParameters = TrackSelectionParameters.Builder().build()
+    private val audioManager =
+        ContextCompat.getSystemService(ctx.applicationContext, AudioManager::class.java)
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasAudioFocus = false
+    private var handleAudioFocus = false
+    // a single one: the audio manager tells requests apart by their listener
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { vlcHandler.post { onAudioFocusChange(it) } }
+
+    private var boundOutput: SurfaceView? = null
+    // bumped for every output set, a clear reaching vlc late must leave a newer one alone
+    @Volatile
+    private var videoOutputGeneration = 0
+    private var videoReleased: CountDownLatch? = null
+    // the video track a cleared output turned off
+    private var releasedVideoTrack: String? = null
+    private var voutCount = 0
 
     @Volatile
-    private var playerError: PlaybackException? = null
+    private var position = 0L
+    // vlc keeps reporting its pre-seek time until it decoded the new position
+    @Volatile
+    private var seekTarget = TIME_UNSET
+    // vlc restarts its demuxer for each seek, a burst of them (double tapping to skip a minute)
+    // waits for the one under way
+    private var seekSent = TIME_UNSET
+    private var seekOrigin = 0L
+    // vlc drops a seek sent while it handles another, one it never lands is sent again
+    private var seekSentAt = 0L
+
+    // vlc keeps sending events about a media we left until it opens the next one
+    private var stale = false
+    // vlc played the media we opened, its tracks are known and it can seek
+    private var started = false
+    private var pendingSlave: String? = null
+    private var slavePaused = false
+    // hashes of the sideloaded subs vlc was asked to fetch
+    private val askedSlaves = mutableSetOf<String>()
 
     @Volatile
-    private var released = false
-    private var playlistMetadata: MediaMetadata = MediaMetadata.EMPTY
-    private var userInitiatedTransition: Boolean = false
-
-    // stop() only queues the real one on the vlc thread
-    @Volatile
-    private var stopped = false
-    @Volatile
-    private var ended = false
-
-    // vlc handles seeks on its input thread and keeps reporting the pre-seek time
-    // until it decoded the new position, so remember where we asked to go and
-    // report that instead
-    @Volatile
-    private var pendingSeekPosition: Long = TIME_UNSET
-    private var seekAttempts = -1
-    private var lastSeekPoll = 0L
-
-    // where the media should start playing, until we managed to seek there
-    @Volatile
-    private var pendingStartPosition: Long = TIME_UNSET
-
-    private var boundSurfaceView: SurfaceView? = null
-    private var videoOutputStale = false
-    private var lastVideoSize: VideoSize = VideoSize.UNKNOWN
-
-    private val availableCommands: Player.Commands = Player.Commands.Builder()
-        .add(COMMAND_PLAY_PAUSE)
-        .add(COMMAND_PREPARE)
-        .add(COMMAND_STOP)
-        .add(COMMAND_RELEASE)
-        .add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-        .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
-        .add(COMMAND_SEEK_BACK)
-        .add(COMMAND_SEEK_FORWARD)
-        .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-        .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-        .add(COMMAND_SET_SPEED_AND_PITCH)
-        .add(COMMAND_GET_VOLUME)
-        .add(COMMAND_SET_VOLUME)
-        .add(COMMAND_SET_VIDEO_SURFACE)
-        .add(COMMAND_SET_MEDIA_ITEM)
-        .add(COMMAND_CHANGE_MEDIA_ITEMS)
-        .add(COMMAND_GET_CURRENT_MEDIA_ITEM)
-        .add(COMMAND_GET_METADATA)
-        .add(COMMAND_GET_TIMELINE)
-        .add(COMMAND_GET_TRACKS)
-        .add(COMMAND_SET_TRACK_SELECTION_PARAMETERS)
+    private var state = State.Builder()
+        .setAvailableCommands(
+            Player.Commands.Builder()
+                .add(COMMAND_PLAY_PAUSE)
+                .add(COMMAND_PREPARE)
+                .add(COMMAND_STOP)
+                .add(COMMAND_RELEASE)
+                .add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+                .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
+                .add(COMMAND_SEEK_BACK)
+                .add(COMMAND_SEEK_FORWARD)
+                .add(COMMAND_SET_SPEED_AND_PITCH)
+                .add(COMMAND_GET_VOLUME)
+                .add(COMMAND_SET_VOLUME)
+                .add(COMMAND_SET_VIDEO_SURFACE)
+                .add(COMMAND_SET_MEDIA_ITEM)
+                .add(COMMAND_CHANGE_MEDIA_ITEMS)
+                .add(COMMAND_GET_CURRENT_MEDIA_ITEM)
+                .add(COMMAND_GET_METADATA)
+                .add(COMMAND_GET_TIMELINE)
+                .add(COMMAND_GET_TRACKS)
+                .add(COMMAND_SET_TRACK_SELECTION_PARAMETERS)
+                .add(COMMAND_GET_AUDIO_ATTRIBUTES)
+                .add(COMMAND_SET_AUDIO_ATTRIBUTES)
+                .build()
+        )
+        // progress is polled instead of pushed dozens of times per seconds.
+        // this improves perf & battery life (native -> js bridge is expensive)
+        .setContentPositionMs { currentPosition() }
+        .setContentBufferedPositionMs { currentPosition() }
         .build()
 
     init {
-        player.setEventListener(this)
+        player.setEventListener(this, vlcEventHandler)
     }
 
-    override fun onEvent(event: MediaPlayer.Event) {
-        if (released) return
+    override fun getState(): State = state
+
+    private fun currentPosition(): Long = seekTarget.takeIf { it != TIME_UNSET } ?: position
+
+    private fun vlc(block: () -> Unit): ListenableFuture<*> {
+        val done = SettableFuture.create<Unit>()
+        vlcHandler.post {
+            try {
+                block()
+            } finally {
+                done.set(Unit)
+            }
+        }
+        return done
+    }
+
+    private fun update(block: State.Builder.() -> Unit) {
+        state = state.buildUpon().apply(block).build()
+        applicationHandler.post { invalidateState() }
+    }
+
+    private fun State.Builder.updateCurrentItem(block: MediaItemData.Builder.() -> Unit): State.Builder =
+        setPlaylist(state.playlist.map { it.buildUpon().apply(block).build() })
+
+    private fun updateTracks() {
+        update { updateCurrentItem { setTracks(buildTracks()) } }
+    }
+
+    // vlc doesn't leave idle on its own (prepare/play do), and a seek or a sub fetch keeps it buffering
+    private fun State.Builder.setVlcPlaybackState(playbackState: Int): State.Builder {
+        if (state.playbackState == STATE_IDLE) return this
+        val waiting = (seekTarget != TIME_UNSET && state.playWhenReady) || slavePaused
+        return setPlaybackState(if (playbackState == STATE_READY && waiting) STATE_BUFFERING else playbackState)
+    }
+
+    override fun onEvent(event: Event) {
+        // vlc skips Opening when it never went idle between two medias
+        if (event.type == Event.Opening || event.type == Event.MediaChanged) stale = false
+        if (event.type == Event.Vout) voutCount = event.voutCount
+        if (videoReleased != null &&
+            (event.type == Event.ESSelected || event.type == Event.ESDeleted) &&
+            player.getSelectedTrack(IMedia.Track.Type.Video) == null
+        ) {
+            videoReleased?.countDown()
+            videoReleased = null
+        }
+        if (stale) return
+
         when (event.type) {
-            MediaPlayer.Event.Opening -> {
-                stopped = false
-                ended = false
-                lastVideoSize = VideoSize.UNKNOWN
-                notifyListeners(
-                    arrayOf(EVENT_PLAYBACK_STATE_CHANGED, EVENT_PLAY_WHEN_READY_CHANGED)
-                ) {
-                    it.onPlaybackStateChanged(STATE_BUFFERING)
-                    it.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
-                }
+            Event.Opening -> update {
+                setVideoSize(VideoSize.UNKNOWN).setVlcPlaybackState(STATE_BUFFERING)
             }
 
-            MediaPlayer.Event.Playing -> {
-                stopped = false
-                ended = false
-                if (!requestAudioFocus()) applicationHandler.post { player.pause() }
-                notifyListeners(
-                    arrayOf(
-                        EVENT_TIMELINE_CHANGED,
-                        EVENT_MEDIA_METADATA_CHANGED,
-                        EVENT_PLAYBACK_STATE_CHANGED,
-                        EVENT_IS_PLAYING_CHANGED,
-                        EVENT_PLAY_WHEN_READY_CHANGED,
-                        EVENT_TRACKS_CHANGED
-                    )
-                ) {
-                    it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
-                    it.onMediaMetadataChanged(mediaMetadata)
-                    // not always ready (subtitle load, seek, start time seek...)
-                    it.onPlaybackStateChanged(playbackState)
-                    it.onIsPlayingChanged(true)
-                    it.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
-                    it.onTracksChanged(getCurrentTracks())
+            Event.Playing -> {
+                if (!started) {
+                    started = true
+                    // vlc ignores seeks until now, and a live stream never seeks
+                    if (!player.isSeekable) seekTarget = TIME_UNSET
+                    if (seekTarget != TIME_UNSET) sendSeek()
+                    selectTracks(state.trackSelectionParameters)
                 }
-                maybeNotifyVideoSizeChanged()
+                if (releasedVideoTrack != null) rebuildVideoOutput()
+                update {
+                    updateCurrentItem {
+                        setDurationUs(if (player.length > 0) player.length * 1000L else TIME_UNSET)
+                            .setIsSeekable(player.isSeekable)
+                            .setTracks(buildTracks())
+                    }
+                    setVlcPlaybackState(STATE_READY)
+                }
+                updateVideoSize()
+                if (state.playWhenReady && !requestAudioFocus()) pauseForFocusLoss()
             }
 
-            MediaPlayer.Event.Paused -> {
-                // waiting on a slave is buffering, not a pause: we still intend to play
-                if (loadingSlave) return
-                notifyListeners(
-                    arrayOf(EVENT_PLAY_WHEN_READY_CHANGED, EVENT_IS_PLAYING_CHANGED)
-                ) {
-                    it.onPlayWhenReadyChanged(false, PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
-                    it.onIsPlayingChanged(false)
-                }
+            Event.Paused -> when {
+                slavePaused -> Unit
+                // vlc opened the media paused (see loadMedia)
+                state.playWhenReady && state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE -> player.play()
+                else -> update { setVlcPlaybackState(STATE_READY) }
             }
 
-            MediaPlayer.Event.Stopped -> {
+            Event.EndReached -> {
+                leaveMedia()
+                update { setVlcPlaybackState(STATE_ENDED) }
                 abandonAudioFocus()
-                pendingSeekPosition = TIME_UNSET
-                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
-                    it.onPlaybackStateChanged(STATE_IDLE)
-                }
             }
 
-            MediaPlayer.Event.EndReached -> {
-                abandonAudioFocus()
-                pendingSeekPosition = TIME_UNSET
-                // stopping leaves the media on Ended too
-                if (stopped) return
-                // this also fires when vlc gives up on a stream it never managed to read:
-                // its state is the only thing telling a failure from an end
-                ended = player.playerState == IMedia.State.Ended
-                notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
-                    it.onPlaybackStateChanged(STATE_ENDED)
-                }
-            }
-
-            MediaPlayer.Event.Buffering -> {
-                notifyListeners(arrayOf(EVENT_IS_LOADING_CHANGED, EVENT_PLAYBACK_STATE_CHANGED)) {
-                    it.onIsLoadingChanged(true)
-                    it.onPlaybackStateChanged(STATE_BUFFERING)
-                }
-            }
-
-            MediaPlayer.Event.EncounteredError -> {
+            Event.EncounteredError -> {
+                leaveMedia()
                 val error = PlaybackException(
                     "VLC playback error",
                     null,
                     PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK
                 )
-                playerError = error
-                notifyListeners(EVENT_PLAYER_ERROR) {
-                    it.onPlayerErrorChanged(error)
-                    it.onPlayerError(error)
+                update { setPlayerError(error).setPlaybackState(STATE_IDLE) }
+                abandonAudioFocus()
+            }
+
+            Event.TimeChanged -> {
+                position = event.timeChanged
+                if (seekSent == TIME_UNSET) return
+                // vlc lands near the target (on a segment's start for hls), past the halfway point.
+                // its clock freezes while it seeks, one still ticking from the origin was dropped
+                if (abs(position - seekSent) > abs(position - seekOrigin)) {
+                    if (SystemClock.uptimeMillis() - seekSentAt > 2_000) sendSeek()
+                    return
+                }
+                if (seekTarget != seekSent) return sendSeek()
+                seekTarget = TIME_UNSET
+                seekSent = TIME_UNSET
+                update { setVlcPlaybackState(STATE_READY) }
+            }
+
+            // vlc has no video size event, this is the first one where it is known
+            Event.PositionChanged -> if (state.videoSize == VideoSize.UNKNOWN) updateVideoSize()
+
+            Event.ESAdded, Event.ESDeleted, Event.ESSelected -> {
+                // vlc ignores a slave's `select` flag while another sub plays
+                pendingSlave?.let { selectLoadedSlave(it) }
+                updateTracks()
+                updateVideoSize()
+            }
+
+            Event.LengthChanged -> update {
+                updateCurrentItem {
+                    setDurationUs(if (event.lengthChanged > 0) event.lengthChanged * 1000L else TIME_UNSET)
                 }
             }
 
-            // progress is polled instead of pushed dozens of times per seconds.
-            // this improves perf & battery life (native -> js bridge is expensive)
-            MediaPlayer.Event.TimeChanged -> {
-                applyStartPosition()
-                val pending = pendingSeekPosition
-                if (pending != TIME_UNSET && seekLanded(event.timeChanged, pending)) seekSettled()
-            }
-
-            // vlc has no video-size event, Vout event still has unknown size.
-            // This is the first callback with known size.
-            MediaPlayer.Event.PositionChanged -> {
-                if (lastVideoSize == VideoSize.UNKNOWN) maybeNotifyVideoSizeChanged()
-            }
-
-            MediaPlayer.Event.ESAdded,
-            MediaPlayer.Event.ESDeleted,
-            MediaPlayer.Event.ESSelected -> {
-                // vlc ignores a slave's `select` flag while another sub plays, do it ourselves
-                pendingSlaveHash?.let { hash ->
-                    player.getTracks(IMedia.Track.Type.Text).orEmpty()
-                        .firstOrNull { it.id.startsWith("$hash/spu/") }
-                        ?.let {
-                            pendingSlaveHash = null
-                            player.selectTrack(it.id)
-                            resumeAfterSlaveLoad()
-                        }
-                }
-                notifyListeners(EVENT_TRACKS_CHANGED) {
-                    it.onTracksChanged(getCurrentTracks())
-                }
-                maybeNotifyVideoSizeChanged()
-            }
-
-            MediaPlayer.Event.LengthChanged -> {
-                notifyListeners(EVENT_TIMELINE_CHANGED) {
-                    it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_SOURCE_UPDATE)
-                }
-            }
+            Event.SeekableChanged -> update { updateCurrentItem { setIsSeekable(event.seekable) } }
         }
     }
 
-    override fun onAudioFocusChange(focusChange: Int) {
-        if (released) return
+    private fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
-                if (playbackSuppression != PLAYBACK_SUPPRESSION_REASON_NONE) {
-                    setPlaybackSuppression(PLAYBACK_SUPPRESSION_REASON_NONE)
-                    player.play()
-                }
+                player.volume = (state.volume * 100).toInt()
+                if (state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE) return
+                update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
+                val open = state.playbackState == STATE_READY || state.playbackState == STATE_BUFFERING
+                if (state.playWhenReady && open) playVlc()
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
+                abandonAudioFocus()
+                pauseForFocusLoss()
+            }
+
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // a play asked for meanwhile takes it back
                 hasAudioFocus = false
-                setPlaybackSuppression(PLAYBACK_SUPPRESSION_REASON_NONE)
-                player.pause()
-                notifyListeners(arrayOf(EVENT_PLAY_WHEN_READY_CHANGED, EVENT_IS_PLAYING_CHANGED)) {
-                    it.onPlayWhenReadyChanged(false, PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS)
-                    it.onIsPlayingChanged(false)
-                }
-            }
-
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                setPlaybackSuppression(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+                update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) }
                 player.pause()
             }
-        }
-    }
 
-    private fun setPlaybackSuppression(reason: Int) {
-        if (playbackSuppression == reason) return
-        playbackSuppression = reason
-        notifyListeners(EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED) {
-            it.onPlaybackSuppressionReasonChanged(reason)
+            // like exoplayer, a notification sound lowers the volume rather than pausing
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> player.volume = (state.volume * 20).toInt()
         }
     }
 
     private fun requestAudioFocus(): Boolean {
-        val audioManager = audioManager ?: return true
-        if (!handleAudioFocus) {
-            abandonAudioFocus()
-            return true
-        }
-        if (hasAudioFocus) return true
-
-        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(mediaAudioAttributes.platformAudioAttributes)
-                .setOnAudioFocusChangeListener(this, applicationHandler)
-                .build()
-            audioFocusRequest = request
-            audioManager.requestAudioFocus(request)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                this,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
-        }
-        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (audioManager == null || !handleAudioFocus || hasAudioFocus) return true
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(state.audioAttributes.platformAudioAttributes)
+            .setOnAudioFocusChangeListener(audioFocusListener)
+            .build()
+        audioFocusRequest = request
+        hasAudioFocus = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         return hasAudioFocus
     }
 
     private fun abandonAudioFocus() {
-        val audioManager = audioManager ?: return
-        if (!hasAudioFocus && audioFocusRequest == null) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-            audioFocusRequest = null
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(this)
-        }
+        audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
         hasAudioFocus = false
     }
 
-    override fun getApplicationLooper(): Looper = applicationLooper
-
-    override fun addListener(listener: Player.Listener) {
-        listeners.add(listener)
+    private fun pauseForFocusLoss() {
+        update {
+            setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE)
+            setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS)
+        }
+        player.pause()
     }
 
-    override fun removeListener(listener: Player.Listener) {
-        listeners.remove(listener)
+    override fun handleSetAudioAttributes(
+        audioAttributes: AudioAttributes,
+        handleAudioFocus: Boolean
+    ): ListenableFuture<*> = vlc {
+        this.handleAudioFocus = handleAudioFocus
+        if (!handleAudioFocus) abandonAudioFocus()
+        val playing = state.playWhenReady && state.playbackState == STATE_READY &&
+            state.playbackSuppressionReason == PLAYBACK_SUPPRESSION_REASON_NONE
+        update { setAudioAttributes(audioAttributes) }
+        if (playing && !requestAudioFocus()) pauseForFocusLoss()
     }
 
-    override fun setMediaItems(mediaItems: List<MediaItem>, resetPosition: Boolean) {
-        setMediaItems(
-            mediaItems,
-            if (resetPosition) 0 else INDEX_UNSET,
-            if (resetPosition) 0L else TIME_UNSET
-        )
-    }
-
-    override fun setMediaItems(
+    override fun handleSetMediaItems(
         mediaItems: List<MediaItem>,
         startIndex: Int,
         startPositionMs: Long
-    ) {
-        val prev = currentMediaItemIndex
-        val targetIndex = when {
-            mediaItems.isEmpty() -> INDEX_UNSET
-            startIndex in mediaItems.indices -> startIndex
-            else -> 0
+    ): ListenableFuture<*> = vlc {
+        // prev/next are NavigationPlayer's
+        val item = mediaItems.getOrNull(startIndex.coerceAtLeast(0))
+        update {
+            setPlaylist(listOfNotNull(item).map { MediaItemData.Builder(Any()).setMediaItem(it).setIsSeekable(true).build() })
+            setCurrentMediaItemIndex(if (item == null) INDEX_UNSET else 0)
+            // an idle player waits for prepare/play
+            if (state.playbackState != STATE_IDLE) setPlaybackState(if (item == null) STATE_ENDED else STATE_BUFFERING)
+            setPlayerError(null)
+            setVideoSize(VideoSize.UNKNOWN)
         }
+        if (item == null) abandonAudioFocus()
+        loadMedia(item)
+        // TIME_UNSET is negative
+        position = startPositionMs.coerceAtLeast(0L)
+        if (state.playbackState != STATE_IDLE) openMedia()
+    }
 
-        this.mediaItems = mediaItems
-        currentMediaItemIndex = targetIndex
-        playlistMetadata = mediaItems.getOrNull(targetIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
-        playerError = null
-        pendingSeekPosition = TIME_UNSET
-        // vlc's `:start-time` trims the media instead of starting further in 
-        pendingStartPosition = startPositionMs.takeIf { it != TIME_UNSET && it > 0L } ?: TIME_UNSET
-        pendingSlaveHash = null
-        loadingSlave = false
-        trackOrders.clear()
-        subtitleSlavesByHash = mediaItems.getOrNull(targetIndex)
-            ?.localConfiguration?.subtitleConfigurations.orEmpty()
-            .associateBy { md5(it.uri.toString()) }
+    override fun handleAddMediaItems(index: Int, mediaItems: List<MediaItem>): ListenableFuture<*> =
+        Futures.immediateVoidFuture()
 
-        videoOutputStale = false
+    override fun handleMoveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int): ListenableFuture<*> =
+        Futures.immediateVoidFuture()
 
-        val item = mediaItems.getOrNull(targetIndex)
+    override fun handleReplaceMediaItems(
+        fromIndex: Int,
+        toIndex: Int,
+        mediaItems: List<MediaItem>
+    ): ListenableFuture<*> = handleSetMediaItems(mediaItems, 0, TIME_UNSET)
+
+    override fun handleRemoveMediaItems(fromIndex: Int, toIndex: Int): ListenableFuture<*> =
+        handleSetMediaItems(emptyList(), 0, TIME_UNSET)
+
+    override fun handlePrepare(): ListenableFuture<*> = vlc {
+        // opening an open media again would seek it back to its last reported time and unpause it
+        if (state.playbackState == STATE_IDLE) openMedia()
+    }
+
+    override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> = vlc {
+        // this takes the focus back from a transient loss as well
+        if (playWhenReady && !state.timeline.isEmpty && !requestAudioFocus()) return@vlc pauseForFocusLoss()
+        update {
+            setPlayWhenReady(playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            if (playWhenReady) setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE)
+        }
+        when {
+            !playWhenReady -> player.pause()
+            state.playbackState == STATE_IDLE -> openMedia()
+            state.playbackState == STATE_ENDED -> {
+                position = 0L
+                openMedia()
+            }
+            else -> playVlc()
+        }
+    }
+
+    override fun handleStop(): ListenableFuture<*> = vlc {
+        // prepare/play opens it again where it was
+        position = currentPosition()
+        leaveMedia()
+        player.stop()
+        update { setPlaybackState(STATE_IDLE) }
+        abandonAudioFocus()
+    }
+
+    override fun handleRelease(): ListenableFuture<*> {
+        handleClearVideoOutput(null)
         vlcHandler.post {
-            if (released) return@post
-            val uri = item?.localConfiguration?.uri?.toString()
-            if (!uri.isNullOrEmpty()) {
-                val media = Media(libVLC, uri.toUri())
-                media.setHWDecoderEnabled(true, false)
-                applyRequestHeaders(media, item.requestMetadata.extras)
+            vlcHandler.removeCallbacksAndMessages(null)
+            abandonAudioFocus()
+            player.setEventListener(null)
+            player.stop()
+            player.release()
+            libVLC.release()
+            vlcThread.quitSafely()
+        }
+        return Futures.immediateVoidFuture()
+    }
 
-                player.setMedia(media)
-                media.release()
-            } else {
-                stopped = true
-                player.stop()
+    override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> = vlc {
+        if (state.timeline.isEmpty) return@vlc
+        val target = positionMs.coerceAtLeast(0L)
+        when (state.playbackState) {
+            STATE_IDLE -> position = target
+            // like exoplayer, going back after the end opens the media there
+            STATE_ENDED -> {
+                position = target
+                openMedia()
+            }
+            else -> {
+                if (!state.playlist[0].isSeekable) return@vlc
+                seekTarget = target
+                if (started && seekSent == TIME_UNSET) sendSeek()
+                update { setVlcPlaybackState(STATE_READY) }
             }
         }
+    }
 
-        val events = mutableListOf(
-            EVENT_TIMELINE_CHANGED,
-            EVENT_MEDIA_METADATA_CHANGED,
-            EVENT_PLAYLIST_METADATA_CHANGED
-        )
-        if (prev != currentMediaItemIndex) events += EVENT_MEDIA_ITEM_TRANSITION
-        val reason =
-            if (userInitiatedTransition) MEDIA_ITEM_TRANSITION_REASON_SEEK else MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
-        userInitiatedTransition = false
-        notifyListeners(events.toTypedArray()) {
-            it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
-            it.onMediaMetadataChanged(mediaMetadata)
-            it.onPlaylistMetadataChanged(playlistMetadata)
-            if (prev != currentMediaItemIndex) {
-                it.onMediaItemTransition(currentMediaItem, reason)
+    override fun handleSetPlaybackParameters(playbackParameters: PlaybackParameters): ListenableFuture<*> = vlc {
+        // vlc can't keep the pitch apart from the speed
+        update { setPlaybackParameters(PlaybackParameters(playbackParameters.speed)) }
+        player.rate = playbackParameters.speed
+    }
+
+    override fun handleSetVolume(volume: Float, volumeOperationType: Int): ListenableFuture<*> = vlc {
+        val clamped = volume.coerceIn(0f, 1f)
+        update { setVolume(clamped) }
+        player.volume = (clamped * 100).toInt()
+    }
+
+    private fun sendSeek() {
+        seekSent = seekTarget
+        seekOrigin = player.time
+        seekSentAt = SystemClock.uptimeMillis()
+        player.time = seekTarget
+    }
+
+    // vlc opens the media again (replay, prepare after a stop) with its default tracks and no slave
+    private fun leaveMedia() {
+        seekTarget = TIME_UNSET
+        seekSent = TIME_UNSET
+        vlcHandler.removeCallbacksAndMessages(SLAVE)
+        slavePaused = false
+        pendingSlave = null
+        askedSlaves.clear()
+        trackOrders.clear()
+        stale = true
+        started = false
+    }
+
+    private fun playVlc() {
+        if (!slavePaused) player.play()
+    }
+
+    private fun loadMedia(item: MediaItem?) {
+        leaveMedia()
+        releasedVideoTrack = null
+        voutCount = 0
+        player.stop()
+        val uri = item?.localConfiguration?.uri?.toString()
+        if (!uri.isNullOrEmpty()) {
+            val media = Media(libVLC, uri.toUri())
+            media.setHWDecoderEnabled(true, false)
+            // vlc doesn't allow arbitrary headers :c
+            val extras = item.requestMetadata.extras
+            for (name in extras?.keySet().orEmpty()) {
+                val value = extras?.getString(name) ?: continue
+                when (name.lowercase()) {
+                    "user-agent" -> media.addOption(":http-user-agent=$value")
+                    "referer", "referrer" -> media.addOption(":http-referrer=$value")
+                }
             }
+            // vlc only opens a media by playing it, this stops it on the first frame (see the Paused event)
+            media.addOption(":start-paused")
+            player.setMedia(media)
+            media.release()
         }
+        updateTracks()
+    }
+
+    private fun openMedia() {
+        if (state.timeline.isEmpty) return
+        // vlc's `:start-time` trims the media instead of starting further in, the Playing event seeks there
+        if (position > 0L) seekTarget = position
+        update { setPlayerError(null).setPlaybackState(STATE_BUFFERING) }
+        playVlc()
     }
 
     private fun selectTextTrack(trackId: String) {
-        if (released) return
-        // embedded subs
-        val slaveUri = trackId.substringAfter(PENDING_SLAVE_PREFIX, "")
+        val slaveUri = trackId.substringAfter(SLAVE_PREFIX, "")
         if (slaveUri.isEmpty()) {
-            pendingSlaveHash = null
-            resumeAfterSlaveLoad()
-            player.selectTrack(trackId)
+            dropPendingSlave()
+            selectTrack(IMedia.Track.Type.Text, trackId)
             return
         }
+        if (selectLoadedSlave(slaveUri)) return
 
+        pendingSlave = slaveUri
         val hash = md5(slaveUri)
-        // already loaded ones
-        val es = player.getTracks(IMedia.Track.Type.Text).orEmpty()
-            .firstOrNull { it.id.startsWith("$hash/spu/") }
-        if (es != null) {
-            pendingSlaveHash = null
-            resumeAfterSlaveLoad()
-            player.selectTrack(es.id)
+        if (!askedSlaves.add(hash)) {
+            updateTracks()
             return
         }
 
-        if (hash == pendingSlaveHash) return
-
-        // playback waits on the fetch like on any buffering, and the ui already shows the
-        // sub as selected (getCurrentTracks). vlc fetches on its input thread, so pause
-        // first: a pause queued behind the fetch would only land once it is over
-        pendingSlaveHash = hash
+        // a sub that never loads (dead url) must not leave playback paused, nor show as selected, forever
+        vlcHandler.postAtTime({
+            if (loadedSlave(hash) == null) askedSlaves.remove(hash)
+            if (pendingSlave == slaveUri) dropPendingSlave()
+            updateTracks()
+        }, SLAVE, SystemClock.uptimeMillis() + 15_000)
+        // vlc fetches subs on its input thread, a pause sent meanwhile would only land once it is over
         if (player.isPlaying) {
-            loadingSlave = true
+            slavePaused = true
             player.pause()
-            // a sub that never loads (dead url) must not leave playback paused forever
-            applicationHandler.postDelayed(giveUpOnSlave, 15_000)
+            update { setVlcPlaybackState(STATE_BUFFERING) }
         }
         player.addSlave(IMedia.Slave.Type.Subtitle, slaveUri.toUri(), true)
-        notifyListeners(arrayOf(EVENT_TRACKS_CHANGED, EVENT_PLAYBACK_STATE_CHANGED)) {
-            it.onTracksChanged(getCurrentTracks())
-            it.onPlaybackStateChanged(playbackState)
-        }
+        updateTracks()
     }
 
-    private val giveUpOnSlave = Runnable {
-        pendingSlaveHash = null
-        resumeAfterSlaveLoad()
-        notifyListeners(EVENT_TRACKS_CHANGED) { it.onTracksChanged(getCurrentTracks()) }
+    private fun selectLoadedSlave(uri: String): Boolean {
+        val es = loadedSlave(md5(uri)) ?: return false
+        selectTrack(IMedia.Track.Type.Text, es.id)
+        dropPendingSlave()
+        return true
     }
 
-    private fun resumeAfterSlaveLoad() {
-        applicationHandler.removeCallbacks(giveUpOnSlave)
-        if (released || !loadingSlave) return
-        loadingSlave = false
-        player.play()
+    // vlc names a slave's tracks "<md5(uri)>/spu/<n>"
+    private fun loadedSlave(hash: String): IMedia.Track? =
+        player.getTracks(IMedia.Track.Type.Text).orEmpty().firstOrNull { it.id.startsWith("$hash/spu/") }
+
+    private fun dropPendingSlave() {
+        pendingSlave = null
+        if (!slavePaused) return
+        slavePaused = false
+        if (state.playWhenReady) playVlc() else update { setVlcPlaybackState(STATE_READY) }
     }
 
     private fun md5(value: String): String =
@@ -525,787 +580,269 @@ class VlcPlayer(ctx: Context) :
             .digest(value.toByteArray())
             .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
-    // vlc doesn't allow arbitrary headers :c
-    private fun applyRequestHeaders(media: Media, extras: Bundle?) {
-        if (extras == null) return
-        for (name in extras.keySet()) {
-            val value = extras.getString(name) ?: continue
-            when (name.lowercase()) {
-                "user-agent" -> media.addOption(":http-user-agent=$value")
-                "referer", "referrer" -> media.addOption(":http-referrer=$value")
-            }
-        }
-    }
-
-    override fun addMediaItems(
-        p0: Int,
-        p1: List<MediaItem>
-    ) = Unit
-
-    override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) = Unit
-
-    override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: List<MediaItem>) {
-        setMediaItems(mediaItems)
-    }
-
-    override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
-        val prev = currentMediaItemIndex
-        mediaItems = emptyList()
-        currentMediaItemIndex = INDEX_UNSET
-        playlistMetadata = MediaMetadata.EMPTY
-        pendingSeekPosition = TIME_UNSET
-        pendingStartPosition = TIME_UNSET
-        stopped = true
-        vlcHandler.post { if (!released) player.stop() }
-
-        val events = mutableListOf(
-            EVENT_TIMELINE_CHANGED,
-            EVENT_MEDIA_METADATA_CHANGED,
-            EVENT_PLAYLIST_METADATA_CHANGED
-        )
-        if (prev != INDEX_UNSET) events += EVENT_MEDIA_ITEM_TRANSITION
-        notifyListeners(events.toTypedArray()) {
-            it.onTimelineChanged(currentTimeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
-            it.onMediaMetadataChanged(mediaMetadata)
-            it.onPlaylistMetadataChanged(playlistMetadata)
-            if (prev != INDEX_UNSET) {
-                it.onMediaItemTransition(null, MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)
-            }
-        }
-    }
-
-    override fun getAvailableCommands(): Player.Commands = availableCommands
-
-    override fun prepare() {
-        vlcHandler.post { if (!released) player.play() }
-    }
-
-    override fun getPlaybackState(): Int =
-        when {
-            released -> STATE_IDLE
-            stopped -> STATE_IDLE
-            playerError != null -> STATE_IDLE
-            currentMediaItemIndex == INDEX_UNSET -> STATE_IDLE
-            player.media?.also { it.release() } == null -> STATE_IDLE
-            ended -> STATE_ENDED
-            player.playerState == IMedia.State.Opening -> STATE_BUFFERING
-            loadingSlave -> STATE_BUFFERING
-            pendingSeekPosition != TIME_UNSET -> STATE_BUFFERING
-            pendingStartPosition != TIME_UNSET -> STATE_BUFFERING
-            else -> STATE_READY
-        }
-
-    override fun getPlaybackSuppressionReason(): Int = playbackSuppression
-
-    override fun getPlayerError(): PlaybackException? = playerError
-
-    override fun setPlayWhenReady(playWhenReady: Boolean) {
-        vlcHandler.post {
-            if (released) return@post
-            if (playWhenReady) player.play() else player.pause()
-        }
-    }
-
-    override fun getPlayWhenReady(): Boolean =
-        !released && !stopped &&
-            (player.isPlaying || player.playerState == IMedia.State.Opening || loadingSlave)
-
-    override fun setRepeatMode(repeatMode: Int) = Unit
-
-    override fun getRepeatMode(): Int = REPEAT_MODE_OFF
-
-    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) = Unit
-
-    override fun getShuffleModeEnabled(): Boolean = false
-
-    override fun isLoading(): Boolean {
-        if (released) return false
-        val state = playbackState
-        if (state == STATE_IDLE || state == STATE_ENDED) return false
-        return player.playerState == IMedia.State.Opening
-    }
-
-    override fun seekTo(
-        mediaItemIndex: Int,
-        positionMs: Long,
-        seekCommand: Int,
-        isRepeatingCurrentItem: Boolean
-    ) {
-        if (released) return
-        val targetIndex =
-            if (mediaItemIndex == INDEX_UNSET) currentMediaItemIndex else mediaItemIndex
-        if (targetIndex == INDEX_UNSET || targetIndex !in mediaItems.indices) return
-
-        if (targetIndex != currentMediaItemIndex) {
-            userInitiatedTransition = true
-            setMediaItems(mediaItems, targetIndex, positionMs)
-            vlcHandler.post { if (!released) player.play() }
-            return
-        }
-
-        val from = getCurrentPosition()
-        val target = positionMs.coerceAtLeast(0L).takeIf { it != TIME_UNSET } ?: 0L
-        applicationHandler.removeCallbacks(retrySeek)
-        // a burst of seeks (double tapping to skip a minute) would have vlc restart its
-        // demuxer for every one of them, on positions we already moved past: leave the one
-        // on its way alone, retrySeek asks for wherever the burst ended up once it is done.
-        // both checks read pendingSeekPosition before it is overwritten just below
-        if (pendingSeekPosition == TIME_UNSET) player.time = target
-        if (player.isSeekable) {
-            seekAttempts = if (pendingSeekPosition == TIME_UNSET) 0 else -1
-            pendingSeekPosition = target
-            lastSeekPoll = player.time.coerceAtLeast(0L)
-            applicationHandler.postDelayed(retrySeek, SEEK_RETRY_DELAY)
-        }
-        // since vlc reports progress events every few ms they don't have a seek finished event.
-        notifyListeners(arrayOf(EVENT_POSITION_DISCONTINUITY, EVENT_PLAYBACK_STATE_CHANGED)) {
-            it.onPositionDiscontinuity(
-                positionInfo(from),
-                positionInfo(target),
-                DISCONTINUITY_REASON_SEEK
-            )
-            it.onPlaybackStateChanged(playbackState)
-        }
-    }
-
-    // vlc only takes seeks once its input is up, so a source's start position waits for the
-    // first seekable/playing event.
-    private fun applyStartPosition() {
-        val target = pendingStartPosition
-        if (released || target == TIME_UNSET || !player.isSeekable) return
-        pendingStartPosition = TIME_UNSET
-        // manual seek takes priority
-        if (pendingSeekPosition != TIME_UNSET) return
-        seekTo(currentMediaItemIndex, target, COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM, false)
-    }
-
-    private fun seekLanded(time: Long, target: Long): Boolean =
-        Math.abs(time - target) < 1_000
-
-    // vlc drops a seek asked for while it restarts its demuxer for a previous one, and keeps
-    // reporting the media as seekable, so a seek can silently go nowhere and has to be asked
-    // for again. but asking again while vlc is working on one restarts it from scratch, and
-    // it then never reaches the target, so only ask when it is idle. its clock says which is
-    // which: frozen while it decodes the new position, ticking along when it dropped the seek.
-    private val retrySeek = object : Runnable {
-        override fun run() {
-            val target = pendingSeekPosition
-            if (released || target == TIME_UNSET) return
-            val time = player.time.coerceAtLeast(0L)
-            val ticking = time - lastSeekPoll in (SEEK_RETRY_DELAY / 2)..(SEEK_RETRY_DELAY * 2)
-            lastSeekPoll = time
-            // a target vlc never reaches must not mask the position for the whole playback
-            if (seekLanded(time, target) || seekAttempts++ >= 10) {
-                seekSettled()
-                return
-            }
-            // vlc never heard of this target (it came in mid-burst) or it dropped the seek
-            if (seekAttempts == 0 || ticking) player.time = target
-            applicationHandler.postDelayed(this, SEEK_RETRY_DELAY)
-        }
-    }
-
-    private fun seekSettled() {
-        pendingSeekPosition = TIME_UNSET
-        applicationHandler.removeCallbacks(retrySeek)
-        notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) {
-            it.onPlaybackStateChanged(playbackState)
-        }
-    }
-
-    private fun positionInfo(positionMs: Long): Player.PositionInfo =
-        Player.PositionInfo(
-            currentMediaItemIndex,
-            currentMediaItemIndex,
-            getCurrentMediaItem(),
-            currentMediaItemIndex,
-            currentMediaItemIndex,
-            positionMs,
-            positionMs,
-            INDEX_UNSET,
-            INDEX_UNSET
-        )
-
-    override fun getSeekBackIncrement(): Long = 5_000L
-
-    override fun getSeekForwardIncrement(): Long = 15_000L
-
-    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
-        if (released) return
-        player.rate = playbackParameters.speed.coerceAtLeast(0.01f)
-    }
-
-    override fun getPlaybackParameters(): PlaybackParameters =
-        if (released) PlaybackParameters.DEFAULT
-        else PlaybackParameters(player.rate.takeIf { it > 0f } ?: 1f)
-
-    override fun stop() {
-        stopped = true
-        vlcHandler.post { if (!released) player.stop() }
-        // media3 calls stop() from inside its cast handoff, do not notify back into it here
-        applicationHandler.post {
-            notifyListeners(EVENT_PLAYBACK_STATE_CHANGED) { it.onPlaybackStateChanged(STATE_IDLE) }
-        }
-    }
-
-    override fun release() {
-        if (released) return
-        applicationHandler.removeCallbacks(giveUpOnSlave)
-        applicationHandler.removeCallbacks(retrySeek)
-        player.setEventListener(null)
-        listeners.release()
-        abandonAudioFocus()
-        clearVideoSurface()
-        released = true
-        vlcHandler.post {
-            player.stop()
-            player.release()
-            libVLC.release()
-            vlcThread.quitSafely()
-        }
-    }
-
-    // the adaptive demuxer has no stable es id so its tracks are named `audio/auto/<n>` (see
-    // EsOutCreateStrId in vlc's es_out.c) while a plain file gives `audio/<n>`.
-    // for hls it sets the description to "<EXT-X-MEDIA GROUP-ID> <NAME>" (hls/playlist/Parser.cpp),
-    // so one track offered in n quality groups shows up as n tracks: keep the part after the
-    // group-id so they collapse back into a single track holding n renditions.
-    // (dash sets the description to the Role, a single word, so this is a no-op there.)
+    // hls describes an adaptive track as "<GROUP-ID> <NAME>", listing it once per quality group
     private fun trackName(track: IMedia.Track): String? {
         val description = track.description
         if (description == null || !track.id.contains("/auto/")) return track.name
         return description.substringAfter(' ')
     }
 
-    // tracks sharing a key are renditions of one logical track. for adaptive streams only the
-    // name can be keyed on: once vlc opens the rendition it actually reads, it adds one more es
-    // for it, described by the segments themselves instead of the playlist - no group-id to
-    // strip, and the container's language (`chi`) rather than the playlist's (`zh`). keying on
-    // the language too left that one in a group of its own, listing the track twice.
-    // media3's own hls source groups renditions by name alone as well.
-    private fun trackKey(track: IMedia.Track): Any =
+    // the renditions of an adaptive track share its name (like media3's hls source), vlc describes the
+    // one it plays from its segments, without the group-id and with the container's language
+    private fun trackKey(track: IMedia.Track): String =
         if (track.id.contains("/auto/")) trackName(track) ?: track.id
-        else listOf(track.language, track.name)
+        else track.id
 
-    // selecting a track makes vlc recreate its es with a fresh, higher id ("audio/auto/4"
-    // becomes "audio/auto/7"), so its own order puts whatever was picked last and the list
-    // reshuffles. order on the lowest es number a track was ever seen with instead.
-    private val trackOrders = mutableMapOf<Pair<Int, Any>, Int>()
+    // vlc renumbers a track each time it's selected, they are ordered on the first number they had
+    private val trackOrders = mutableMapOf<Pair<String, String>, Int>()
 
-    private fun trackOrder(type: Int, tracks: List<IMedia.Track>): Int {
-        val key = type to trackKey(tracks.first())
-        val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
-        val order = minOf(trackOrders[key] ?: Int.MAX_VALUE, es)
-        trackOrders[key] = order
-        return order
-    }
-
-    override fun getCurrentTracks(): Tracks {
-        if (released) return Tracks.EMPTY
-        val result = ArrayList<Group>()
-        val selectedVideo = player.getSelectedTrack(IMedia.Track.Type.Video)
-        val selectedAudio = player.getSelectedTrack(IMedia.Track.Type.Audio)
-        // the sub being fetched is the selected one, vlc still has the previous es
-        val pendingSlaveUri = pendingSlaveHash?.let { subtitleSlavesByHash[it]?.uri }
-        val selectedSubtitle =
-            if (pendingSlaveUri != null) null else player.getSelectedTrack(IMedia.Track.Type.Text)
-
-        player.getTracks(IMedia.Track.Type.Video).orEmpty()
-            .groupBy { trackKey(it) }
-            .entries.sortedBy { trackOrder(TRACK_TYPE_VIDEO, it.value) }
-            .forEach { (_, videoTracks) ->
-                val videoFormats = videoTracks.map { track ->
-                    val videoTrack = track as? VideoTrack
-                    Format.Builder()
-                        .setId(track.id)
-                        .setLabel(trackName(track))
-                        .setLanguage(track.language)
-                        .setSampleMimeType("video/x-unknown")
-                        .setWidth(videoTrack?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .setHeight(videoTrack?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .setFrameRate(
-                            videoTrack?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
-                                ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
-                                ?: Format.NO_VALUE.toFloat()
-                        )
-                        .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
-                        .build()
-                }
-                val group = TrackGroup(
-                    "vlc-video-${videoTracks.minOf { it.id }}",
-                    *videoFormats.toTypedArray()
-                )
-                val selected = BooleanArray(videoFormats.size) { idx ->
-                    selectedVideo != null && selectedVideo.id == videoTracks[idx].id
-                }
-                val support = IntArray(videoFormats.size) { FORMAT_HANDLED }
-                result.add(Group(group, videoFormats.size > 1, support, selected))
-            }
-
-        player.getTracks(IMedia.Track.Type.Audio).orEmpty()
-            .groupBy { trackKey(it) }
-            .entries.sortedBy { trackOrder(TRACK_TYPE_AUDIO, it.value) }
-            .forEach { (_, audioTracks) ->
-                val audioFormats = audioTracks.map { track ->
-                    Format.Builder()
-                        .setId(track.id)
-                        .setLabel(trackName(track))
-                        .setLanguage(track.language)
-                        .setSampleMimeType("audio/x-unknown")
-                        .build()
-                }
-                val group = TrackGroup(
-                    "vlc-audio-${audioTracks.minOf { it.id }}",
-                    *audioFormats.toTypedArray()
-                )
-                val selected = BooleanArray(audioFormats.size) { idx ->
-                    selectedAudio != null && selectedAudio.id == audioTracks[idx].id
-                }
-                val support = IntArray(audioFormats.size) { FORMAT_HANDLED }
-                result.add(Group(group, audioFormats.size > 1, support, selected))
-            }
-
+    private fun buildTracks(): Tracks {
+        val subtitleConfigs = state.playlist.firstOrNull()?.mediaItem?.localConfiguration?.subtitleConfigurations.orEmpty()
         val textTracks = player.getTracks(IMedia.Track.Type.Text).orEmpty()
-        // vlc keys a slave's tracks by the md5 of its uri ("<md5(uri)>/spu/<n>")
+        val subtitleSlavesByHash = subtitleConfigs.associateBy { md5(it.uri.toString()) }
         val loadedSlaves = textTracks.mapNotNull { track ->
             subtitleSlavesByHash[track.id.substringBefore("/spu/", "")]?.let { it.uri to track }
         }.toMap()
+        // vlc still plays the previous sub while it fetches the selected one
+        val pendingSlaveUri = pendingSlave?.toUri()?.takeIf { it !in loadedSlaves }
+        val selectedSubtitle =
+            if (pendingSlaveUri != null) null else player.getSelectedTrack(IMedia.Track.Type.Text)
 
-        textTracks
-            .filter { it !in loadedSlaves.values }
-            .sortedBy { trackOrder(TRACK_TYPE_TEXT, listOf(it)) }
-            .forEach { track ->
-                val format = Format.Builder()
-                    .setId(track.id)
-                    .setLabel(track.name)
-                    .setLanguage(track.language)
-                    .setSampleMimeType("text/x-unknown")
-                    .build()
-                val group = TrackGroup("vlc-sub-${track.id}", format)
-                val selected = booleanArrayOf(selectedSubtitle?.id == track.id)
-                result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
-            }
-
-        // sideloaded subs, listed from their config whether or not vlc fetched them yet
-        mediaItems.getOrNull(currentMediaItemIndex)?.localConfiguration
-            ?.subtitleConfigurations.orEmpty().forEach { config ->
+        val sideloaded = subtitleConfigs.map { config ->
             val track = loadedSlaves[config.uri]
             val format = Format.Builder()
-                .setId("$PENDING_SLAVE_PREFIX${config.uri}")
+                .setId("$SLAVE_PREFIX${config.uri}")
                 .setLabel(config.label ?: track?.name)
                 .setLanguage(config.language ?: track?.language)
                 .setSampleMimeType("text/x-unknown")
                 .build()
-            val group = TrackGroup(config.id ?: "vlc-sub-${config.uri}", format)
-            val selected = booleanArrayOf(
-                config.uri == pendingSlaveUri || (track != null && selectedSubtitle?.id == track.id)
+            val selected = config.uri == pendingSlaveUri || (track != null && track.id == selectedSubtitle?.id)
+            Group(
+                TrackGroup(config.id ?: "vlc-sub-${config.uri}", format),
+                false,
+                intArrayOf(FORMAT_HANDLED),
+                booleanArrayOf(selected)
             )
-            result.add(Group(group, false, intArrayOf(FORMAT_HANDLED), selected))
         }
 
-        return if (result.isEmpty()) Tracks.EMPTY else Tracks(result)
-    }
-
-    override fun getTrackSelectionParameters(): TrackSelectionParameters =
-        currentTrackSelectionParameters
-
-    override fun setTrackSelectionParameters(trackSelectionParameters: TrackSelectionParameters) {
-        currentTrackSelectionParameters = trackSelectionParameters
-        if (released) return
-        val videoDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_VIDEO)
-        val audioDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_AUDIO)
-        val textDisabled = trackSelectionParameters.disabledTrackTypes.contains(TRACK_TYPE_TEXT)
-
-        if (videoDisabled) player.setVideoTrackEnabled(false)
-        if (audioDisabled) player.unselectTrackType(IMedia.Track.Type.Audio)
-        if (textDisabled) {
-            pendingSlaveHash = null
-            resumeAfterSlaveLoad()
-            player.unselectTrackType(IMedia.Track.Type.Text)
-        }
-
-        val tracks = getCurrentTracks()
-
-        var hasVideoOverride = false
-        var hasAudioOverride = false
-        var hasTextOverride = false
-
-        for (override in trackSelectionParameters.overrides.values) {
-            val selectedIndex = override.trackIndices.firstOrNull() ?: continue
-            if (selectedIndex !in 0 until override.mediaTrackGroup.length) continue
-            val trackId = override.mediaTrackGroup.getFormat(selectedIndex).id ?: continue
-
-            when (override.type) {
-                TRACK_TYPE_VIDEO -> {
-                    hasVideoOverride = true
-                    player.setVideoTrackEnabled(true)
-                    player.selectTrack(trackId)
-                }
-
-                TRACK_TYPE_AUDIO -> {
-                    hasAudioOverride = true
-                    player.selectTrack(trackId)
-                }
-
-                TRACK_TYPE_TEXT -> {
-                    hasTextOverride = true
-                    selectTextTrack(trackId)
-                }
-            }
-        }
-
-        if (!videoDisabled && !hasVideoOverride) {
-            val videoPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_VIDEO,
-                trackSelectionParameters.preferredVideoLanguages,
-                trackSelectionParameters.preferredVideoLabels,
-            )
-            player.setVideoTrackEnabled(true)
-            videoPreference?.let { player.selectTrack(it) }
-        }
-        if (!audioDisabled && !hasAudioOverride) {
-            val audioPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_AUDIO,
-                trackSelectionParameters.preferredAudioLanguages,
-                trackSelectionParameters.preferredAudioLabels,
-            )
-            audioPreference?.let { player.selectTrack(it) }
-        }
-        if (!textDisabled && !hasTextOverride) {
-            val textPreference = selectTrackByPreference(
-                tracks, TRACK_TYPE_TEXT,
-                trackSelectionParameters.preferredTextLanguages,
-                trackSelectionParameters.preferredTextLabels,
-            )
-            textPreference?.let { selectTextTrack(it) }
-        }
-    }
-
-    private fun selectTrackByPreference(
-        tracks: Tracks,
-        trackType: Int,
-        languages: List<String>,
-        labels: List<String>,
-    ): String? {
-        val preferredLanguages = languages.filter { it.isNotEmpty() }
-        val preferredLabels = labels.filter { it.isNotEmpty() }
-        if (preferredLanguages.isEmpty() && preferredLabels.isEmpty()) return null
-
-        data class Candidate(
-            val id: String,
-            val langIndex: Int,
-            val labelIndex: Int,
-            val hasDefaultFlag: Boolean
+        return Tracks(
+            trackGroups(
+                "video",
+                player.getTracks(IMedia.Track.Type.Video).orEmpty().groupBy { trackKey(it) }.values,
+                player.getSelectedTrack(IMedia.Track.Type.Video)
+            ) + trackGroups(
+                "audio",
+                player.getTracks(IMedia.Track.Type.Audio).orEmpty().groupBy { trackKey(it) }.values,
+                player.getSelectedTrack(IMedia.Track.Type.Audio)
+            ) + trackGroups(
+                "text",
+                textTracks.filter { it !in loadedSlaves.values }.groupBy { trackKey(it) }.values,
+                selectedSubtitle
+            ) + sideloaded
         )
-
-        val candidates = tracks.groups
-            .filter { it.type == trackType }
-            .flatMap { group ->
-                (0 until group.length).mapNotNull { i ->
-                    val format = group.getTrackFormat(i)
-                    val id = format.id ?: return@mapNotNull null
-
-                    val langIndex = format.language?.let { lang ->
-                        preferredLanguages.indexOfFirst { it.equals(lang, ignoreCase = true) }
-                    } ?: -1
-                    val labelIndex = format.label?.let { label ->
-                        preferredLabels.indexOfFirst { it.equals(label, ignoreCase = true) }
-                    } ?: -1
-
-                    val matchesLang = preferredLanguages.isEmpty() || langIndex >= 0
-                    val matchesLabel = preferredLabels.isEmpty() || labelIndex >= 0
-                    if (matchesLang && matchesLabel) {
-                        Candidate(
-                            id,
-                            if (langIndex >= 0) langIndex else Int.MAX_VALUE,
-                            if (labelIndex >= 0) labelIndex else Int.MAX_VALUE,
-                            (format.selectionFlags and SELECTION_FLAG_DEFAULT) != 0
-                        )
-                    } else null
-                }
-            }
-
-        return candidates.minWithOrNull(
-            compareBy<Candidate> { it.langIndex }
-                .thenBy { it.labelIndex }
-                .thenByDescending { it.hasDefaultFlag }
-        )?.id
     }
 
-    override fun getMediaMetadata(): MediaMetadata =
-        getCurrentMediaItem()?.mediaMetadata ?: MediaMetadata.EMPTY
-
-    override fun getPlaylistMetadata(): MediaMetadata = playlistMetadata
-
-    override fun setPlaylistMetadata(mediaMetadata: MediaMetadata) {
-        playlistMetadata = mediaMetadata
-    }
-
-    override fun getCurrentTimeline(): Timeline {
-        // snapshot the current playlist for the returned timeline.
-        // timelines are immutable
-        val items = mediaItems
-        val currentIndex = currentMediaItemIndex
-        val currentDurationUs =
-            duration.takeIf { it != TIME_UNSET }?.let { it * 1000L } ?: TIME_UNSET
-        if (items.isEmpty()) return Timeline.EMPTY
-        return object : Timeline() {
-            private fun durationUsForIndex(index: Int): Long =
-                if (index == currentIndex) currentDurationUs else TIME_UNSET
-
-            override fun getWindowCount(): Int = items.size
-
-            override fun getWindow(
-                windowIndex: Int,
-                window: Window,
-                defaultPositionProjectionUs: Long
-            ): Window {
-                val index = windowIndex.coerceIn(items.indices)
-                return window.set(
-                    index,
-                    items[index],
-                    null,
-                    TIME_UNSET,
-                    TIME_UNSET,
-                    TIME_UNSET,
-                    true,
-                    false,
-                    null,
-                    0L,
-                    durationUsForIndex(index),
-                    index,
-                    index,
-                    0L
+    // media3 reads the track type from the mime's top-level type
+    private fun trackGroups(
+        type: String,
+        groups: Collection<List<IMedia.Track>>,
+        selected: IMedia.Track?
+    ): List<Group> = groups.sortedBy { tracks ->
+        val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
+        trackOrders.merge(type to trackKey(tracks.first()), es) { a, b -> minOf(a, b) }
+    }.map { tracks ->
+        val formats = tracks.map { track ->
+            val video = track as? VideoTrack
+            Format.Builder()
+                .setId(track.id)
+                .setLabel(trackName(track))
+                .setLanguage(track.language)
+                .setSampleMimeType("$type/x-unknown")
+                .setWidth(video?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .setHeight(video?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .setFrameRate(
+                    video?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
+                        ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
+                        ?: Format.NO_VALUE.toFloat()
                 )
-            }
-
-            override fun getPeriodCount(): Int = items.size
-
-            override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
-                val index = periodIndex.coerceIn(items.indices)
-                return period.set(index, index, index, durationUsForIndex(index), 0L)
-            }
-
-            override fun getIndexOfPeriod(uid: Any): Int {
-                return if (uid is Int && uid in items.indices) uid else INDEX_UNSET
-            }
-
-            override fun getUidOfPeriod(periodIndex: Int): Any {
-                return periodIndex.coerceIn(items.indices)
-            }
+                .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .build()
         }
-    }
-
-    override fun getCurrentPeriodIndex() = currentMediaItemIndex.coerceAtLeast(0)
-
-    override fun getCurrentMediaItemIndex() = currentMediaItemIndex.coerceAtLeast(0)
-
-    override fun getDuration(): Long =
-        if (released) TIME_UNSET else player.length.takeIf { it > 0 } ?: TIME_UNSET
-
-    override fun getCurrentPosition(): Long {
-        if (released) return 0L
-        val pending = pendingSeekPosition
-        if (pending != TIME_UNSET) return pending
-        val start = pendingStartPosition
-        if (start != TIME_UNSET) return start
-        return player.time.coerceAtLeast(0L)
-    }
-
-    override fun getBufferedPosition(): Long = getCurrentPosition()
-
-    override fun getTotalBufferedDuration(): Long = 0L
-
-    override fun isPlayingAd(): Boolean = false
-
-    override fun getCurrentAdGroupIndex(): Int = INDEX_UNSET
-
-    override fun getCurrentAdIndexInAdGroup(): Int = INDEX_UNSET
-
-    override fun getMaxSeekToPreviousPosition() = 3_000L
-
-    override fun getContentPosition() = getCurrentPosition()
-
-    override fun getContentBufferedPosition() = getBufferedPosition()
-
-    override fun getAudioAttributes(): AudioAttributes = mediaAudioAttributes
-
-    private var volumeBeforeMute: Float = 1f
-
-    override fun setVolume(volume: Float) {
-        if (released) return
-        player.volume = (volume.coerceIn(0f, 1f) * 100).toInt()
-        notifyVolumeChanged()
-    }
-
-    override fun getVolume(): Float =
-        if (released) 1f else (player.volume / 100f).coerceIn(0f, 1f)
-
-    override fun mute() {
-        if (released) return
-        val current = getVolume()
-        if (current > 0f) volumeBeforeMute = current
-        player.volume = 0
-        notifyVolumeChanged()
-    }
-
-    override fun unmute() {
-        setVolume(volumeBeforeMute.takeIf { it > 0f } ?: 1f)
-    }
-
-    private fun notifyVolumeChanged() {
-        notifyListeners(EVENT_VOLUME_CHANGED) { it.onVolumeChanged(getVolume()) }
-    }
-
-    override fun clearVideoSurface() {
-        boundSurfaceView = null
-        if (!released && vlcVout.areViewsAttached()) {
-            player.setVideoTrackEnabled(false)
-            val deadline = SystemClock.uptimeMillis() + 250
-            while (player.getSelectedTrack(IMedia.Track.Type.Video) != null &&
-                SystemClock.uptimeMillis() < deadline
-            ) {
-                Thread.sleep(2)
-            }
-        }
-        vlcVout.detachViews()
-    }
-
-    override fun clearVideoSurface(surface: Surface?) {
-        clearVideoSurface()
-    }
-
-    override fun setVideoSurface(surface: Surface?) {
-        if (surface == null) {
-            clearVideoSurface()
-            return
-        }
-        if (released) return
-        vlcVout.setVideoSurface(surface, null)
-        vlcVout.attachViews()
-    }
-
-    override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
-        if (surfaceHolder == null) return clearVideoSurface()
-        if (released) return
-        val surface = surfaceHolder.surface
-        if (surface != null && surface.isValid && !vlcVout.areViewsAttached()) {
-            vlcVout.setVideoSurface(surface, surfaceHolder)
-            vlcVout.attachViews()
-        }
-    }
-
-    override fun clearVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
-        clearVideoSurface()
-    }
-
-    override fun setVideoSurfaceView(surfaceView: SurfaceView?) {
-        if (surfaceView == null) return clearVideoSurface()
-        if (released) return
-        if (vlcVout.areViewsAttached() && boundSurfaceView === surfaceView) return
-        boundSurfaceView = surfaceView
-        videoOutputStale = (
-            player.playerState == IMedia.State.Playing ||
-            player.playerState == IMedia.State.Paused
+        Group(
+            TrackGroup("vlc-$type-${trackKey(tracks.first())}", *formats.toTypedArray()),
+            formats.size > 1,
+            IntArray(formats.size) { FORMAT_HANDLED },
+            BooleanArray(tracks.size) { tracks[it].id == selected?.id }
         )
-        vlcVout.setVideoView(surfaceView)
-        vlcVout.attachViews()
     }
 
-    fun rebuildVideoOutput() {
-        if (released) return
-        if (!videoOutputStale || !player.isPlaying || !vlcVout.areViewsAttached()) return
-        videoOutputStale = false
-        player.setVideoTrackEnabled(false)
-        player.setVideoTrackEnabled(true)
-        player.updateVideoSurfaces()
+    override fun handleSetTrackSelectionParameters(
+        trackSelectionParameters: TrackSelectionParameters
+    ): ListenableFuture<*> = vlc {
+        update { setTrackSelectionParameters(trackSelectionParameters) }
+        selectTracks(trackSelectionParameters)
     }
 
-    fun updateVideoLayout(width: Int, height: Int) {
-        if (released) return
-        if (!vlcVout.areViewsAttached()) return
-        if (width > 0 && height > 0) vlcVout.setWindowSize(width, height)
-        player.updateVideoSurfaces()
-    }
+    private fun selectTracks(params: TrackSelectionParameters) {
+        val tracks = buildTracks()
+        val groups = tracks.groups.map { it.mediaTrackGroup }
+        val overrides = params.overrides.values
+            // like exoplayer, an override only applies to the tracks it was made on
+            .filter { it.mediaTrackGroup in groups }
+            .mapNotNull { override ->
+                val index = override.trackIndices.firstOrNull() ?: return@mapNotNull null
+                override.mediaTrackGroup.getFormat(index).id?.let { override.type to it }
+            }.toMap()
+        fun pick(type: Int, languages: List<String>, labels: List<String>): String? =
+            overrides[type] ?: preferredTrack(tracks, type, languages, labels)
 
-    override fun clearVideoSurfaceView(surfaceView: SurfaceView?) {
-        if (surfaceView != null && boundSurfaceView !== surfaceView) return
-        clearVideoSurface()
-    }
+        if (TRACK_TYPE_VIDEO in params.disabledTrackTypes) {
+            player.setVideoTrackEnabled(false)
+        } else {
+            player.setVideoTrackEnabled(true)
+            pick(TRACK_TYPE_VIDEO, params.preferredVideoLanguages, params.preferredVideoLabels)
+                ?.let { selectTrack(IMedia.Track.Type.Video, it) }
+        }
 
-    override fun setVideoTextureView(textureView: TextureView?) = Unit
+        if (TRACK_TYPE_AUDIO in params.disabledTrackTypes) {
+            player.unselectTrackType(IMedia.Track.Type.Audio)
+        } else {
+            pick(TRACK_TYPE_AUDIO, params.preferredAudioLanguages, params.preferredAudioLabels)
+                ?.let { selectTrack(IMedia.Track.Type.Audio, it) }
+        }
 
-    override fun clearVideoTextureView(textureView: TextureView?) = Unit
-
-    /**
-     * VLC never pushes a video-size event, so emit our own once the selected video
-     * track (and its sample aspect ratio) is known. Listeners such as OmniView use
-     * this to size the content frame -> the PIP aspect ratio matches the video
-     * instead of the raw SurfaceView bounds (ExoPlayer does this on its own).
-     */
-    private fun maybeNotifyVideoSizeChanged() {
-        val size = getVideoSize()
-        if (size == VideoSize.UNKNOWN || size == lastVideoSize) return
-        lastVideoSize = size
-        notifyListeners(EVENT_VIDEO_SIZE_CHANGED) {
-            it.onVideoSizeChanged(size)
+        if (TRACK_TYPE_TEXT in params.disabledTrackTypes) {
+            dropPendingSlave()
+            player.unselectTrackType(IMedia.Track.Type.Text)
+        } else {
+            pick(TRACK_TYPE_TEXT, params.preferredTextLanguages, params.preferredTextLabels)
+                ?.let { selectTextTrack(it) }
         }
     }
 
-    override fun getVideoSize(): VideoSize {
-        if (released) return VideoSize.UNKNOWN
-        val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack
-            ?: return VideoSize.UNKNOWN
-        if (videoTrack.width <= 0 || videoTrack.height <= 0) return VideoSize.UNKNOWN
+    // vlc restarts the decoder of a track selected again
+    private fun selectTrack(type: Int, id: String) {
+        if (player.getSelectedTrack(type)?.id != id) player.selectTrack(id)
+    }
+
+    // the track matching the most preferred language, then label
+    private fun preferredTrack(
+        tracks: Tracks,
+        type: Int,
+        preferredLanguages: List<String>,
+        preferredLabels: List<String>,
+    ): String? {
+        val languages = preferredLanguages.filter { it.isNotEmpty() }
+        val labels = preferredLabels.filter { it.isNotEmpty() }
+        if (languages.isEmpty() && labels.isEmpty()) return null
+
+        // null when it matches none of the preferences
+        fun rank(preferences: List<String>, value: String?): Int? =
+            if (preferences.isEmpty()) 0
+            else preferences.indexOfFirst { it.equals(value, ignoreCase = true) }.takeIf { it >= 0 }
+
+        return tracks.groups
+            .filter { it.type == type }
+            .flatMap { group -> (0 until group.length).map { group.getTrackFormat(it) to group.isTrackSelected(it) } }
+            .filter { (format) -> rank(languages, format.language) != null && rank(labels, format.label) != null }
+            // the one playing (a rendition picked by hand) wins a tie
+            .minWithOrNull(compareBy({ rank(languages, it.first.language) }, { rank(labels, it.first.label) }, { !it.second }))
+            ?.first?.id
+    }
+
+    override fun handleSetVideoOutput(videoOutput: Any): ListenableFuture<*> {
+        if (videoOutput === boundOutput) return Futures.immediateVoidFuture()
+        // the video is laid out in a view, a bare Surface or SurfaceHolder has none
+        if (videoOutput !is SurfaceView) return Futures.immediateVoidFuture()
+        handleClearVideoOutput(null)
+        boundOutput = videoOutput
+        videoOutputGeneration++
+        vlcVout.setVideoView(videoOutput)
+        vlcVout.attachViews()
+        videoOutput.addOnLayoutChangeListener(layoutListener)
+        updateVideoLayout(videoOutput)
+        rebuildVideoOutput()
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleClearVideoOutput(videoOutput: Any?): ListenableFuture<*> {
+        if (videoOutput != null && videoOutput !== boundOutput) return Futures.immediateVoidFuture()
+        boundOutput?.removeOnLayoutChangeListener(layoutListener)
+        boundOutput = null
+        if (!vlcVout.areViewsAttached()) return Futures.immediateVoidFuture()
+        // the surface is gone once surfaceDestroyed returns, vlc has to close its video before.
+        // libvlc can be stuck for seconds, so this only waits for so long.
+        val done = CountDownLatch(1)
+        val generation = videoOutputGeneration
+        vlcHandler.post {
+            if (generation != videoOutputGeneration || player.getSelectedTrack(IMedia.Track.Type.Video) == null) {
+                done.countDown()
+                return@post
+            }
+            // onEvent counts it down once vlc closed the video
+            videoReleased = done
+            releasedVideoTrack = player.getSelectedTrack(IMedia.Track.Type.Video)?.id
+            player.unselectTrackType(IMedia.Track.Type.Video)
+        }
+        done.await(250, TimeUnit.MILLISECONDS)
+        vlcVout.detachViews()
+        return Futures.immediateVoidFuture()
+    }
+
+    // vlc doesn't draw on a new output by itself. once the surface settled, and again when vlc plays:
+    // a paused one draws nothing on it
+    private fun rebuildVideoOutput() {
+        vlcHandler.removeCallbacksAndMessages(REBUILD)
+        vlcHandler.postAtTime({
+            if (!player.isPlaying || !vlcVout.areViewsAttached()) return@postAtTime
+            // nothing to do when vlc already draws on it (an output set while the media opens)
+            if (releasedVideoTrack == null && voutCount > 0) return@postAtTime
+            if (TRACK_TYPE_VIDEO in state.trackSelectionParameters.disabledTrackTypes) return@postAtTime
+            // `setVideoTrackEnabled(true)` picks the first track, vlc then reports none as selected
+            val track = player.getSelectedTrack(IMedia.Track.Type.Video)?.id ?: releasedVideoTrack ?: return@postAtTime
+            releasedVideoTrack = null
+            player.unselectTrackType(IMedia.Track.Type.Video)
+            player.selectTrack(track)
+            player.updateVideoSurfaces()
+        }, REBUILD, SystemClock.uptimeMillis() + 200)
+    }
+
+    private val layoutListener = View.OnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) updateVideoLayout(view)
+    }
+
+    private fun updateVideoLayout(view: View) {
+        if (view.width > 0 && view.height > 0) vlcVout.setWindowSize(view.width, view.height)
+        vlcHandler.post { player.updateVideoSurfaces() }
+    }
+
+    // OmniView sizes the content frame (and the pip aspect ratio) to the video
+    private fun updateVideoSize() {
+        val videoTrack = player.getSelectedTrack(IMedia.Track.Type.Video) as? VideoTrack ?: return
+        if (videoTrack.width <= 0 || videoTrack.height <= 0) return
         val par = if (videoTrack.sarNum > 0 && videoTrack.sarDen > 0) {
-            videoTrack.sarNum.toFloat() / videoTrack.sarDen.toFloat()
+            videoTrack.sarNum.toFloat() / videoTrack.sarDen
         } else {
             1f
         }
-        return VideoSize(videoTrack.width, videoTrack.height, par)
+        val size = VideoSize(videoTrack.width, videoTrack.height, par)
+        if (size != state.videoSize) update { setVideoSize(size) }
     }
+}
 
-    override fun getSurfaceSize(): Size = Size.UNKNOWN
-
-    override fun getCurrentCues(): CueGroup = CueGroup.EMPTY_TIME_ZERO
-
-    override fun getDeviceInfo(): DeviceInfo = DeviceInfo.UNKNOWN
-
-    override fun getDeviceVolume(): Int = 0
-
-    override fun isDeviceMuted(): Boolean = false
-
-    @Deprecated("Deprecated in Java")
-    override fun setDeviceVolume(volume: Int) = Unit
-
-    override fun setDeviceVolume(volume: Int, flags: Int) = Unit
-
-    @Deprecated("Deprecated in Java")
-    override fun increaseDeviceVolume() = Unit
-
-    override fun increaseDeviceVolume(flags: Int) = Unit
-
-    @Deprecated("Deprecated in Java")
-    override fun decreaseDeviceVolume() = Unit
-
-    override fun decreaseDeviceVolume(flags: Int) = Unit
-
-    @Deprecated("Deprecated in Java")
-    override fun setDeviceMuted(muted: Boolean) = Unit
-
-    override fun setDeviceMuted(muted: Boolean, flags: Int) = Unit
-
-    override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) {
-        mediaAudioAttributes = audioAttributes
-        this.handleAudioFocus = handleAudioFocus
-        if (released) return
-        if (!handleAudioFocus) {
-            abandonAudioFocus()
-        } else if (player.isPlaying && !requestAudioFocus()) {
-            applicationHandler.post { player.pause() }
-        }
-        notifyListeners(EVENT_AUDIO_ATTRIBUTES_CHANGED) {
-            it.onAudioAttributesChanged(audioAttributes)
+// an uncaught throw would kill the vlc thread, and the app with it
+private class VlcHandler(looper: Looper) : Handler(looper) {
+    override fun dispatchMessage(msg: Message) {
+        try {
+            super.dispatchMessage(msg)
+        } catch (e: Exception) {
+            Log.e("VlcPlayer", "vlc command failed", e)
         }
     }
+}
+
+// libvlc only lets subclasses pick the thread its events are handled on
+private class EventMediaPlayer(libVLC: LibVLC) : MediaPlayer(libVLC) {
+    fun setEventListener(listener: MediaPlayer.EventListener, handler: Handler) =
+        super.setEventListener(listener, handler)
 }

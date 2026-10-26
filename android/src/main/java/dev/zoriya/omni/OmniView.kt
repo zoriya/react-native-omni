@@ -196,12 +196,12 @@ class OmniView(val context: ThemedReactContext) :
         }
 
         boundPlayer?.localPlayer?.removeListener(this)
-        boundPlayer?.clearVideoView(surfaceView)
+        boundPlayer?.localPlayer?.clearVideoSurfaceView(surfaceView)
         boundPlayer = omniPlayer
         omniPlayer.localPlayer.addListener(this)
 
         if (surfaceReady) {
-            omniPlayer.setVideoView(surfaceView)
+            omniPlayer.localPlayer.setVideoSurfaceView(surfaceView)
         }
 
         if (autoplay == true && !omniPlayer.isPlaying) {
@@ -225,7 +225,7 @@ class OmniView(val context: ThemedReactContext) :
 
         val omniPlayer = player as? OmniPlayer ?: return
         boundPlayer?.localPlayer?.removeListener(this)
-        omniPlayer.clearVideoView(surfaceView)
+        omniPlayer.localPlayer.clearVideoSurfaceView(surfaceView)
         boundPlayer = null
     }
 
@@ -272,7 +272,6 @@ class OmniView(val context: ThemedReactContext) :
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        if (isPlaying) scheduleVideoRebuild()
         syncKeepScreenOn()
         updatePictureInPictureParams()
     }
@@ -408,20 +407,19 @@ class OmniView(val context: ThemedReactContext) :
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
         ))
+        // react native swallows the layout request, the surface would keep its pip size
+        contentFrame.measure(
+            View.MeasureSpec.makeMeasureSpec(contentFrame.width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(contentFrame.height, View.MeasureSpec.EXACTLY)
+        )
+        contentFrame.layout(contentFrame.left, contentFrame.top, contentFrame.right, contentFrame.bottom)
 
         movedSurfaceToRootForPip = false
     }
 
-    private val rebuildRunnable = Runnable { boundPlayer?.rebuildVideoOutput() }
-
-    private fun scheduleVideoRebuild() {
-        surfaceView.removeCallbacks(rebuildRunnable)
-        surfaceView.postDelayed(rebuildRunnable, 200)
-    }
-
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        boundPlayer?.setVideoView(surfaceView)
+        boundPlayer?.localPlayer?.setVideoSurfaceView(surfaceView)
         updatePictureInPictureParams()
     }
 
@@ -430,14 +428,10 @@ class OmniView(val context: ThemedReactContext) :
         format: Int,
         width: Int,
         height: Int
-    ) {
-        boundPlayer?.updateVideoLayout(width, height)
-        scheduleVideoRebuild()
-    }
+    ) {}
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        surfaceView.removeCallbacks(rebuildRunnable)
-        boundPlayer?.clearVideoView(surfaceView)
+        boundPlayer?.localPlayer?.clearVideoSurfaceView(surfaceView)
     }
 }
