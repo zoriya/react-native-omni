@@ -721,9 +721,9 @@ class VlcPlayer(ctx: Context) :
     // selecting a track makes vlc recreate its es with a fresh, higher id ("audio/auto/4"
     // becomes "audio/auto/7"), so its own order puts whatever was picked last and the list
     // reshuffles. order on the lowest es number a track was ever seen with instead.
-    private val trackOrders = mutableMapOf<Pair<Int, String>, Int>()
+    private val trackOrders = mutableMapOf<Pair<String, String>, Int>()
 
-    private fun trackOrder(type: Int, tracks: List<IMedia.Track>): Int {
+    private fun trackOrder(type: String, tracks: List<IMedia.Track>): Int {
         val key = type to trackKey(tracks.first())
         val es = tracks.minOf { it.id.substringAfterLast('/').toIntOrNull() ?: Int.MAX_VALUE }
         val order = minOf(trackOrders[key] ?: Int.MAX_VALUE, es)
@@ -763,62 +763,51 @@ class VlcPlayer(ctx: Context) :
 
         return Tracks(
             trackGroups(
-                TRACK_TYPE_VIDEO,
+                "video",
                 player.getTracks(IMedia.Track.Type.Video).orEmpty().groupBy { trackKey(it) }.values,
                 player.getSelectedTrack(IMedia.Track.Type.Video)
             ) + trackGroups(
-                TRACK_TYPE_AUDIO,
+                "audio",
                 player.getTracks(IMedia.Track.Type.Audio).orEmpty().groupBy { trackKey(it) }.values,
                 player.getSelectedTrack(IMedia.Track.Type.Audio)
             ) + trackGroups(
-                TRACK_TYPE_TEXT,
+                "text",
                 textTracks.filter { it !in loadedSlaves.values }.groupBy { trackKey(it) }.values,
                 selectedSubtitle
             ) + sideloaded
         )
     }
 
+    // `type` is the mime's top-level type, which media3 reads the track type from
     private fun trackGroups(
-        type: Int,
+        type: String,
         groups: Collection<List<IMedia.Track>>,
         selected: IMedia.Track?
-    ): List<Group> {
-        val name = when (type) {
-            TRACK_TYPE_VIDEO -> "video"
-            TRACK_TYPE_AUDIO -> "audio"
-            else -> "sub"
+    ): List<Group> = groups.sortedBy { trackOrder(type, it) }.map { tracks ->
+        val formats = tracks.map { track ->
+            val video = track as? VideoTrack
+            Format.Builder()
+                .setId(track.id)
+                .setLabel(trackName(track))
+                .setLanguage(track.language)
+                .setSampleMimeType("$type/x-unknown")
+                .setWidth(video?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .setHeight(video?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .setFrameRate(
+                    video?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
+                        ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
+                        ?: Format.NO_VALUE.toFloat()
+                )
+                .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
+                .build()
         }
-        return groups.sortedBy { trackOrder(type, it) }.map { tracks ->
-            val formats = tracks.map { track ->
-                val format = Format.Builder().setId(track.id).setLanguage(track.language)
-                when (type) {
-                    TRACK_TYPE_VIDEO -> {
-                        val video = track as? VideoTrack
-                        format
-                            .setLabel(trackName(track))
-                            .setSampleMimeType("video/x-unknown")
-                            .setWidth(video?.width?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                            .setHeight(video?.height?.takeIf { it > 0 } ?: Format.NO_VALUE)
-                            .setFrameRate(
-                                video?.takeIf { it.frameRateDen > 0 && it.frameRateNum > 0 }
-                                    ?.let { it.frameRateNum.toFloat() / it.frameRateDen }
-                                    ?: Format.NO_VALUE.toFloat()
-                            )
-                            .setAverageBitrate(track.bitrate.takeIf { it > 0 } ?: Format.NO_VALUE)
-                    }
-                    TRACK_TYPE_AUDIO -> format.setLabel(trackName(track)).setSampleMimeType("audio/x-unknown")
-                    else -> format.setLabel(track.name).setSampleMimeType("text/x-unknown")
-                }
-                format.build()
-            }
-            Group(
-                // vlc's es ids change when a track is selected again, the key doesn't
-                TrackGroup("vlc-$name-${trackKey(tracks.first())}", *formats.toTypedArray()),
-                formats.size > 1,
-                IntArray(formats.size) { FORMAT_HANDLED },
-                BooleanArray(tracks.size) { tracks[it].id == selected?.id }
-            )
-        }
+        Group(
+            // vlc's es ids change when a track is selected again, the key doesn't
+            TrackGroup("vlc-$type-${trackKey(tracks.first())}", *formats.toTypedArray()),
+            formats.size > 1,
+            IntArray(formats.size) { FORMAT_HANDLED },
+            BooleanArray(tracks.size) { tracks[it].id == selected?.id }
+        )
     }
 
     override fun handleSetTrackSelectionParameters(
