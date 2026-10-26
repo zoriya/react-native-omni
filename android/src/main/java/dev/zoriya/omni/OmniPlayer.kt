@@ -572,6 +572,8 @@ class OmniPlayer(
                 ownSource = null
                 runOnMainThreadSync {
                     OmniCastReceiver.stopMedia(this)
+                    // a player cleared while playing ends (like exoplayer), js would take it for the media's end
+                    player.stop()
                     player.clearMediaItems()
                 }
                 syncNotificationService()
