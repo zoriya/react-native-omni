@@ -192,7 +192,10 @@ class VlcPlayer(ctx: Context) :
     }
 
     private fun update(block: State.Builder.() -> Unit) {
+        val wasOpen = state.playbackState == STATE_BUFFERING || state.playbackState == STATE_READY
         state = state.buildUpon().apply(block).build()
+        // like exoplayer, the focus is kept while paused but not once there is nothing left to play
+        if (wasOpen && (state.playbackState == STATE_IDLE || state.playbackState == STATE_ENDED)) abandonAudioFocus()
         applicationHandler.post { invalidateState() }
     }
 
@@ -220,10 +223,7 @@ class VlcPlayer(ctx: Context) :
     override fun onEvent(event: Event) {
         // vlc skips Opening when it never went idle between two medias, it only reports the change
         if (event.type == Event.Opening || event.type == Event.MediaChanged) stale = false
-        if (event.type == Event.Stopped) {
-            abandonAudioFocus()
-            if (vlcHandler.hasMessages(0, STOPPING)) vlcStopped()
-        }
+        if (event.type == Event.Stopped && vlcHandler.hasMessages(0, STOPPING)) vlcStopped()
         if (videoReleased != null &&
             (event.type == Event.ESSelected || event.type == Event.ESDeleted) &&
             player.getSelectedTrack(IMedia.Track.Type.Video) == null
@@ -250,10 +250,7 @@ class VlcPlayer(ctx: Context) :
                     selectTracks(state.trackSelectionParameters)
                 }
                 // vlc reports a media opening paused (see loadMedia) as playing until its first frame
-                if (state.playWhenReady) {
-                    if (requestAudioFocus()) update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE) }
-                    else pauseForFocusLoss()
-                }
+                if (state.playWhenReady && !requestAudioFocus()) pauseForFocusLoss()
             }
 
             Event.Paused -> when {
@@ -314,7 +311,7 @@ class VlcPlayer(ctx: Context) :
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
-                hasAudioFocus = false
+                abandonAudioFocus()
                 pauseForFocusLoss()
             }
 
@@ -322,9 +319,7 @@ class VlcPlayer(ctx: Context) :
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 // a play asked for meanwhile takes it back
                 hasAudioFocus = false
-                update {
-                    setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
-                }
+                update { setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) }
                 player.pause()
             }
         }
@@ -415,7 +410,12 @@ class VlcPlayer(ctx: Context) :
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> = vlc {
         val playbackState = state.playbackState
-        update { setPlayWhenReady(playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) }
+        // asked before vlc plays anything, this takes it back from a transient loss as well
+        if (playWhenReady && !state.timeline.isEmpty && !requestAudioFocus()) return@vlc pauseForFocusLoss()
+        update {
+            setPlayWhenReady(playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            if (playWhenReady) setPlaybackSuppressionReason(PLAYBACK_SUPPRESSION_REASON_NONE)
+        }
         when {
             !playWhenReady -> player.pause()
             // like prepare(), after a stop or an error
