@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -172,7 +171,7 @@ class VlcPlayer(ctx: Context) :
     private fun currentPosition(): Long = seekTarget.takeIf { it != TIME_UNSET } ?: position
 
     private val currentItem: MediaItem?
-        get() = state.playlist.getOrNull(state.currentMediaItemIndex)?.mediaItem
+        get() = state.playlist.firstOrNull()?.mediaItem
 
     private fun vlc(block: () -> Unit): ListenableFuture<*> {
         val done = SettableFuture.create<Unit>()
@@ -199,9 +198,7 @@ class VlcPlayer(ctx: Context) :
     }
 
     private fun State.Builder.updateCurrentItem(block: MediaItemData.Builder.() -> Unit): State.Builder =
-        setPlaylist(state.playlist.mapIndexed { i, item ->
-            if (i == state.currentMediaItemIndex) item.buildUpon().apply(block).build() else item
-        })
+        setPlaylist(state.playlist.map { it.buildUpon().apply(block).build() })
 
     private fun updateTracks() {
         update { updateCurrentItem { setTracks(buildTracks()) } }
@@ -370,26 +367,27 @@ class VlcPlayer(ctx: Context) :
         startIndex: Int,
         startPositionMs: Long
     ): ListenableFuture<*> = vlc {
+        // a single media player, prev/next are NavigationPlayer's
+        val item = mediaItems.getOrNull(startIndex.coerceAtLeast(0))
         // an open player opens the new media, an idle one waits for prepare/play
         val playbackState = when {
             state.playbackState == STATE_IDLE -> STATE_IDLE
-            mediaItems.isEmpty() -> STATE_ENDED
+            item == null -> STATE_ENDED
             else -> STATE_BUFFERING
         }
         update {
-            setPlaylist(mediaItems.map { MediaItemData.Builder(Any()).setMediaItem(it).setIsSeekable(true).build() })
-            setCurrentMediaItemIndex(if (mediaItems.isEmpty()) INDEX_UNSET else startIndex.coerceAtLeast(0))
+            setPlaylist(listOfNotNull(item).map { MediaItemData.Builder(Any()).setMediaItem(it).setIsSeekable(true).build() })
+            setCurrentMediaItemIndex(if (item == null) INDEX_UNSET else 0)
             setPlaybackState(playbackState)
             setPlayerError(null)
             setVideoSize(VideoSize.UNKNOWN)
         }
-        loadMedia(currentItem)
+        loadMedia(item)
         // TIME_UNSET is negative
         position = startPositionMs.coerceAtLeast(0L)
         if (playbackState == STATE_BUFFERING) openMedia()
     }
 
-    // single media player: the playlist is only ever set or cleared as a whole
     override fun handleAddMediaItems(index: Int, mediaItems: List<MediaItem>): ListenableFuture<*> =
         Futures.immediateVoidFuture()
 
@@ -411,7 +409,6 @@ class VlcPlayer(ctx: Context) :
     }
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> = vlc {
-        val playbackState = state.playbackState
         // asked before vlc plays anything, this takes it back from a transient loss as well
         if (playWhenReady && !state.timeline.isEmpty && !requestAudioFocus()) return@vlc pauseForFocusLoss()
         update {
@@ -421,8 +418,8 @@ class VlcPlayer(ctx: Context) :
         when {
             !playWhenReady -> player.pause()
             // like prepare(), after a stop or an error
-            playbackState == STATE_IDLE -> openMedia()
-            playbackState == STATE_ENDED -> {
+            state.playbackState == STATE_IDLE -> openMedia()
+            state.playbackState == STATE_ENDED -> {
                 position = 0L
                 openMedia()
             }
@@ -465,7 +462,7 @@ class VlcPlayer(ctx: Context) :
             }
             else -> {
                 // a live stream
-                if (!state.playlist[state.currentMediaItemIndex].isSeekable) return@vlc
+                if (!state.playlist[0].isSeekable) return@vlc
                 seekVlc(target)
                 update { setVlcPlaybackState(STATE_BUFFERING) }
             }
@@ -527,11 +524,6 @@ class VlcPlayer(ctx: Context) :
         player.play()
     }
 
-    // vlc's input is up, it knows whether the media is seekable
-    private fun vlcStarted(): Boolean =
-        !vlcHandler.hasMessages(0, STOPPING) &&
-            player.playerState.let { it == IMedia.State.Playing || it == IMedia.State.Paused }
-
     private fun loadMedia(item: MediaItem?) {
         leaveMedia()
         trackOrders.clear()
@@ -544,7 +536,15 @@ class VlcPlayer(ctx: Context) :
         if (!uri.isNullOrEmpty()) {
             val media = Media(libVLC, uri.toUri())
             media.setHWDecoderEnabled(true, false)
-            applyRequestHeaders(media, item.requestMetadata.extras)
+            // vlc doesn't allow arbitrary headers :c
+            val extras = item.requestMetadata.extras
+            for (name in extras?.keySet().orEmpty()) {
+                val value = extras?.getString(name) ?: continue
+                when (name.lowercase()) {
+                    "user-agent" -> media.addOption(":http-user-agent=$value")
+                    "referer", "referrer" -> media.addOption(":http-referrer=$value")
+                }
+            }
             // vlc only opens a media by playing it, this has it stop on the first frame. vlc creates
             // the input on setMedia, so whether to play can't be decided later (see onEvent's Paused)
             media.addOption(":start-paused")
@@ -554,28 +554,12 @@ class VlcPlayer(ctx: Context) :
         updateTracks()
     }
 
-    // vlc doesn't allow arbitrary headers :c
-    private fun applyRequestHeaders(media: Media, extras: Bundle?) {
-        if (extras == null) return
-        for (name in extras.keySet()) {
-            val value = extras.getString(name) ?: continue
-            when (name.lowercase()) {
-                "user-agent" -> media.addOption(":http-user-agent=$value")
-                "referer", "referrer" -> media.addOption(":http-referrer=$value")
-            }
-        }
-    }
-
     // vlc's `:start-time` trims the media instead of starting further in, so seek there once it can
     private fun openMedia() {
         if (state.timeline.isEmpty) return
         update { setPlayerError(null).setPlaybackState(STATE_BUFFERING) }
         playVlc()
         if (position > 0L) seekVlc(position)
-    }
-
-    private fun resume() {
-        if (state.playWhenReady) playVlc() else update { setVlcPlaybackState(STATE_READY) }
     }
 
     private fun seekVlc(target: Long) {
@@ -604,10 +588,11 @@ class VlcPlayer(ctx: Context) :
             val time = player.time.coerceAtLeast(0L)
             when {
                 seekSent == TIME_UNSET -> when {
-                    !vlcStarted() -> watchSeek(time, attempts)
                     player.isSeekable -> sendSeek()
                     // its input is up and still not seekable, a live stream
-                    else -> seekSettled(time)
+                    !vlcHandler.hasMessages(0, STOPPING) &&
+                        player.playerState.let { it == IMedia.State.Playing || it == IMedia.State.Paused } -> seekSettled(time)
+                    else -> watchSeek(time, attempts)
                 }
                 // TimeChanged usually sees it first
                 seekLanded(time, seekSent) -> seekDone(time)
@@ -687,7 +672,7 @@ class VlcPlayer(ctx: Context) :
         pendingSlave = null
         if (!slavePaused) return
         slavePaused = false
-        resume()
+        if (state.playWhenReady) playVlc() else update { setVlcPlaybackState(STATE_READY) }
     }
 
     private fun md5(value: String): String =
