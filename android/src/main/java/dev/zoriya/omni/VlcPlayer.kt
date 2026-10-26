@@ -11,10 +11,9 @@ import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
 import android.util.Log
-import android.view.Surface
-import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
+import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -63,6 +62,8 @@ private val SLAVE = Any()
 private val SLAVE_FETCH = Any()
 // vlc stopping the media we left
 private val STOPPING = Any()
+// the video track turning back on for a new output
+private val REBUILD = Any()
 
 @SuppressLint("UnsafeOptInUsageError")
 class VlcPlayer(ctx: Context) :
@@ -98,9 +99,7 @@ class VlcPlayer(ctx: Context) :
     // a single one: the audio manager tells requests apart by their listener
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { vlcHandler.post { onAudioFocusChange(it) } }
 
-    private var released = false
-
-    private var boundOutput: Any? = null
+    private var boundOutput: View? = null
     @Volatile
     private var videoOutputStale = false
     // bumped for every output set, a clear reaching vlc late must leave a newer one alone
@@ -245,6 +244,7 @@ class VlcPlayer(ctx: Context) :
                     setVlcPlaybackState(STATE_READY)
                 }
                 updateVideoSize()
+                if (videoOutputStale) rebuildVideoOutput()
                 if (!tracksSelected) {
                     tracksSelected = true
                     selectTracks(state.trackSelectionParameters)
@@ -438,7 +438,6 @@ class VlcPlayer(ctx: Context) :
 
     override fun handleRelease(): ListenableFuture<*> {
         handleClearVideoOutput(null)
-        released = true
         vlcHandler.post {
             vlcHandler.removeCallbacksAndMessages(null)
             abandonAudioFocus()
@@ -901,32 +900,30 @@ class VlcPlayer(ctx: Context) :
 
     override fun handleSetVideoOutput(videoOutput: Any): ListenableFuture<*> {
         if (videoOutput === boundOutput && vlcVout.areViewsAttached()) return Futures.immediateVoidFuture()
-        if (videoOutput is SurfaceHolder && videoOutput.surface?.isValid != true) {
-            return Futures.immediateVoidFuture()
-        }
+        // the video is laid out in a view, a bare Surface or SurfaceHolder has none
+        if (videoOutput !is SurfaceView && videoOutput !is TextureView) return Futures.immediateVoidFuture()
         // libvlc only takes a new output once the previous one is detached
         if (vlcVout.areViewsAttached()) handleClearVideoOutput(null)
 
-        boundOutput = videoOutput
+        boundOutput = videoOutput as View
         videoOutputGeneration++
         // clearing the previous output turned the video track off, only a rebuild turns it back on
         videoOutputStale = state.playbackState.let { it == STATE_READY || it == STATE_BUFFERING }
-        when (videoOutput) {
-            is SurfaceView -> vlcVout.setVideoView(videoOutput)
-            is TextureView -> vlcVout.setVideoView(videoOutput)
-            is SurfaceHolder -> vlcVout.setVideoSurface(videoOutput.surface, videoOutput)
-            is Surface -> vlcVout.setVideoSurface(videoOutput, null)
-        }
+        if (videoOutput is SurfaceView) vlcVout.setVideoView(videoOutput) else vlcVout.setVideoView(videoOutput as TextureView)
         vlcVout.attachViews()
+        videoOutput.addOnLayoutChangeListener(layoutListener)
+        updateVideoLayout(videoOutput)
+        rebuildVideoOutput()
         return Futures.immediateVoidFuture()
     }
 
     override fun handleClearVideoOutput(videoOutput: Any?): ListenableFuture<*> {
         if (videoOutput != null && videoOutput !== boundOutput) return Futures.immediateVoidFuture()
+        boundOutput?.removeOnLayoutChangeListener(layoutListener)
         boundOutput = null
         // the surface is gone once surfaceDestroyed returns, vlc has to be done with it by then.
         // libvlc can be stuck for seconds, so this only waits for so long.
-        if (!released && vlcVout.areViewsAttached()) {
+        if (vlcVout.areViewsAttached()) {
             val done = CountDownLatch(1)
             val generation = videoOutputGeneration
             vlcHandler.post {
@@ -946,21 +943,25 @@ class VlcPlayer(ctx: Context) :
         return Futures.immediateVoidFuture()
     }
 
-    fun rebuildVideoOutput() {
-        if (released) return
-        val open = playbackState == STATE_READY || playbackState == STATE_BUFFERING
-        if (!videoOutputStale || !playWhenReady || !open || !vlcVout.areViewsAttached()) return
-        videoOutputStale = false
-        vlcHandler.post {
+    // once the new surface settled (and again when vlc plays: a paused one draws nothing with it)
+    private fun rebuildVideoOutput() {
+        vlcHandler.removeCallbacksAndMessages(REBUILD)
+        postDelayed(REBUILD, 200) {
+            if (!videoOutputStale || !player.isPlaying || !vlcVout.areViewsAttached()) return@postDelayed
+            videoOutputStale = false
+            if (TRACK_TYPE_VIDEO in state.trackSelectionParameters.disabledTrackTypes) return@postDelayed
             player.setVideoTrackEnabled(false)
             player.setVideoTrackEnabled(true)
             player.updateVideoSurfaces()
         }
     }
 
-    fun updateVideoLayout(width: Int, height: Int) {
-        if (released || !vlcVout.areViewsAttached()) return
-        if (width > 0 && height > 0) vlcVout.setWindowSize(width, height)
+    private val layoutListener = View.OnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) updateVideoLayout(view)
+    }
+
+    private fun updateVideoLayout(view: View) {
+        if (view.width > 0 && view.height > 0) vlcVout.setWindowSize(view.width, view.height)
         vlcHandler.post { player.updateVideoSurfaces() }
     }
 

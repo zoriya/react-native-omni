@@ -272,7 +272,6 @@ class OmniView(val context: ThemedReactContext) :
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        if (isPlaying) scheduleVideoRebuild()
         syncKeepScreenOn()
         updatePictureInPictureParams()
     }
@@ -412,13 +411,6 @@ class OmniView(val context: ThemedReactContext) :
         movedSurfaceToRootForPip = false
     }
 
-    private val rebuildRunnable = Runnable { boundPlayer?.rebuildVideoOutput() }
-
-    private fun scheduleVideoRebuild() {
-        surfaceView.removeCallbacks(rebuildRunnable)
-        surfaceView.postDelayed(rebuildRunnable, 200)
-    }
-
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         boundPlayer?.setVideoView(surfaceView)
@@ -430,14 +422,10 @@ class OmniView(val context: ThemedReactContext) :
         format: Int,
         width: Int,
         height: Int
-    ) {
-        boundPlayer?.updateVideoLayout(width, height)
-        scheduleVideoRebuild()
-    }
+    ) {}
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        surfaceView.removeCallbacks(rebuildRunnable)
         boundPlayer?.clearVideoView(surfaceView)
     }
 }
