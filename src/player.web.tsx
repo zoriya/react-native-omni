@@ -114,7 +114,10 @@ export class WebOmniPlayer implements OmniPlayer {
 	}
 
 	get currentTime(): number {
-		return this._store.state.currentTime;
+		const state = this._store.state;
+		if (!state.canPlay && this._source?.startTime)
+			return this._source.startTime;
+		return state.currentTime;
 	}
 
 	set currentTime(time: number) {
@@ -291,14 +294,15 @@ export class WebOmniPlayer implements OmniPlayer {
 			this.resumeAfterSubtitleLoad =
 				!state.paused || (!state.started && autoplay);
 		this.subtitleLoading = true;
-		this._store.pause();
+		// the overlay can see a new <video> before the store attached it
+		if (this._store.target) this._store.pause();
 		this.notifySubtitleLoading();
 	}
 
 	endSubtitleLoad(): void {
 		if (!this.subtitleLoading) return;
 		this.subtitleLoading = false;
-		if (this.resumeAfterSubtitleLoad) this._store.play();
+		if (this.resumeAfterSubtitleLoad && this._store.target) this._store.play();
 		this.resumeAfterSubtitleLoad = false;
 		this.notifySubtitleLoading();
 	}

@@ -8,6 +8,7 @@ import {
 	selectPlaybackRate,
 	selectQuality,
 	selectRemotePlayback,
+	selectSource,
 	selectTextTrack,
 	selectTime,
 	selectVolume,
@@ -180,9 +181,6 @@ export const stateMapper = {
 		if (!s) return false;
 		return !s.paused;
 	}),
-	...createMapper("currentTime", selectTime, (s) => {
-		return s?.currentTime ?? 0;
-	}),
 	...createMapper("buffered", selectBuffer, (s) => {
 		if (!s?.buffered.length) return 0;
 		const last = s.buffered[s.buffered.length - 1];
@@ -274,6 +272,18 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 				() => null,
 			);
 			return player.subtitles as OmniPlayerState[Key];
+		}
+		case "currentTime": {
+			// to report the `startTime` during the initial load
+			const player = usePlayer() as WebOmniPlayer;
+			useStoreSelector(selectTime);
+			useStoreSelector(selectSource);
+			useSyncExternalStore(
+				player.subscribeSource,
+				() => player.source,
+				() => player.source,
+			);
+			return player.currentTime as OmniPlayerState[Key];
 		}
 		case "status":
 		case "isPlaying": {
