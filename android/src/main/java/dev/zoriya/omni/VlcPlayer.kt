@@ -511,6 +511,11 @@ class VlcPlayer(ctx: Context) :
             }
             // vlc only opens a media by playing it, this stops it on the first frame (see the Paused event)
             media.addOption(":start-paused")
+            // vlc doubts an mkv's cues by default and verifies them by demuxing (and decoding) from
+            // the first cluster up to the target, a seek to the middle of a movie takes half a
+            // minute. exoplayer trusts them, so does this
+            // see: https://code.videolan.org/videolan/vlc/-/issues/30020
+            media.addOption(":demux=mkv_trusted,any")
             player.setMedia(media)
             media.release()
         }
