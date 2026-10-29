@@ -15,6 +15,8 @@ namespace margelo::nitro::omni { enum class BoolProperty; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `ActiveBackend` to properly resolve imports.
+namespace margelo::nitro::omni { enum class ActiveBackend; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `VideoSrc` to properly resolve imports.
@@ -47,6 +49,9 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "CastStatus.hpp"
 #include "JFunc_void_CastStatus.hpp"
 #include "JCastStatus.hpp"
+#include "ActiveBackend.hpp"
+#include "JFunc_void_ActiveBackend.hpp"
+#include "JActiveBackend.hpp"
 #include "Source.hpp"
 #include <optional>
 #include "JFunc_void_std__optional_Source_.hpp"
@@ -55,8 +60,8 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "JVideoSrc.hpp"
 #include <string>
 #include <unordered_map>
-#include "Subtitle.hpp"
 #include <vector>
+#include "Subtitle.hpp"
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"
@@ -151,6 +156,19 @@ namespace margelo::nitro::omni {
   std::function<void()> JHybridOmniEventMapSpec::addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_CastStatus::javaobject> /* cb */)>("addCastStatusListener_cxx");
     auto __result = method(_javaPart, JFunc_void_CastStatus_cxx::fromCpp(cb));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
+  }
+  std::function<void()> JHybridOmniEventMapSpec::addBackendListener(const std::function<void(ActiveBackend /* value */)>& cb) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_ActiveBackend::javaobject> /* cb */)>("addBackendListener_cxx");
+    auto __result = method(_javaPart, JFunc_void_ActiveBackend_cxx::fromCpp(cb));
     return [&]() -> std::function<void()> {
       if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
         auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);

@@ -17,7 +17,8 @@ import com.facebook.proguard.annotations.DoNotStrip
 @Keep
 enum class AndroidBackend(@DoNotStrip @Keep val value: Int) {
   VLC(0),
-  EXOPLAYER(1);
+  EXOPLAYER(1),
+  AUTO(2);
 
   companion object
 }

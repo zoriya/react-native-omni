@@ -685,7 +685,9 @@ class VlcPlayer(ctx: Context) :
         trackSelectionParameters: TrackSelectionParameters
     ): ListenableFuture<*> = vlc {
         update { setTrackSelectionParameters(trackSelectionParameters) }
-        selectTracks(trackSelectionParameters)
+        // the Playing event selects them, vlc decodes garbage when its video track is enabled
+        // before it opened the media
+        if (started) selectTracks(trackSelectionParameters)
     }
 
     private fun selectTracks(params: TrackSelectionParameters) {
@@ -766,7 +768,9 @@ class VlcPlayer(ctx: Context) :
         vlcVout.attachViews()
         videoOutput.addOnLayoutChangeListener(layoutListener)
         updateVideoLayout(videoOutput)
-        rebuildVideoOutput()
+        // a media that didn't start yet opens its video on it, restarting its decoder would only
+        // show garbage until the next keyframe
+        vlcHandler.post { if (started) rebuildVideoOutput() }
         return Futures.immediateVoidFuture()
     }
 

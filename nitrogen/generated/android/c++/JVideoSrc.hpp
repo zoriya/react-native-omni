@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace margelo::nitro::omni {
 
@@ -39,6 +40,8 @@ namespace margelo::nitro::omni {
       jni::local_ref<jni::JString> mimeType = this->getFieldValue(fieldMimeType);
       static const auto fieldHeaders = clazz->getField<jni::JMap<jni::JString, jni::JString>>("headers");
       jni::local_ref<jni::JMap<jni::JString, jni::JString>> headers = this->getFieldValue(fieldHeaders);
+      static const auto fieldCodecs = clazz->getField<jni::JArrayClass<jni::JString>>("codecs");
+      jni::local_ref<jni::JArrayClass<jni::JString>> codecs = this->getFieldValue(fieldCodecs);
       return VideoSrc(
         uri->toStdString(),
         mimeType != nullptr ? std::make_optional(mimeType->toStdString()) : std::nullopt,
@@ -49,7 +52,17 @@ namespace margelo::nitro::omni {
             __map.emplace(__entry.first->toStdString(), __entry.second->toStdString());
           }
           return __map;
-        }()
+        }(),
+        codecs != nullptr ? std::make_optional([&](auto&& __input) {
+          size_t __size = __input->size();
+          std::vector<std::string> __vector;
+          __vector.reserve(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            auto __element = __input->getElement(__i);
+            __vector.push_back(__element->toStdString());
+          }
+          return __vector;
+        }(codecs)) : std::nullopt
       );
     }
 
@@ -59,7 +72,7 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JVideoSrc::javaobject> fromCpp(const VideoSrc& value) {
-      using JSignature = JVideoSrc(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>);
+      using JSignature = JVideoSrc(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>, jni::alias_ref<jni::JArrayClass<jni::JString>>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -72,7 +85,17 @@ namespace margelo::nitro::omni {
             __map->put(jni::make_jstring(__entry.first), jni::make_jstring(__entry.second));
           }
           return __map;
-        }()
+        }(),
+        value.codecs.has_value() ? [&](auto&& __input) {
+          size_t __size = __input.size();
+          jni::local_ref<jni::JArrayClass<jni::JString>> __array = jni::JArrayClass<jni::JString>::newArray(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            const auto& __element = __input[__i];
+            auto __elementJni = jni::make_jstring(__element);
+            __array->setElement(__i, *__elementJni);
+          }
+          return __array;
+        }(value.codecs.value()) : nullptr
       );
     }
   };

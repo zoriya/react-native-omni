@@ -34,6 +34,7 @@ import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.text.TextRenderer
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.NitroModules
+import com.margelo.nitro.omni.ActiveBackend
 import com.margelo.nitro.omni.AndroidBackend
 import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniPlayerSpec
@@ -70,7 +71,7 @@ import org.json.JSONObject
 @DoNotStrip
 @SuppressLint("UnsafeOptInUsageError")
 class OmniPlayer(
-    private val backend: AndroidBackend = AndroidBackend.VLC,
+    private val androidBackend: AndroidBackend = AndroidBackend.AUTO,
     castOptions: CastOptions? = null,
 ) : HybridOmniPlayerSpec(), TrackProvider {
     private val ctx = NitroModules.applicationContext ?: throw Error("No Context available!")
@@ -78,35 +79,37 @@ class OmniPlayer(
     // exoplayer only, used to specify request headers.
     private var httpDataSourceFactory: DefaultHttpDataSource.Factory? = null
 
-    val localPlayer: Player = runOnMainThreadSync {
-        when (backend) {
-            AndroidBackend.EXOPLAYER -> {
-                val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
-                httpDataSourceFactory = http
-                // karaoke subs make exoplayer crash without this...
-                val renderersFactory = object : DefaultRenderersFactory(ctx) {
-                    override fun buildTextRenderers(
-                        context: Context,
-                        output: TextOutput,
-                        outputLooper: Looper,
-                        extensionRendererMode: Int,
-                        out: ArrayList<Renderer>,
-                    ) {
-                        out.add(
-                            TextRenderer(output, outputLooper).apply {
-                                experimentalSetLegacyDecodingEnabled(true)
-                            }
-                        )
+    private fun buildExoPlayer(): ExoPlayer {
+        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        httpDataSourceFactory = http
+        // karaoke subs make exoplayer crash without this...
+        val renderersFactory = object : DefaultRenderersFactory(ctx) {
+            override fun buildTextRenderers(
+                context: Context,
+                output: TextOutput,
+                outputLooper: Looper,
+                extensionRendererMode: Int,
+                out: ArrayList<Renderer>,
+            ) {
+                out.add(
+                    TextRenderer(output, outputLooper).apply {
+                        experimentalSetLegacyDecodingEnabled(true)
                     }
-                }
-                ExoPlayer.Builder(ctx, renderersFactory)
-                    .setMediaSourceFactory(
-                        DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http))
-                            .experimentalParseSubtitlesDuringExtraction(false)
-                    )
-                    .build()
+                )
             }
+        }
+        return ExoPlayer.Builder(ctx, renderersFactory)
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http))
+                    .experimentalParseSubtitlesDuringExtraction(false)
+            )
+            .build()
+    }
 
+    val localPlayer: Player = runOnMainThreadSync {
+        when (androidBackend) {
+            AndroidBackend.AUTO -> AutoPlayer(ctx, buildExoPlayer()) { eventMap.emitBackend(backend) }
+            AndroidBackend.EXOPLAYER -> buildExoPlayer()
             AndroidBackend.VLC -> VlcPlayer(ctx)
         }
     }
@@ -264,6 +267,13 @@ class OmniPlayer(
     override val castStatus: CastStatus
         get() = runOnMainThreadSync { computeCastStatus() }
 
+    override val backend: ActiveBackend
+        get() = when (val local = localPlayer) {
+            is AutoPlayer -> runOnMainThreadSync { if (local.usesVlc) ActiveBackend.VLC else ActiveBackend.EXOPLAYER }
+            is VlcPlayer -> ActiveBackend.VLC
+            else -> ActiveBackend.EXOPLAYER
+        }
+
     val isCasting: Boolean
         get() = castContext?.sessionManager?.currentCastSession?.isConnected == true
 
@@ -381,6 +391,7 @@ class OmniPlayer(
                             castData?.let { data ->
                                 putString(CAST_DATA_EXTRA, JSONObject(data as Map<*, *>).toString())
                             }
+                            src.codecs?.let { putString(CODECS_EXTRA, it.joinToString(",")) }
                             // vlc only path (and it only supports a few headers :c).
                             for ((name, value) in src.headers) putString(name, value)
                         }
@@ -399,6 +410,7 @@ class OmniPlayer(
                 uri = item.localConfiguration?.uri?.toString() ?: item.mediaId,
                 mimeType = item.localConfiguration?.mimeType,
                 headers = emptyMap(),
+                codecs = null,
             ),
             startTime = null,
             subtitles = emptyArray(),
@@ -748,6 +760,8 @@ class OmniPlayer(
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
         const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
+        // `src.codecs`, for AutoPlayer
+        const val CODECS_EXTRA = "dev.zoriya.omni.codecs"
 
         // channel a receiver uses to ask us to play the prev/next media.
         // it must declare it too (`customNamespaces` in the caf options).

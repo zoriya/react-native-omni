@@ -26,7 +26,10 @@ data class VideoSrc(
   val mimeType: String?,
   @DoNotStrip
   @Keep
-  val headers: Map<String, String>
+  val headers: Map<String, String>,
+  @DoNotStrip
+  @Keep
+  val codecs: Array<String>?
 ) {
   /* primary constructor */
 
@@ -36,13 +39,15 @@ data class VideoSrc(
     return Objects.deepEquals(this.uri, other.uri)
       && Objects.deepEquals(this.mimeType, other.mimeType)
       && Objects.deepEquals(this.headers, other.headers)
+      && Objects.deepEquals(this.codecs, other.codecs)
   }
 
   override fun hashCode(): Int {
     return arrayOf<Any?>(
       uri,
       mimeType,
-      headers
+      headers,
+      codecs
     ).contentDeepHashCode()
   }
 
@@ -54,8 +59,8 @@ data class VideoSrc(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(uri: String, mimeType: String?, headers: Map<String, String>): VideoSrc {
-      return VideoSrc(uri, mimeType, headers)
+    private fun fromCpp(uri: String, mimeType: String?, headers: Map<String, String>, codecs: Array<String>?): VideoSrc {
+      return VideoSrc(uri, mimeType, headers, codecs)
     }
   }
 }

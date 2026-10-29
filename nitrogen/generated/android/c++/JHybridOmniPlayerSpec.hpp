@@ -71,6 +71,7 @@ namespace margelo::nitro::omni {
     void setMuted(bool muted) override;
     bool getIsAutoQuality() override;
     CastStatus getCastStatus() override;
+    ActiveBackend getBackend() override;
     std::vector<Track> getVideos() override;
     std::vector<Track> getAudios() override;
     std::vector<Track> getSubtitles() override;

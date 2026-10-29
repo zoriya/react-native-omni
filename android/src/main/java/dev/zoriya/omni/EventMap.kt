@@ -19,6 +19,7 @@ import androidx.media3.common.VideoSize
 import com.facebook.proguard.annotations.DoNotStrip
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import com.margelo.nitro.omni.ActiveBackend
 import com.margelo.nitro.omni.BoolProperty
 import com.margelo.nitro.omni.CastStatus
 import com.margelo.nitro.omni.HybridOmniEventMapSpec
@@ -64,6 +65,7 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     private val stateBoolListeners = ConcurrentHashMap<BoolProperty, CopyOnWriteArraySet<(Boolean) -> Unit>>()
     private val playerStatusListeners = CopyOnWriteArraySet<(PlayerStatus) -> Unit>()
     private val castStatusListeners = CopyOnWriteArraySet<(CastStatus) -> Unit>()
+    private val backendListeners = CopyOnWriteArraySet<(ActiveBackend) -> Unit>()
     private val sourceListeners = CopyOnWriteArraySet<(Source?) -> Unit>()
 
     private var lastRendition: Rendition? = null
@@ -121,6 +123,10 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
 
     fun emitCastStatus(status: CastStatus) {
         castStatusListeners.forEach { it(status) }
+    }
+
+    fun emitBackend(backend: ActiveBackend) {
+        backendListeners.forEach { it(backend) }
     }
 
     fun emitSource(source: Source?) {
@@ -357,6 +363,11 @@ class EventMap(private val tracks: TrackProvider) : HybridOmniEventMapSpec(), Pl
     override fun addCastStatusListener(cb: (value: CastStatus) -> Unit): () -> Unit {
         castStatusListeners.add(cb)
         return { castStatusListeners.remove(cb) }
+    }
+
+    override fun addBackendListener(cb: (value: ActiveBackend) -> Unit): () -> Unit {
+        backendListeners.add(cb)
+        return { backendListeners.remove(cb) }
     }
 
     override fun addSourceListener(cb: (value: Source?) -> Unit): () -> Unit {

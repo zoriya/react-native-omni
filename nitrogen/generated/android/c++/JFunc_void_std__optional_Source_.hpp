@@ -19,8 +19,8 @@
 #include "JVideoSrc.hpp"
 #include <string>
 #include <unordered_map>
-#include "Subtitle.hpp"
 #include <vector>
+#include "Subtitle.hpp"
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"

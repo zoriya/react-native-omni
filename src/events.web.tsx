@@ -263,6 +263,8 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			const player = usePlayer();
 			return player.videos as OmniPlayerState[Key];
 		}
+		case "backend":
+			return "videojs" as OmniPlayerState[Key];
 		case "subtitles": {
 			const player = usePlayer() as WebOmniPlayer;
 			useStoreSelector(selectTextTrack);

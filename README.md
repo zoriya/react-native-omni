@@ -156,6 +156,7 @@ component that uses `<OmniView>`, `usePlayer`, `usePlayerState`, or `useEvent`.
 | ------------------ | --------- | ------- | ---------------------------------------------------- |
 | `source`           | `Source`  | x       | The media to play.                                   |
 | `showNotification` | `boolean` | `false` | Create a media session (OS controls/notification).   |
+| `backend`          | `{ android?: "auto" \| "vlc" \| "exoplayer" }` | `auto` | Android player. `auto` plays with exoplayer and hands a media over to vlc when exoplayer can't fully play it (unsupported codec/container, ass subtitles). Set `source.src.codecs` (`["avc1.640028", "mp4a.40.2", "text/x-ssa"]`) to pick vlc without opening the media in exoplayer first. |
 | `children`         | `ReactNode` | x     | Your player UI.                                      |
 
 Updating `source` swaps the media in place (and seeks to `source.startTime` if
@@ -207,6 +208,7 @@ player.isPlaying;
 player.buffered; // seconds buffered
 player.duration; // seconds
 player.isAutoQuality; // whether rendition selection is automatic
+player.backend; // "vlc" | "exoplayer" | "videojs", what `auto` picked for the current media
 ```
 
 **Tracks & renditions**

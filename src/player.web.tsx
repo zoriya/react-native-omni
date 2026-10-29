@@ -57,6 +57,8 @@ export class WebOmniPlayer implements OmniPlayer {
 		return stateMapper.castStatus.mapper(this._store.state);
 	}
 
+	readonly backend = "videojs";
+
 	toggleCastStatus(): void {
 		selectRemotePlayback(this._store.state)?.promptRemotePlayback();
 	}

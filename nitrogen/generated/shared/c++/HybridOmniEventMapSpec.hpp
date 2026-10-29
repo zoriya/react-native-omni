@@ -21,6 +21,8 @@ namespace margelo::nitro::omni { enum class BoolProperty; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `ActiveBackend` to properly resolve imports.
+namespace margelo::nitro::omni { enum class ActiveBackend; }
 // Forward declaration of `Source` to properly resolve imports.
 namespace margelo::nitro::omni { struct Source; }
 // Forward declaration of `TrackProperty` to properly resolve imports.
@@ -35,6 +37,7 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "BoolProperty.hpp"
 #include "PlayerStatus.hpp"
 #include "CastStatus.hpp"
+#include "ActiveBackend.hpp"
 #include "Source.hpp"
 #include <optional>
 #include "TrackProperty.hpp"
@@ -78,6 +81,7 @@ namespace margelo::nitro::omni {
       virtual std::function<void()> addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) = 0;
       virtual std::function<void()> addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) = 0;
       virtual std::function<void()> addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) = 0;
+      virtual std::function<void()> addBackendListener(const std::function<void(ActiveBackend /* value */)>& cb) = 0;
       virtual std::function<void()> addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) = 0;
       virtual std::function<void()> addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) = 0;
       virtual std::function<void()> addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) = 0;

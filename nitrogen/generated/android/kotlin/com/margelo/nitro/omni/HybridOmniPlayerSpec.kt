@@ -99,6 +99,10 @@ abstract class HybridOmniPlayerSpec: HybridObject() {
   
   @get:DoNotStrip
   @get:Keep
+  abstract val backend: ActiveBackend
+  
+  @get:DoNotStrip
+  @get:Keep
   abstract val videos: Array<Track>
   
   @get:DoNotStrip

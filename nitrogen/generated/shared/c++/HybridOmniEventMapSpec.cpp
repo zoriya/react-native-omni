@@ -18,6 +18,7 @@ namespace margelo::nitro::omni {
       prototype.registerHybridMethod("addStateBoolListener", &HybridOmniEventMapSpec::addStateBoolListener);
       prototype.registerHybridMethod("addPlayerStatusListener", &HybridOmniEventMapSpec::addPlayerStatusListener);
       prototype.registerHybridMethod("addCastStatusListener", &HybridOmniEventMapSpec::addCastStatusListener);
+      prototype.registerHybridMethod("addBackendListener", &HybridOmniEventMapSpec::addBackendListener);
       prototype.registerHybridMethod("addSourceListener", &HybridOmniEventMapSpec::addSourceListener);
       prototype.registerHybridMethod("addTracksListener", &HybridOmniEventMapSpec::addTracksListener);
       prototype.registerHybridMethod("addRenditionsListener", &HybridOmniEventMapSpec::addRenditionsListener);

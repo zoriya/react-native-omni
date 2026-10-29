@@ -2,6 +2,7 @@ export { useCastLoad, useEvent, usePlayerState } from "./events";
 export { OmniProvider, usePlayer } from "./provider";
 export type { CastLoadRequest, OmniEvents } from "./types/events";
 export type {
+	ActiveBackend,
 	AndroidBackend,
 	CastStatus,
 	OmniPlayer,

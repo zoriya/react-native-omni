@@ -23,7 +23,7 @@ const PlayerCtx = createContext<OmniPlayer>(null!);
 export const OmniProvider = ({
 	children,
 	source,
-	backend = { android: "vlc" },
+	backend = { android: "auto" },
 	showNotification = false,
 	cast,
 }: {
@@ -40,7 +40,7 @@ export const OmniProvider = ({
 	);
 
 	useEffect(() => {
-		setPlayer(createPlayer(backend.android ?? "vlc"));
+		setPlayer(createPlayer(backend.android ?? "auto"));
 	}, [backend.android]);
 
 	useEffect(() => {

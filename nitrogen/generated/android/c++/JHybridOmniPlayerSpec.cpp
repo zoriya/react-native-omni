@@ -23,6 +23,8 @@ namespace margelo::nitro::omni { enum class MixAudioMode; }
 namespace margelo::nitro::omni { enum class PlayerStatus; }
 // Forward declaration of `CastStatus` to properly resolve imports.
 namespace margelo::nitro::omni { enum class CastStatus; }
+// Forward declaration of `ActiveBackend` to properly resolve imports.
+namespace margelo::nitro::omni { enum class ActiveBackend; }
 // Forward declaration of `Track` to properly resolve imports.
 namespace margelo::nitro::omni { struct Track; }
 // Forward declaration of `Rendition` to properly resolve imports.
@@ -38,8 +40,8 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "JVideoSrc.hpp"
 #include <string>
 #include <unordered_map>
-#include "Subtitle.hpp"
 #include <vector>
+#include "Subtitle.hpp"
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"
@@ -49,6 +51,8 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "JPlayerStatus.hpp"
 #include "CastStatus.hpp"
 #include "JCastStatus.hpp"
+#include "ActiveBackend.hpp"
+#include "JActiveBackend.hpp"
 #include "Track.hpp"
 #include "JTrack.hpp"
 #include "Rendition.hpp"
@@ -180,6 +184,11 @@ namespace margelo::nitro::omni {
   }
   CastStatus JHybridOmniPlayerSpec::getCastStatus() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JCastStatus>()>("getCastStatus");
+    auto __result = method(_javaPart);
+    return __result->toCpp();
+  }
+  ActiveBackend JHybridOmniPlayerSpec::getBackend() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JActiveBackend>()>("getBackend");
     auto __result = method(_javaPart);
     return __result->toCpp();
   }

@@ -69,6 +69,9 @@ export function usePlayerState<Key extends keyof OmniPlayerState>(
 			case "castStatus":
 				unsubscribe = em.addCastStatusListener(setState);
 				break;
+			case "backend":
+				unsubscribe = em.addBackendListener(setState);
+				break;
 			case "source":
 				unsubscribe = em.addSourceListener(setState);
 				break;

@@ -1,6 +1,7 @@
 import type { HybridObject } from "react-native-nitro-modules";
 import type { CastLoadRequest, OmniEvents } from "../types/events";
 import type {
+	ActiveBackend,
 	CastStatus,
 	OmniPlayerState,
 	OmniPlayer as OmniPlayerT,
@@ -14,6 +15,7 @@ import type { CastOptions, Source } from "../types/source";
 export type NumberProperty = Exclude<
 	keyof OmniPlayerState,
 	| "status"
+	| "backend"
 	| "isPlaying"
 	| "muted"
 	| "source"
@@ -36,6 +38,7 @@ export interface OmniEventMap extends HybridObject<{ android: "kotlin" }> {
 	): () => void;
 	addPlayerStatusListener(cb: (value: PlayerStatus) => void): () => void;
 	addCastStatusListener(cb: (value: CastStatus) => void): () => void;
+	addBackendListener(cb: (value: ActiveBackend) => void): () => void;
 	addSourceListener(cb: (value?: Source) => void): () => void;
 	addTracksListener(
 		key: TrackProperty,

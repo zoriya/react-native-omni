@@ -33,6 +33,7 @@
 #include <string>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 namespace margelo::nitro::omni {
 
@@ -44,10 +45,11 @@ namespace margelo::nitro::omni {
     std::string uri     SWIFT_PRIVATE;
     std::optional<std::string> mimeType     SWIFT_PRIVATE;
     std::unordered_map<std::string, std::string> headers     SWIFT_PRIVATE;
+    std::optional<std::vector<std::string>> codecs     SWIFT_PRIVATE;
 
   public:
     VideoSrc() = default;
-    explicit VideoSrc(std::string uri, std::optional<std::string> mimeType, std::unordered_map<std::string, std::string> headers): uri(uri), mimeType(mimeType), headers(headers) {}
+    explicit VideoSrc(std::string uri, std::optional<std::string> mimeType, std::unordered_map<std::string, std::string> headers, std::optional<std::vector<std::string>> codecs): uri(uri), mimeType(mimeType), headers(headers), codecs(codecs) {}
 
   public:
     friend bool operator==(const VideoSrc& lhs, const VideoSrc& rhs) = default;
@@ -65,7 +67,8 @@ namespace margelo::nitro {
       return margelo::nitro::omni::VideoSrc(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "uri"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mimeType"))),
-        JSIConverter<std::unordered_map<std::string, std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "headers")))
+        JSIConverter<std::unordered_map<std::string, std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "headers"))),
+        JSIConverter<std::optional<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "codecs")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::VideoSrc& arg) {
@@ -73,6 +76,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "uri"), JSIConverter<std::string>::toJSI(runtime, arg.uri));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "mimeType"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.mimeType));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "headers"), JSIConverter<std::unordered_map<std::string, std::string>>::toJSI(runtime, arg.headers));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "codecs"), JSIConverter<std::optional<std::vector<std::string>>>::toJSI(runtime, arg.codecs));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -86,6 +90,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "uri")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mimeType")))) return false;
       if (!JSIConverter<std::unordered_map<std::string, std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "headers")))) return false;
+      if (!JSIConverter<std::optional<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "codecs")))) return false;
       return true;
     }
   };

@@ -48,6 +48,9 @@ namespace margelo::nitro::omni {
         case AndroidBackend::EXOPLAYER:
           static const auto fieldEXOPLAYER = clazz->getStaticField<JAndroidBackend>("EXOPLAYER");
           return clazz->getStaticFieldValue(fieldEXOPLAYER);
+        case AndroidBackend::AUTO:
+          static const auto fieldAUTO = clazz->getStaticField<JAndroidBackend>("AUTO");
+          return clazz->getStaticFieldValue(fieldAUTO);
         default:
           std::string stringValue = std::to_string(static_cast<int>(value));
           throw std::invalid_argument("Invalid enum value (" + stringValue + "!");

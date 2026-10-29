@@ -31,6 +31,7 @@ namespace margelo::nitro::omni {
   enum class AndroidBackend {
     VLC      SWIFT_NAME(vlc) = 0,
     EXOPLAYER      SWIFT_NAME(exoplayer) = 1,
+    AUTO      SWIFT_NAME(auto) = 2,
   } CLOSED_ENUM;
 
 } // namespace margelo::nitro::omni
@@ -45,6 +46,7 @@ namespace margelo::nitro {
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("vlc"): return margelo::nitro::omni::AndroidBackend::VLC;
         case hashString("exoplayer"): return margelo::nitro::omni::AndroidBackend::EXOPLAYER;
+        case hashString("auto"): return margelo::nitro::omni::AndroidBackend::AUTO;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum AndroidBackend - invalid value!");
       }
@@ -53,6 +55,7 @@ namespace margelo::nitro {
       switch (arg) {
         case margelo::nitro::omni::AndroidBackend::VLC: return JSIConverter<std::string>::toJSI(runtime, "vlc");
         case margelo::nitro::omni::AndroidBackend::EXOPLAYER: return JSIConverter<std::string>::toJSI(runtime, "exoplayer");
+        case margelo::nitro::omni::AndroidBackend::AUTO: return JSIConverter<std::string>::toJSI(runtime, "auto");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert AndroidBackend to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");
@@ -66,6 +69,7 @@ namespace margelo::nitro {
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("vlc"):
         case hashString("exoplayer"):
+        case hashString("auto"):
           return true;
         default:
           return false;

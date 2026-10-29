@@ -34,6 +34,7 @@ export interface OmniPlayerState {
 	muted: boolean;
 	readonly isAutoQuality: boolean;
 	readonly castStatus: CastStatus;
+	readonly backend: ActiveBackend;
 
 	readonly videos: Track[];
 	readonly audios: Track[];
@@ -67,7 +68,9 @@ export interface Rendition {
 	readonly selected: boolean;
 }
 
-export type AndroidBackend = "vlc" | "exoplayer";
+// auto: exoplayer, falling back to vlc for the medias it can't fully play
+export type AndroidBackend = "auto" | "vlc" | "exoplayer";
+export type ActiveBackend = "vlc" | "exoplayer" | "videojs";
 
 export interface PlayerBackend {
 	android?: AndroidBackend;

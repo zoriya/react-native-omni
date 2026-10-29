@@ -58,6 +58,7 @@ namespace margelo::nitro::omni {
     std::function<void()> addStateBoolListener(BoolProperty key, const std::function<void(bool /* value */)>& cb) override;
     std::function<void()> addPlayerStatusListener(const std::function<void(PlayerStatus /* value */)>& cb) override;
     std::function<void()> addCastStatusListener(const std::function<void(CastStatus /* value */)>& cb) override;
+    std::function<void()> addBackendListener(const std::function<void(ActiveBackend /* value */)>& cb) override;
     std::function<void()> addSourceListener(const std::function<void(const std::optional<Source>& /* value */)>& cb) override;
     std::function<void()> addTracksListener(TrackProperty key, const std::function<void(const std::vector<Track>& /* value */)>& cb) override;
     std::function<void()> addRenditionsListener(const std::function<void(const std::vector<Rendition>& /* value */)>& cb) override;

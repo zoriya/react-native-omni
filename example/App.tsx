@@ -630,6 +630,7 @@ function Home({
 	const duration = usePlayerState("duration");
 	const castStatus = usePlayerState("castStatus");
 	const source = usePlayerState("source");
+	const activeBackend = usePlayerState("backend");
 
 	return (
 		<ScrollView style={styles.home} contentContainerStyle={styles.homeContent}>
@@ -673,8 +674,16 @@ function Home({
 
 			{Platform.OS === "android" && (
 				<>
-					<Text style={styles.sectionTitle}>Backend</Text>
+					<Text style={styles.sectionTitle}>
+						Backend (playing with {activeBackend})
+					</Text>
 					<View style={styles.row}>
+						<Pressable
+							style={[styles.button, backend === "auto" && styles.buttonSelected]}
+							onPress={() => onSwitchBackend("auto")}
+						>
+							<Text style={styles.buttonText}>Auto</Text>
+						</Pressable>
 						<Pressable
 							style={[styles.button, backend === "vlc" && styles.buttonSelected]}
 							onPress={() => onSwitchBackend("vlc")}
@@ -869,7 +878,7 @@ function App(): React.JSX.Element {
 	// Start with no media loaded so we can verify the app boots (and the media
 	// notification stays hidden) before any source is set.
 	const [hasSource, setHasSource] = useState(false);
-	const [backend, setBackend] = useState<AndroidBackend>("vlc");
+	const [backend, setBackend] = useState<AndroidBackend>("auto");
 	// position the next loaded source starts at (0 = don't send startTime at all)
 	const [startTime, setStartTime] = useState(0);
 

@@ -18,7 +18,7 @@ class OmniPlayerFactory(val context: ThemedReactContext) : HybridOmniPlayerFacto
         backend: PlayerBackend?,
         cast: CastOptions?,
     ): HybridOmniPlayerSpec {
-        return OmniPlayer(backend?.android ?: AndroidBackend.VLC, cast)
+        return OmniPlayer(backend?.android ?: AndroidBackend.AUTO, cast)
     }
 
     override fun addCastLoadListener(cb: (request: CastLoadRequest) -> Promise<Promise<Unit>>): () -> Unit {

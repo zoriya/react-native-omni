@@ -64,6 +64,15 @@ abstract class HybridOmniEventMapSpec: HybridObject() {
     return Func_void_java(__result)
   }
   
+  abstract fun addBackendListener(cb: (value: ActiveBackend) -> Unit): () -> Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addBackendListener_cxx(cb: Func_void_ActiveBackend): Func_void {
+    val __result = addBackendListener(cb)
+    return Func_void_java(__result)
+  }
+  
   abstract fun addSourceListener(cb: (value: Source?) -> Unit): () -> Unit
   
   @DoNotStrip
