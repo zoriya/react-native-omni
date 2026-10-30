@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
+import androidx.annotation.Keep
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -279,6 +280,7 @@ object OmniCastCommandCallback : MediaCommandCallback() {
     }
 }
 
+@Keep
 class OmniCastReceiverOptionsProvider : ReceiverOptionsProvider {
     override fun getOptions(context: Context): CastReceiverOptions {
         return CastReceiverOptions.Builder(context)

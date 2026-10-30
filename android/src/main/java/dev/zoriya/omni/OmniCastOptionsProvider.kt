@@ -1,6 +1,7 @@
 package dev.zoriya.omni
 
 import android.content.Context
+import androidx.annotation.Keep
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.LaunchOptions
 import com.google.android.gms.cast.framework.CastOptions
@@ -9,6 +10,7 @@ import com.google.android.gms.cast.framework.media.NotificationOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 
+@Keep
 class OmniCastOptionsProvider : OptionsProvider {
     override fun getCastOptions(context: Context): CastOptions {
         val appId = OmniPlayer.receiverApplicationId
