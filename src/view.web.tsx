@@ -181,7 +181,9 @@ export const OmniView = ({
 			>
 				{(source?.subtitles ?? []).map((subtitle) => (
 					<track
-						key={subtitle.id}
+						// a reused <track> that is showing reloads as soon as its src
+						// changes, before hls.js clears every textTrack's cues on load
+						key={`${source?.src.uri}:${subtitle.id}`}
 						id={subtitle.id}
 						kind="subtitles"
 						src={subtitle.link}
