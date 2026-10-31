@@ -135,19 +135,18 @@ class AutoPlayer(
         fallingBack = false
         pendingPicks = emptyList()
         val item = mediaItems.getOrNull(startIndex.coerceAtLeast(0))
-        // rfc 6381 codecs or mime types
-        val formats = item?.requestMetadata?.extras?.getString(OmniPlayer.CODECS_EXTRA).orEmpty()
+        // `video/matroska; codecs="hvc1.2.4.L120.B0, mp4a.40.2, ass"`, rfc 6381 has nothing for
+        // subtitles: an embedded one is listed by its name (`ass`, `text/x-ssa`...)
+        val codecs = item?.localConfiguration?.mimeType
+            ?.let { Regex("""codecs\s*=\s*"?([^";]*)""").find(it)?.groupValues?.get(1) }
+            .orEmpty()
             .split(',')
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .mapNotNull { codec ->
-                if ('/' in codec) {
-                    Format.Builder().setSampleMimeType(codec).build()
-                } else {
-                    val mime = MimeTypes.getMediaMimeType(codec) ?: return@mapNotNull null
-                    Format.Builder().setSampleMimeType(mime).setCodecs(codec).build()
-                }
-            }
+        val formats = codecs.mapNotNull { codec ->
+            val mime = MimeTypes.getMediaMimeType(codec) ?: return@mapNotNull null
+            Format.Builder().setSampleMimeType(mime).setCodecs(codec).build()
+        }
         fun playable(isType: (String?) -> Boolean): Boolean {
             val ofType = formats.filter { isType(it.sampleMimeType) }
             return ofType.isEmpty() || ofType.any { format ->
@@ -163,7 +162,7 @@ class AutoPlayer(
             }
         }
         val hasAss = item?.localConfiguration?.subtitleConfigurations.orEmpty().any { isAss(it.mimeType) } ||
-            formats.any { isAss(it.sampleMimeType) }
+            codecs.any { isAss(it) }
         val exoCanPlay = !hasAss && playable(MimeTypes::isVideo) && playable(MimeTypes::isAudio)
         val target = if (exoCanPlay) exo else vlc.value
         if (target !== player) switchTo(target)

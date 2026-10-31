@@ -22,14 +22,11 @@ export interface CastOptions {
 
 export interface VideoSrc {
 	uri: string;
+	// example `video/matroska; codecs="avc1.640028, mp4a.40.2, ass"`
 	mimeType?: string;
 	// header sends with xhr requests (especially useful for HLS)
 	// might not be available depending on browser/platform.
 	headers: Record<string, string | undefined>;
-	// codecs of the media's tracks (rfc 6381: `avc1.640028`, `mp4a.40.2`...) and mime
-	// types of its embedded subtitles (`text/x-ssa`). lets the android `auto` backend
-	// pick vlc without having exoplayer open the media first.
-	codecs?: string[];
 }
 
 export interface Subtitle {

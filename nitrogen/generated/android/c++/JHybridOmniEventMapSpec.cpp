@@ -60,8 +60,8 @@ namespace margelo::nitro::omni { struct Rendition; }
 #include "JVideoSrc.hpp"
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include "Subtitle.hpp"
+#include <vector>
 #include "JSubtitle.hpp"
 #include "Metadata.hpp"
 #include "JMetadata.hpp"

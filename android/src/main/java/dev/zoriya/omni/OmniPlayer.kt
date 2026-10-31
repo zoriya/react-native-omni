@@ -391,7 +391,6 @@ class OmniPlayer(
                             castData?.let { data ->
                                 putString(CAST_DATA_EXTRA, JSONObject(data as Map<*, *>).toString())
                             }
-                            src.codecs?.let { putString(CODECS_EXTRA, it.joinToString(",")) }
                             // vlc only path (and it only supports a few headers :c).
                             for ((name, value) in src.headers) putString(name, value)
                         }
@@ -410,7 +409,6 @@ class OmniPlayer(
                 uri = item.localConfiguration?.uri?.toString() ?: item.mediaId,
                 mimeType = item.localConfiguration?.mimeType,
                 headers = emptyMap(),
-                codecs = null,
             ),
             startTime = null,
             subtitles = emptyArray(),
@@ -760,8 +758,6 @@ class OmniPlayer(
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
         const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
-        // `src.codecs`, for AutoPlayer
-        const val CODECS_EXTRA = "dev.zoriya.omni.codecs"
 
         // channel a receiver uses to ask us to play the prev/next media.
         // it must declare it too (`customNamespaces` in the caf options).
