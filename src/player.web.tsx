@@ -247,12 +247,12 @@ export class WebOmniPlayer implements OmniPlayer {
 			: undefined;
 
 		if (this.castStatus === "connected") {
-			tracks?.selectSubtitlesTrack(subtitle ? subtitle.id : "off");
+			tracks?.selectSubtitlesTrack(subtitle ? subtitle.id : null);
 			this.setOverlaySubtitle(null);
 			return;
 		}
 
-		tracks?.selectSubtitlesTrack(overlay || !subtitle ? "off" : subtitle.id);
+		tracks?.selectSubtitlesTrack(overlay || !subtitle ? null : subtitle.id);
 		this.setOverlaySubtitle(overlay ?? null);
 	}
 
