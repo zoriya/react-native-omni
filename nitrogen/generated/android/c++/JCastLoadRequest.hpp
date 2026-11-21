@@ -10,9 +10,20 @@
 #include <fbjni/fbjni.h>
 #include "CastLoadRequest.hpp"
 
+#include "JMetadata.hpp"
+#include "JMixAudioMode.hpp"
+#include "JSource.hpp"
+#include "JSubtitle.hpp"
+#include "JVideoSrc.hpp"
+#include "Metadata.hpp"
+#include "MixAudioMode.hpp"
+#include "Source.hpp"
+#include "Subtitle.hpp"
+#include "VideoSrc.hpp"
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace margelo::nitro::omni {
 
@@ -41,6 +52,8 @@ namespace margelo::nitro::omni {
       jni::local_ref<jni::JDouble> startTime = this->getFieldValue(fieldStartTime);
       static const auto fieldAutoplay = clazz->getField<jboolean>("autoplay");
       jboolean autoplay = this->getFieldValue(fieldAutoplay);
+      static const auto fieldSource = clazz->getField<JSource>("source");
+      jni::local_ref<JSource> source = this->getFieldValue(fieldSource);
       return CastLoadRequest(
         castId->toStdString(),
         customData != nullptr ? std::make_optional([&]() {
@@ -52,7 +65,8 @@ namespace margelo::nitro::omni {
           return __map;
         }()) : std::nullopt,
         startTime != nullptr ? std::make_optional(startTime->value()) : std::nullopt,
-        static_cast<bool>(autoplay)
+        static_cast<bool>(autoplay),
+        source->toCpp()
       );
     }
 
@@ -62,7 +76,7 @@ namespace margelo::nitro::omni {
      */
     [[maybe_unused]]
     static jni::local_ref<JCastLoadRequest::javaobject> fromCpp(const CastLoadRequest& value) {
-      using JSignature = JCastLoadRequest(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>, jni::alias_ref<jni::JDouble>, jboolean);
+      using JSignature = JCastLoadRequest(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JMap<jni::JString, jni::JString>>, jni::alias_ref<jni::JDouble>, jboolean, jni::alias_ref<JSource>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -76,7 +90,8 @@ namespace margelo::nitro::omni {
           return __map;
         }() : nullptr,
         value.startTime.has_value() ? jni::JDouble::valueOf(value.startTime.value()) : nullptr,
-        value.autoplay
+        value.autoplay,
+        JSource::fromCpp(value.source)
       );
     }
   };

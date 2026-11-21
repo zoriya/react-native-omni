@@ -33,6 +33,11 @@ import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.tasks.Tasks
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.omni.CastLoadRequest
+import com.margelo.nitro.omni.Metadata
+import com.margelo.nitro.omni.Source
+import com.margelo.nitro.omni.Subtitle
+import com.margelo.nitro.omni.VideoSrc
+import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -123,14 +128,52 @@ object OmniCastReceiver :
             result.trySetException(loadError(MediaError.ERROR_TYPE_INVALID_REQUEST))
             return
         }
+        val customData = info.customData?.let { data ->
+            data.keys().asSequence().associateWith { data.optString(it) }
+        }
+        val startTime = request.currentTime.takeIf { it > 0 }?.let { it / 1000.0 }
+            ?: queueItem?.startTime?.takeIf { it > 0 }
         val load = CastLoadRequest(
             castId = info.contentId ?: "",
-            customData = info.customData?.let { data ->
-                data.keys().asSequence().associateWith { data.optString(it) }
-            },
-            startTime = request.currentTime.takeIf { it > 0 }?.let { it / 1000.0 }
-                ?: queueItem?.startTime?.takeIf { it > 0 },
+            customData = customData,
+            startTime = startTime,
             autoplay = request.autoplay ?: queueItem?.autoplay ?: true,
+            source = Source(
+                src = VideoSrc(
+                    uri = info.contentUrl ?: info.contentId ?: "",
+                    mimeType = info.contentType,
+                    headers = emptyMap(),
+                ),
+                startTime = startTime,
+                subtitles = info.mediaTracks.orEmpty()
+                    .filter { it.type == MediaTrack.TYPE_TEXT && it.contentId != null }
+                    .map {
+                        Subtitle(
+                            id = it.id.toString(),
+                            link = it.contentId!!,
+                            mimeType = it.contentType,
+                            language = it.language,
+                            label = it.name,
+                        )
+                    }
+                    .toTypedArray(),
+                fonts = null,
+                metadata = info.metadata?.let { md ->
+                    Metadata(
+                        title = md.getString(CastMediaMetadata.KEY_TITLE) ?: "",
+                        album = md.getString(CastMediaMetadata.KEY_ALBUM_TITLE)
+                            ?: md.getString(CastMediaMetadata.KEY_STUDIO),
+                        artist = md.getString(CastMediaMetadata.KEY_ARTIST)
+                            ?: md.getString(CastMediaMetadata.KEY_SUBTITLE),
+                        imageLink = md.images.firstOrNull()?.url?.toString(),
+                        hasPrev = null,
+                        hasNext = null,
+                    )
+                },
+                mixAudio = null,
+                castId = info.contentId,
+                castData = customData,
+            ),
         )
 
         val promises = loadListeners.toList().mapNotNull { listener ->

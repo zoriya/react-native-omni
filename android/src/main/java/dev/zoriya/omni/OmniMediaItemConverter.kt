@@ -1,7 +1,6 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
-import androidx.core.net.toUri
 import androidx.media3.cast.MediaItemConverter
 import androidx.media3.common.MediaItem
 import com.google.android.gms.cast.MediaInfo
@@ -18,7 +17,7 @@ class OmniMediaItemConverter : MediaItemConverter {
         val uri = info?.contentUrl ?: info?.contentId ?: ""
         val builder = MediaItem.Builder()
             .setUri(uri)
-            .setMediaId(info?.contentId ?: uri)
+            .setMediaId(info?.contentId?.let { OmniLocalServer.localFor(it) ?: it } ?: uri)
         info?.contentType?.let { builder.setMimeType(it) }
         info?.metadata?.let { md ->
             builder.setMediaMetadata(
@@ -43,9 +42,9 @@ class OmniMediaItemConverter : MediaItemConverter {
         val local = requireNotNull(mediaItem.localConfiguration) {
             "MediaItem must have a localConfiguration to be cast"
         }
-        val uri = local.uri.toString()
+        val contentUrl = (OmniLocalServer.urlFor(local.uri) ?: local.uri).toString()
         val extras = mediaItem.requestMetadata.extras
-        val contentId = extras?.getString(OmniPlayer.CAST_ID_EXTRA) ?: uri
+        val contentId = extras?.getString(OmniPlayer.CAST_ID_EXTRA) ?: contentUrl
 
         val meta = mediaItem.mediaMetadata
         val castMetadata = CastMediaMetadata(CastMediaMetadata.MEDIA_TYPE_MOVIE).apply {
@@ -58,7 +57,7 @@ class OmniMediaItemConverter : MediaItemConverter {
                 putString(CastMediaMetadata.KEY_ALBUM_TITLE, it.toString())
                 putString(CastMediaMetadata.KEY_STUDIO, it.toString())
             }
-            meta.artworkUri?.let { addImage(WebImage(it)) }
+            meta.artworkUri?.let { addImage(WebImage(OmniLocalServer.urlFor(it) ?: it)) }
         }
 
         val customData = extras?.getString(OmniPlayer.CAST_DATA_EXTRA)?.let {
@@ -73,7 +72,7 @@ class OmniMediaItemConverter : MediaItemConverter {
             // caf tracks are 1 based instead of 0 based. videojs does the same
             MediaTrack.Builder((index + 1).toLong(), MediaTrack.TYPE_TEXT)
                 .setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
-                .setContentId(subtitle.uri.toString())
+                .setContentId((OmniLocalServer.urlFor(subtitle.uri) ?: subtitle.uri).toString())
                 .setContentType(subtitle.mimeType ?: "text/vtt")
                 .apply {
                     subtitle.label?.let { setName(it) }
@@ -82,8 +81,8 @@ class OmniMediaItemConverter : MediaItemConverter {
                 .build()
         }
 
-        val path = uri.toUri().path?.lowercase() ?: uri.lowercase()
-        val contentType = local.mimeType ?: when {
+        val path = local.uri.path?.lowercase() ?: local.uri.toString().lowercase()
+        val contentType = local.mimeType ?: OmniLocalServer.mimeTypeOf(local.uri) ?: when {
             path.endsWith(".mpd") -> "application/dash+xml"
             path.endsWith(".mp4") -> "video/mp4"
             path.endsWith(".webm") -> "video/webm"
@@ -93,7 +92,7 @@ class OmniMediaItemConverter : MediaItemConverter {
 
         val mediaInfo = MediaInfo.Builder(contentId)
             .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-            .setContentUrl(uri)
+            .setContentUrl(contentUrl)
             .setContentType(contentType)
             .setMetadata(castMetadata)
             .apply {

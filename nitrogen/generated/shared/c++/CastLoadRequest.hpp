@@ -28,11 +28,13 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-
+// Forward declaration of `Source` to properly resolve imports.
+namespace margelo::nitro::omni { struct Source; }
 
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include "Source.hpp"
 
 namespace margelo::nitro::omni {
 
@@ -45,10 +47,11 @@ namespace margelo::nitro::omni {
     std::optional<std::unordered_map<std::string, std::string>> customData     SWIFT_PRIVATE;
     std::optional<double> startTime     SWIFT_PRIVATE;
     bool autoplay     SWIFT_PRIVATE;
+    Source source     SWIFT_PRIVATE;
 
   public:
     CastLoadRequest() = default;
-    explicit CastLoadRequest(std::string castId, std::optional<std::unordered_map<std::string, std::string>> customData, std::optional<double> startTime, bool autoplay): castId(castId), customData(customData), startTime(startTime), autoplay(autoplay) {}
+    explicit CastLoadRequest(std::string castId, std::optional<std::unordered_map<std::string, std::string>> customData, std::optional<double> startTime, bool autoplay, Source source): castId(castId), customData(customData), startTime(startTime), autoplay(autoplay), source(source) {}
 
   public:
     friend bool operator==(const CastLoadRequest& lhs, const CastLoadRequest& rhs) = default;
@@ -67,7 +70,8 @@ namespace margelo::nitro {
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castId"))),
         JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "customData"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime"))),
-        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "autoplay")))
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "autoplay"))),
+        JSIConverter<margelo::nitro::omni::Source>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "source")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::CastLoadRequest& arg) {
@@ -76,6 +80,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "customData"), JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::toJSI(runtime, arg.customData));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "startTime"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.startTime));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "autoplay"), JSIConverter<bool>::toJSI(runtime, arg.autoplay));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "source"), JSIConverter<margelo::nitro::omni::Source>::toJSI(runtime, arg.source));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -90,6 +95,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "customData")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "startTime")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "autoplay")))) return false;
+      if (!JSIConverter<margelo::nitro::omni::Source>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "source")))) return false;
       return true;
     }
   };

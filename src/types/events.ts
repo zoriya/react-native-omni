@@ -1,4 +1,5 @@
 import type { Rendition, Track } from "./player";
+import type { Source } from "./source";
 
 export interface OmniEvents {
 	end: () => void;
@@ -18,6 +19,7 @@ export interface CastLoadRequest {
 	customData?: Record<string, string>;
 	startTime?: number;
 	autoplay: boolean;
+	source: Source;
 }
 
 export type ErrorType = string;

@@ -31,6 +31,7 @@ private val VLC_ERRORS = setOf(
     PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
     PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
     PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+    PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED,
 )
 
 // ass/ssa, under any of its mime types (text/x-ssa, text/x-ass...)

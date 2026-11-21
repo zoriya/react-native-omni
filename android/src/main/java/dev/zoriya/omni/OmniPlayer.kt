@@ -120,6 +120,7 @@ class OmniPlayer(
         eventMap.emitCastStatus(computeCastStatus())
         listenToReceiver()
         syncNotificationService()
+        if (!isCasting) OmniLocalServer.stop()
         // we were only kept alive to hold this cast, it is over now
         if (abandoned && !isCasting) release()
     }

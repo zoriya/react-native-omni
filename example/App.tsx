@@ -16,6 +16,7 @@ import {
 	type AndroidBackend,
 	OmniProvider,
 	OmniView,
+	type Source,
 	useCastLoad,
 	useEvent,
 	usePlayer,
@@ -766,6 +767,7 @@ function Shell({
 	startTime,
 	onSetStartTime,
 	onPlayIndex,
+	onPlaySource,
 	onStop,
 }: {
 	backend: AndroidBackend;
@@ -775,6 +777,7 @@ function Shell({
 	startTime: number;
 	onSetStartTime: (startTime: number) => void;
 	onPlayIndex: (index: number) => void;
+	onPlaySource: (source: Source) => void;
 	onStop: () => void;
 }): React.JSX.Element {
 	const player = usePlayer();
@@ -789,12 +792,15 @@ function Shell({
 		});
 	}, []);
 
-	useCastLoad(({ castId, startTime }) => {
+	useCastLoad(({ castId, startTime, source }) => {
 		pushLog(`Cast received: ${castId}`);
 		const index = PLAYLIST.findIndex((item) => item.uri === castId);
-		if (index === -1) throw new Error(`unknown cast: ${castId}`);
-		onSetStartTime(startTime ?? 0);
-		onPlayIndex(index);
+		// unknown cast (like a local file), play what was sent
+		if (index === -1) onPlaySource(source);
+		else {
+			onSetStartTime(startTime ?? 0);
+			onPlayIndex(index);
+		}
 		setScreen("player");
 	});
 
@@ -873,7 +879,9 @@ function Shell({
 function App(): React.JSX.Element {
 	// an object so that picking the index we think is loaded still reloads it: a
 	// receiver could have switched to another media since.
-	const [current, setCurrent] = useState({ index: 0 });
+	const [current, setCurrent] = useState<{ index: number; source?: Source }>({
+		index: 0,
+	});
 	const currentIndex = current.index;
 	// Start with no media loaded so we can verify the app boots (and the media
 	// notification stays hidden) before any source is set.
@@ -893,12 +901,17 @@ function App(): React.JSX.Element {
 		setHasSource(true);
 	}, []);
 
+	const handlePlaySource = useCallback((source: Source) => {
+		setCurrent((prev) => ({ index: prev.index, source }));
+		setHasSource(true);
+	}, []);
+
 	const handleStop = useCallback(() => {
 		setHasSource(false);
 	}, []);
 
 	const source = useMemo(
-		() => ({
+		(): Source => current.source ?? {
 			src: {
 				uri: PLAYLIST[current.index].uri,
 				headers: {},
@@ -917,7 +930,7 @@ function App(): React.JSX.Element {
 				hasPrev: true,
 				hasNext: true,
 			},
-		}),
+		},
 		[current, startTime],
 	);
 
@@ -939,6 +952,7 @@ function App(): React.JSX.Element {
 				startTime={startTime}
 				onSetStartTime={setStartTime}
 				onPlayIndex={handlePlayIndex}
+				onPlaySource={handlePlaySource}
 				onStop={handleStop}
 			/>
 		</OmniProvider>

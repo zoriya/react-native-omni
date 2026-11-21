@@ -20,6 +20,17 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include "Source.hpp"
+#include "JSource.hpp"
+#include "VideoSrc.hpp"
+#include "JVideoSrc.hpp"
+#include "Subtitle.hpp"
+#include <vector>
+#include "JSubtitle.hpp"
+#include "Metadata.hpp"
+#include "JMetadata.hpp"
+#include "MixAudioMode.hpp"
+#include "JMixAudioMode.hpp"
 
 namespace margelo::nitro::omni {
 

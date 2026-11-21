@@ -12,7 +12,7 @@ videojs v10 on the web (ios not implemented yet, PR welcome)
   tracks at runtime.
 - **Rich subtitle support**: vtt, srt, ass (via [jassub](https://github.com/ThaUnknown/jassub)) and pgs (via [libpgs](https://github.com/Arcus92/libpgs-js))
 - **Picture-in-Picture**: enter PiP automatically or on demand on Android.
-- **Chromecast**: cast to a receiver on both web and Android .
+- **Chromecast**: cast to a receiver on both web and Android (even local files).
 - **and basic player stuff**: media sessions, playlists, hook based api...
 
 
@@ -67,6 +67,15 @@ useCastLoad(({ castId, startTime }) => {
   router.push({ pathname: "/watch/[id]", params: { id: castId, startTime } });
 });
 ```
+
+`source` holds what the sender sent (url, subtitles, metadata), for casts your
+app doesn't know (like local files).
+
+#### Casting local files
+
+On Android, local files (`file://`, `content://` or absolute paths) are served
+by the phone over http while casting. Android TV receivers using the `exoplayer`
+backend need `android:usesCleartextTraffic="true"` to play them.
 
 ### Web setup
 

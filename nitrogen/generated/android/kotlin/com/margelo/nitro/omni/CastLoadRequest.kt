@@ -29,7 +29,10 @@ data class CastLoadRequest(
   val startTime: Double?,
   @DoNotStrip
   @Keep
-  val autoplay: Boolean
+  val autoplay: Boolean,
+  @DoNotStrip
+  @Keep
+  val source: Source
 ) {
   /* primary constructor */
 
@@ -40,6 +43,7 @@ data class CastLoadRequest(
       && Objects.deepEquals(this.customData, other.customData)
       && Objects.deepEquals(this.startTime, other.startTime)
       && Objects.deepEquals(this.autoplay, other.autoplay)
+      && Objects.deepEquals(this.source, other.source)
   }
 
   override fun hashCode(): Int {
@@ -47,7 +51,8 @@ data class CastLoadRequest(
       castId,
       customData,
       startTime,
-      autoplay
+      autoplay,
+      source
     ).contentDeepHashCode()
   }
 
@@ -59,8 +64,8 @@ data class CastLoadRequest(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(castId: String, customData: Map<String, String>?, startTime: Double?, autoplay: Boolean): CastLoadRequest {
-      return CastLoadRequest(castId, customData, startTime, autoplay)
+    private fun fromCpp(castId: String, customData: Map<String, String>?, startTime: Double?, autoplay: Boolean, source: Source): CastLoadRequest {
+      return CastLoadRequest(castId, customData, startTime, autoplay, source)
     }
   }
 }

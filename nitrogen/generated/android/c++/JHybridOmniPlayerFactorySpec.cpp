@@ -17,6 +17,16 @@ namespace margelo::nitro::omni { enum class AndroidBackend; }
 namespace margelo::nitro::omni { struct CastOptions; }
 // Forward declaration of `CastLoadRequest` to properly resolve imports.
 namespace margelo::nitro::omni { struct CastLoadRequest; }
+// Forward declaration of `Source` to properly resolve imports.
+namespace margelo::nitro::omni { struct Source; }
+// Forward declaration of `VideoSrc` to properly resolve imports.
+namespace margelo::nitro::omni { struct VideoSrc; }
+// Forward declaration of `Subtitle` to properly resolve imports.
+namespace margelo::nitro::omni { struct Subtitle; }
+// Forward declaration of `Metadata` to properly resolve imports.
+namespace margelo::nitro::omni { struct Metadata; }
+// Forward declaration of `MixAudioMode` to properly resolve imports.
+namespace margelo::nitro::omni { enum class MixAudioMode; }
 
 #include <memory>
 #include "HybridOmniPlayerSpec.hpp"
@@ -39,6 +49,17 @@ namespace margelo::nitro::omni { struct CastLoadRequest; }
 #include <NitroModules/JUnit.hpp>
 #include "JCastLoadRequest.hpp"
 #include <unordered_map>
+#include "Source.hpp"
+#include "JSource.hpp"
+#include "VideoSrc.hpp"
+#include "JVideoSrc.hpp"
+#include "Subtitle.hpp"
+#include <vector>
+#include "JSubtitle.hpp"
+#include "Metadata.hpp"
+#include "JMetadata.hpp"
+#include "MixAudioMode.hpp"
+#include "JMixAudioMode.hpp"
 
 namespace margelo::nitro::omni {
 
