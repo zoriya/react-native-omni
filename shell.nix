@@ -5,7 +5,7 @@
     platformVersions = ["35" "36"];
     cmakeVersions = ["latest" "3.22.1"];
     includeNDK = true;
-    ndkVersions = ["latest" "27.1.12297006"];
+    ndkVersions = ["latest" "29.0.14206865" "27.1.12297006"];
     includeEmulator = true;
     includeSources = true;
     includeSystemImages = true;
@@ -27,7 +27,6 @@ in
     ];
 
     shellHook = ''
-      echo 'sdk.dir=${ANDROID_SDK_ROOT}' > ${toString ./.}/example/android/local.properties
       mkdir -p ${toString ./.}/example/android/.gradle
       echo 'java.home=${JAVA_HOME}' > ${toString ./.}/example/android/.gradle/config.properties
       if [ -f ${toString ./.}/example/android/.idea/gradle.xml ]; then
