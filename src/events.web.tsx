@@ -23,7 +23,12 @@ import type { OmniPlayerState } from "./types/player";
 type EventMapperConfig = {
 	[Key in keyof OmniEvents]?: {
 		selector: Selector<any, any>;
-		handler: (cb: OmniEvents[Key], value: any, prev: any) => void;
+		handler: (
+			cb: OmniEvents[Key],
+			value: any,
+			prev: any,
+			player: WebOmniPlayer,
+		) => void;
 	};
 };
 
@@ -34,6 +39,7 @@ function createEventMapper<Key extends keyof OmniEvents, Result>(
 		cb: OmniEvents[Key],
 		value: Result,
 		prev: Result | undefined,
+		player: WebOmniPlayer,
 	) => void,
 ) {
 	return { [key]: { selector, handler } };
@@ -55,22 +61,15 @@ const eventMapper: EventMapperConfig = {
 			);
 		}
 	}),
-	...createEventMapper("subtitleChange", selectTextTrack, (cb, value) => {
-		if (!value) return;
-		const track = value.textTrackList.find((x) => x.mode === "showing");
-		if (!track) {
-			cb(undefined);
-			return;
-		}
-		const idx = value.textTrackList.indexOf(track);
-		cb({
-			id: track.id ?? `text-${idx}`,
-			index: idx,
-			label: track.label,
-			language: track.language,
-			selected: true,
-		});
-	}),
+	...createEventMapper(
+		"subtitleChange",
+		selectTextTrack,
+		(cb, value, _prev, player) => {
+			if (!value) return;
+			// ass/pgs subtitles are drawn by the overlay, no text track is showing
+			cb(player.subtitles.find((s) => s.selected));
+		},
+	),
 	...createEventMapper("audioTrackChange", selectAudioTrack, (cb, value) => {
 		if (!value) return;
 		const track = value.audioTrackList.find((t) => t.enabled);
@@ -114,9 +113,9 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	const player = usePlayer() as WebOmniPlayer;
 	useEffect(() => {
 		if (!config) return;
-		config.handler(callbackRef.current as any, value, prevRef.current);
+		config.handler(callbackRef.current as any, value, prevRef.current, player);
 		prevRef.current = value;
-	}, [value, config]);
+	}, [value, config, player]);
 
 	useEffect(() => {
 		// don't use callbackRef.current directly to keep future callback updates
@@ -139,18 +138,8 @@ export const useEvent = <Event extends keyof OmniEvents>(
 	useEffect(() => {
 		if (event !== "subtitleChange") return;
 		return player.subscribeOverlaySubtitle(() => {
-			const sel = player.subtitles.find((s) => s.selected);
-			const cb = callbackRef.current as (s: unknown) => void;
-			cb(
-				sel
-					? {
-							id: sel.id,
-							label: sel.label,
-							language: sel.language,
-							selected: true,
-						}
-					: undefined,
-			);
+			const cb = callbackRef.current as OmniEvents["subtitleChange"];
+			cb(player.subtitles.find((s) => s.selected));
 		});
 	}, [event, player]);
 };
