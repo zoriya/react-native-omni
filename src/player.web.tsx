@@ -49,8 +49,16 @@ export class WebOmniPlayer implements OmniPlayer {
 	onPrev = new Set<() => void>();
 	onNext = new Set<() => void>();
 
+	// `currentSrc` of the last media that played. the store's `started` can't
+	// be used: it is set as soon as the source's start time is seeked to.
+	private playedSrc: string | null = null;
+
 	constructor(store: VideoPlayerStore) {
 		this._store = store;
+		store.subscribe(() => {
+			const { paused, currentSrc } = store.state;
+			if (!paused && currentSrc) this.playedSrc = currentSrc;
+		});
 	}
 
 	get castStatus(): CastStatus {
@@ -294,7 +302,7 @@ export class WebOmniPlayer implements OmniPlayer {
 		const state = this._store.state;
 		if (!this.subtitleLoading)
 			this.resumeAfterSubtitleLoad =
-				!state.paused || (!state.started && autoplay);
+				!state.paused || (autoplay && this.playedSrc !== state.currentSrc);
 		this.subtitleLoading = true;
 		// the overlay can see a new <video> before the store attached it
 		if (this._store.target) this._store.pause();
