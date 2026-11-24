@@ -51,6 +51,7 @@ import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.RemoteCastPlayer
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.mediarouter.app.MediaRouteChooserDialog
@@ -780,7 +781,7 @@ class OmniPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(1, createImmediateNotification())
+        startForeground(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID, createImmediateNotification())
 
         val available = OmniPlayer.notificationPlayer?.player
         if (available == null) {
@@ -828,7 +829,7 @@ class OmniPlayerService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1, createImmediateNotification())
+        startForeground(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID, createImmediateNotification())
 
         val current = OmniPlayer.notificationPlayer?.player
         if (current != null && ::mediaSession.isInitialized && mediaSession.player !== current) {
@@ -836,6 +837,8 @@ class OmniPlayerService : MediaSessionService() {
             mediaSession.player = current
         }
         super.onStartCommand(intent, flags, startId)
+        // the placeholder just overwrote the real notification, put it back
+        if (::mediaSession.isInitialized) triggerNotificationUpdate()
         return START_NOT_STICKY
     }
 
