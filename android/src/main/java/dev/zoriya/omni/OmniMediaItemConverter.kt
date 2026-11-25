@@ -7,7 +7,6 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.common.images.WebImage
-import org.json.JSONObject
 import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -60,14 +59,6 @@ class OmniMediaItemConverter : MediaItemConverter {
             meta.artworkUri?.let { addImage(WebImage(OmniLocalServer.urlFor(it) ?: it)) }
         }
 
-        val customData = extras?.getString(OmniPlayer.CAST_DATA_EXTRA)?.let {
-            try {
-                JSONObject(it)
-            } catch (_: Throwable) {
-                null
-            }
-        }
-
         val tracks = local.subtitleConfigurations.mapIndexed { index, subtitle ->
             // caf tracks are 1 based instead of 0 based. videojs does the same
             MediaTrack.Builder((index + 1).toLong(), MediaTrack.TYPE_TEXT)
@@ -97,7 +88,6 @@ class OmniMediaItemConverter : MediaItemConverter {
             .setMetadata(castMetadata)
             .apply {
                 if (tracks.isNotEmpty()) setMediaTracks(tracks)
-                customData?.let { setCustomData(it) }
             }
             .build()
 

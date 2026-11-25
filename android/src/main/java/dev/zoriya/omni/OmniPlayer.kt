@@ -154,9 +154,15 @@ class OmniPlayer(
     // see: https://github.com/androidx/media/issues/3462
     private fun castLoad(item: MediaItem, positionMs: Long, autoplay: Boolean) {
         val remote = castContext?.sessionManager?.currentCastSession?.remoteMediaClient ?: return
+        val media = OmniMediaItemConverter().toMediaQueueItem(item).media
+        // only in the load: a tv reports its media to every sender, castData can hold
+        // things for the receiver only (credentials...)
+        item.requestMetadata.extras?.getString(CAST_DATA_EXTRA)?.let {
+            runCatching { JSONObject(it) }.getOrNull()?.let { data -> media?.writer?.setCustomData(data) }
+        }
         remote.load(
             MediaLoadRequestData.Builder()
-                .setMediaInfo(OmniMediaItemConverter().toMediaQueueItem(item).media)
+                .setMediaInfo(media)
                 .setAutoplay(autoplay)
                 .setCurrentTime(positionMs)
                 .build()

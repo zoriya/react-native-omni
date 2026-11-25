@@ -204,7 +204,14 @@ object OmniCastReceiver :
                     // https://github.com/margelo/nitro/pull/1678
                     @Suppress("UNCHECKED_CAST")
                     (loaded as Promise<Any?>)
-                        .then { if (remaining.decrementAndGet() == 0) result.trySetResult(request) }
+                        .then {
+                            if (remaining.decrementAndGet() != 0) return@then
+                            // the resolved load goes to the cast service, it must not report
+                            // the customData (meant for us only) to the other senders
+                            (listOfNotNull(request.mediaInfo) + request.queueData?.items.orEmpty().mapNotNull { it.media })
+                                .forEach { it.writer.setCustomData(null) }
+                            result.trySetResult(request)
+                        }
                         .catch(failed)
                 }
                 .catch(failed)
