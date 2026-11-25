@@ -3,7 +3,8 @@ export interface Source {
 	startTime?: number;
 	subtitles: Subtitle[];
 	// fonts that can be used by ass subtitles on the web (native will use
-	// embedded fonts)
+	// embedded fonts). on android, they are sent to cast receivers as a json
+	// array in the `dev.zoriya.omni.fonts` key of the media's metadata.
 	fonts?: string[];
 	metadata?: Metadata;
 	mixAudio?: MixAudioMode;

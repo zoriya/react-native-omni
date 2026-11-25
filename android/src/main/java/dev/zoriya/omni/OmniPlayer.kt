@@ -363,6 +363,7 @@ class OmniPlayer(
         src: com.margelo.nitro.omni.VideoSrc,
         metadata: com.margelo.nitro.omni.Metadata?,
         subtitles: Array<com.margelo.nitro.omni.Subtitle>,
+        fonts: Array<String>? = null,
         castId: String? = null,
         castData: Map<String, String>? = null,
     ): MediaItem {
@@ -396,6 +397,7 @@ class OmniPlayer(
                     .setExtras(
                         Bundle().apply {
                             castId?.let { putString(CAST_ID_EXTRA, it) }
+                            fonts?.let { putStringArrayList(FONTS_EXTRA, ArrayList(it.toList())) }
                             castData?.let { data ->
                                 putString(CAST_DATA_EXTRA, JSONObject(data as Map<*, *>).toString())
                             }
@@ -611,6 +613,7 @@ class OmniPlayer(
                 src,
                 value.metadata,
                 value.subtitles,
+                value.fonts,
                 value.castId,
                 value.castData,
             )
@@ -766,6 +769,8 @@ class OmniPlayer(
         // MediaItem RequestMetadata extras keys carrying cast-only data.
         const val CAST_ID_EXTRA = "dev.zoriya.omni.castId"
         const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
+        // also the cast metadata key holding them (a json array of urls)
+        const val FONTS_EXTRA = "dev.zoriya.omni.fonts"
 
         // channel a receiver uses to ask us to play the prev/next media.
         // it must declare it too (`customNamespaces` in the caf options).

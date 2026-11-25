@@ -1,12 +1,14 @@
 package dev.zoriya.omni
 
 import android.annotation.SuppressLint
+import androidx.core.net.toUri
 import androidx.media3.cast.MediaItemConverter
 import androidx.media3.common.MediaItem
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.common.images.WebImage
+import org.json.JSONArray
 import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -57,6 +59,11 @@ class OmniMediaItemConverter : MediaItemConverter {
                 putString(CastMediaMetadata.KEY_STUDIO, it.toString())
             }
             meta.artworkUri?.let { addImage(WebImage(OmniLocalServer.urlFor(it) ?: it)) }
+            // caf has no field for them, receivers rendering ass read them from here
+            extras?.getStringArrayList(OmniPlayer.FONTS_EXTRA)?.takeIf { it.isNotEmpty() }?.let { fonts ->
+                val urls = fonts.map { (OmniLocalServer.urlFor(it.toUri()) ?: it).toString() }
+                putString(OmniPlayer.FONTS_EXTRA, JSONArray(urls).toString())
+            }
         }
 
         val tracks = local.subtitleConfigurations.mapIndexed { index, subtitle ->

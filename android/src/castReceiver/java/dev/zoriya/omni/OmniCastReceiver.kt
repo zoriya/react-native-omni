@@ -39,6 +39,7 @@ import com.margelo.nitro.omni.Subtitle
 import com.margelo.nitro.omni.VideoSrc
 import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
+import org.json.JSONArray
 import java.util.concurrent.atomic.AtomicInteger
 
 // cast connect: an android tv app registered on the cast console receives casts
@@ -157,7 +158,9 @@ object OmniCastReceiver :
                         )
                     }
                     .toTypedArray(),
-                fonts = null,
+                fonts = info.metadata?.getString(OmniPlayer.FONTS_EXTRA)
+                    ?.let { runCatching { JSONArray(it) }.getOrNull() }
+                    ?.let { fonts -> Array(fonts.length()) { fonts.getString(it) } },
                 metadata = info.metadata?.let { md ->
                     Metadata(
                         title = md.getString(CastMediaMetadata.KEY_TITLE) ?: "",
