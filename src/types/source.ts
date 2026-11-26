@@ -13,6 +13,11 @@ export interface Source {
 	// Opaque, consumer-defined payload forwarded verbatim to the cast receiver
 	// as the load request's customData. omni does not interpret it.
 	castData?: Record<string, string>;
+	// local files (`file://`, `content://`...) the cast receiver can fetch. on
+	// android, they are served like local medias and sent to cast receivers as
+	// a json object of urls in the `dev.zoriya.omni.castFiles` key of the
+	// media's metadata.
+	castFiles?: Record<string, string>;
 }
 
 export interface CastOptions {

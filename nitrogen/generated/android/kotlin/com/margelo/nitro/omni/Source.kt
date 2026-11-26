@@ -41,7 +41,10 @@ data class Source(
   val castId: String?,
   @DoNotStrip
   @Keep
-  val castData: Map<String, String>?
+  val castData: Map<String, String>?,
+  @DoNotStrip
+  @Keep
+  val castFiles: Map<String, String>?
 ) {
   /* primary constructor */
 
@@ -56,6 +59,7 @@ data class Source(
       && Objects.deepEquals(this.mixAudio, other.mixAudio)
       && Objects.deepEquals(this.castId, other.castId)
       && Objects.deepEquals(this.castData, other.castData)
+      && Objects.deepEquals(this.castFiles, other.castFiles)
   }
 
   override fun hashCode(): Int {
@@ -67,7 +71,8 @@ data class Source(
       metadata,
       mixAudio,
       castId,
-      castData
+      castData,
+      castFiles
     ).contentDeepHashCode()
   }
 
@@ -79,8 +84,8 @@ data class Source(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(src: VideoSrc, startTime: Double?, subtitles: Array<Subtitle>, fonts: Array<String>?, metadata: Metadata?, mixAudio: MixAudioMode?, castId: String?, castData: Map<String, String>?): Source {
-      return Source(src, startTime, subtitles, fonts, metadata, mixAudio, castId, castData)
+    private fun fromCpp(src: VideoSrc, startTime: Double?, subtitles: Array<Subtitle>, fonts: Array<String>?, metadata: Metadata?, mixAudio: MixAudioMode?, castId: String?, castData: Map<String, String>?, castFiles: Map<String, String>?): Source {
+      return Source(src, startTime, subtitles, fonts, metadata, mixAudio, castId, castData, castFiles)
     }
   }
 }

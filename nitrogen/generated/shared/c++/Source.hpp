@@ -61,10 +61,11 @@ namespace margelo::nitro::omni {
     std::optional<MixAudioMode> mixAudio     SWIFT_PRIVATE;
     std::optional<std::string> castId     SWIFT_PRIVATE;
     std::optional<std::unordered_map<std::string, std::string>> castData     SWIFT_PRIVATE;
+    std::optional<std::unordered_map<std::string, std::string>> castFiles     SWIFT_PRIVATE;
 
   public:
     Source() = default;
-    explicit Source(VideoSrc src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<std::vector<std::string>> fonts, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio, std::optional<std::string> castId, std::optional<std::unordered_map<std::string, std::string>> castData): src(src), startTime(startTime), subtitles(subtitles), fonts(fonts), metadata(metadata), mixAudio(mixAudio), castId(castId), castData(castData) {}
+    explicit Source(VideoSrc src, std::optional<double> startTime, std::vector<Subtitle> subtitles, std::optional<std::vector<std::string>> fonts, std::optional<Metadata> metadata, std::optional<MixAudioMode> mixAudio, std::optional<std::string> castId, std::optional<std::unordered_map<std::string, std::string>> castData, std::optional<std::unordered_map<std::string, std::string>> castFiles): src(src), startTime(startTime), subtitles(subtitles), fonts(fonts), metadata(metadata), mixAudio(mixAudio), castId(castId), castData(castData), castFiles(castFiles) {}
 
   public:
     friend bool operator==(const Source& lhs, const Source& rhs) = default;
@@ -87,7 +88,8 @@ namespace margelo::nitro {
         JSIConverter<std::optional<margelo::nitro::omni::Metadata>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "metadata"))),
         JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mixAudio"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castId"))),
-        JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castData")))
+        JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castData"))),
+        JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castFiles")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::omni::Source& arg) {
@@ -100,6 +102,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "mixAudio"), JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::toJSI(runtime, arg.mixAudio));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "castId"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.castId));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "castData"), JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::toJSI(runtime, arg.castData));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "castFiles"), JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::toJSI(runtime, arg.castFiles));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -118,6 +121,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<margelo::nitro::omni::MixAudioMode>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "mixAudio")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castId")))) return false;
       if (!JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castData")))) return false;
+      if (!JSIConverter<std::optional<std::unordered_map<std::string, std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "castFiles")))) return false;
       return true;
     }
   };

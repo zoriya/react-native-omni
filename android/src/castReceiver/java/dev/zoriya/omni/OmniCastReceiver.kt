@@ -40,6 +40,7 @@ import com.margelo.nitro.omni.VideoSrc
 import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 import dev.zoriya.omni.utils.ThreadHelper.runOnMainThread
 import org.json.JSONArray
+import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicInteger
 
 // cast connect: an android tv app registered on the cast console receives casts
@@ -176,6 +177,9 @@ object OmniCastReceiver :
                 mixAudio = null,
                 castId = info.contentId,
                 castData = customData,
+                castFiles = info.metadata?.getString(OmniPlayer.CAST_FILES_EXTRA)
+                    ?.let { runCatching { JSONObject(it) }.getOrNull() }
+                    ?.let { files -> files.keys().asSequence().associateWith { files.getString(it) } },
             ),
         )
 

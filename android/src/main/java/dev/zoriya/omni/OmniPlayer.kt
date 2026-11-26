@@ -366,6 +366,7 @@ class OmniPlayer(
         fonts: Array<String>? = null,
         castId: String? = null,
         castData: Map<String, String>? = null,
+        castFiles: Map<String, String>? = null,
     ): MediaItem {
         return MediaItem.Builder()
             .setUri(src.uri)
@@ -401,6 +402,9 @@ class OmniPlayer(
                             castData?.let { data ->
                                 putString(CAST_DATA_EXTRA, JSONObject(data as Map<*, *>).toString())
                             }
+                            castFiles?.let { files ->
+                                putString(CAST_FILES_EXTRA, JSONObject(files as Map<*, *>).toString())
+                            }
                             // vlc only path (and it only supports a few headers :c).
                             for ((name, value) in src.headers) putString(name, value)
                         }
@@ -434,6 +438,7 @@ class OmniPlayer(
             mixAudio = null,
             castId = item.mediaId,
             castData = null,
+            castFiles = null,
         )
     }
 
@@ -616,6 +621,7 @@ class OmniPlayer(
                 value.fonts,
                 value.castId,
                 value.castData,
+                value.castFiles,
             )
             ownItem = currentItem
             ownSource = value
@@ -771,6 +777,7 @@ class OmniPlayer(
         const val CAST_DATA_EXTRA = "dev.zoriya.omni.castData"
         // also the cast metadata key holding them (a json array of urls)
         const val FONTS_EXTRA = "dev.zoriya.omni.fonts"
+        const val CAST_FILES_EXTRA = "dev.zoriya.omni.castFiles"
 
         // channel a receiver uses to ask us to play the prev/next media.
         // it must declare it too (`customNamespaces` in the caf options).

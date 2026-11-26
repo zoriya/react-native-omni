@@ -9,6 +9,7 @@ import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.common.images.WebImage
 import org.json.JSONArray
+import org.json.JSONObject
 import com.google.android.gms.cast.MediaMetadata as CastMediaMetadata
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -63,6 +64,13 @@ class OmniMediaItemConverter : MediaItemConverter {
             extras?.getStringArrayList(OmniPlayer.FONTS_EXTRA)?.takeIf { it.isNotEmpty() }?.let { fonts ->
                 val urls = fonts.map { (OmniLocalServer.urlFor(it.toUri()) ?: it).toString() }
                 putString(OmniPlayer.FONTS_EXTRA, JSONArray(urls).toString())
+            }
+            extras?.getString(OmniPlayer.CAST_FILES_EXTRA)?.let { runCatching { JSONObject(it) }.getOrNull() }?.let { files ->
+                for (key in files.keys().asSequence().toList()) {
+                    val uri = files.getString(key).toUri()
+                    files.put(key, (OmniLocalServer.urlFor(uri) ?: uri).toString())
+                }
+                putString(OmniPlayer.CAST_FILES_EXTRA, files.toString())
             }
         }
 
