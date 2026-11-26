@@ -256,7 +256,9 @@ class OmniPlayer(
                 notificationPlayer = this
                 // output switcher when app is closed can't startForeground
                 try {
-                    ctx.startForegroundService(Intent(ctx, OmniPlayerService::class.java))
+                    ctx.startForegroundService(
+                        Intent(ctx, OmniPlayerService::class.java).setAction(START_SERVICE_ACTION)
+                    )
                     serviceRunning = true
                 } catch (e: Throwable) {
                     android.util.Log.w("OmniPlayer", "could not start the playback service", e)
@@ -779,6 +781,9 @@ class OmniPlayer(
         const val FONTS_EXTRA = "dev.zoriya.omni.fonts"
         const val CAST_FILES_EXTRA = "dev.zoriya.omni.castFiles"
 
+        // action of our own service starts, to tell them apart from media3's
+        const val START_SERVICE_ACTION = "dev.zoriya.omni.START"
+
         // channel a receiver uses to ask us to play the prev/next media.
         // it must declare it too (`customNamespaces` in the caf options).
         const val OMNI_NAMESPACE = "urn:x-cast:dev.zoriya.omni"
@@ -847,6 +852,13 @@ class OmniPlayerService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // media3 restarts us on every notification update while playing (and posts its
+        // notification itself right after), answering those with a placeholder + update
+        // loops forever. only our own starts need the placeholder.
+        if (intent?.action != OmniPlayer.START_SERVICE_ACTION) {
+            super.onStartCommand(intent, flags, startId)
+            return START_NOT_STICKY
+        }
         startForeground(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID, createImmediateNotification())
 
         val current = OmniPlayer.notificationPlayer?.player
